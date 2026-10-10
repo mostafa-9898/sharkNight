@@ -5,9 +5,8 @@ import CandleChart from './components/CandleChart';
 import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
-import ActivePositionCard from './components/ActivePositionCard';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import type { BacktestMetrics, Trade, ActivePosition } from '@/backtest/types';
+import type { BacktestMetrics, Trade } from '@/backtest/types';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -21,7 +20,6 @@ interface BacktestResultData {
   metrics: BacktestMetrics;
   trades: Trade[];
   equity: number[];
-  activePosition: ActivePosition | null;
   indicators: {
     smaFast: number[];
     smaSlow: number[];
@@ -54,9 +52,6 @@ export default function DashboardPage() {
 
   // In-memory cache for candles to achieve 0ms switching
   const candlesCache = useRef<Map<string, Candle[]>>(new Map());
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'position' | 'trades'>('position');
 
   // Load candles for the chart view only (does NOT run backtest)
   const loadChartCandles = useCallback(
@@ -133,7 +128,6 @@ export default function DashboardPage() {
         metrics: data.backtest?.metrics,
         trades: data.backtest?.trades ?? [],
         equity: data.backtest?.equity ?? [],
-        activePosition: data.backtest?.activePosition ?? null,
         indicators: {
           smaFast: data.indicators?.smaFast ?? [],
           smaSlow: data.indicators?.smaSlow ?? [],
@@ -165,8 +159,27 @@ export default function DashboardPage() {
     backtestResult.symbol === chartSymbol &&
     backtestResult.interval === chartInterval;
 
+  const formatDate = (ts: number | null) => {
+    if (!ts) return '';
+    return new Date(ts).toLocaleDateString('fa-IR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div
+      style={{
+        maxWidth: '1440px',
+        margin: '0 auto',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Vazirmatn", Tahoma, sans-serif',
+      }}
+    >
       {/* Header */}
       <header
         style={{
@@ -180,11 +193,11 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '32px' }}>🤖</span>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#f0f6fc' }}>
-              TradeBot - High Performance Trading Terminal
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#f0f6fc', margin: 0 }}>
+              TradeBot — Algorithmic Crypto Terminal
             </h1>
-            <p style={{ fontSize: '13px', color: '#8b949e' }}>
-              1-Year Historical Backtesting & Real-Time Position Monitor
+            <p style={{ fontSize: '13px', color: '#8b949e', margin: '4px 0 0 0' }}>
+              شبیه‌ساز و بک‌تست ۱ ساله استراتژی به همراه چارت تکنیکال تعاملی
             </p>
           </div>
         </div>
@@ -196,12 +209,12 @@ export default function DashboardPage() {
               backgroundColor: '#161b22',
               border: '1px solid #30363d',
               color: '#38bdf8',
-              padding: '6px 12px',
+              padding: '6px 14px',
               borderRadius: '20px',
               fontWeight: 600,
             }}
           >
-            ⚡ Independent Chart & Engine
+            ⚡ Independent Chart Engine
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
@@ -230,15 +243,24 @@ export default function DashboardPage() {
           padding: '16px 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
+          gap: '14px',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          dir="rtl"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            textAlign: 'right',
+          }}
+        >
           <div style={{ fontSize: '14px', fontWeight: 700, color: '#f0f6fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>⚙️</span> تنظیمات و کنترل پنل بک‌تست (Backtesting Control Center)
+            <span>⚙️</span>
+            <span>کنترل پنل تنظیمات بک‌تست</span>
           </div>
           <span style={{ fontSize: '12px', color: '#8b949e' }}>
-            تغییر این مقادیر فقط با فشردن دکمه زیر اجرا می‌شود
+            اجرای شبیه‌سازی منحصراً با فشردن دکمه سبز رنگ انجام می‌شود
           </span>
         </div>
 
@@ -252,7 +274,7 @@ export default function DashboardPage() {
         >
           {/* Symbol */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>ارز بک‌تست (Symbol)</label>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Symbol</label>
             <select
               value={btSymbol}
               onChange={(e) => setBtSymbol(e.target.value)}
@@ -276,7 +298,7 @@ export default function DashboardPage() {
 
           {/* Timeframe */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>تایم‌فریم بک‌تست</label>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Timeframe</label>
             <select
               value={btInterval}
               onChange={(e) => setBtInterval(e.target.value as CandleInterval)}
@@ -299,7 +321,7 @@ export default function DashboardPage() {
 
           {/* Candle Count / Range */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>بازه دیتای بک‌تست</label>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Historical Range</label>
             <select
               value={btLimit}
               onChange={(e) => setBtLimit(e.target.value)}
@@ -312,8 +334,8 @@ export default function DashboardPage() {
                 fontSize: '13px',
               }}
             >
-              <option value="all">Full 1-Year Dataset (پیش‌فرض: کل دیتای ۱ ساله)</option>
-              <option value="1000">1,000 Candles (~Recent)</option>
+              <option value="all">Full 1-Year (کل دیتای ۱ ساله)</option>
+              <option value="1000">1,000 Candles</option>
               <option value="500">500 Candles</option>
               <option value="300">300 Candles</option>
             </select>
@@ -431,7 +453,7 @@ export default function DashboardPage() {
                 }}
               />
             )}
-            {btLoading ? 'Simulating...' : 'Run Backtest ⚡'}
+            {btLoading ? 'در حال شبیه‌سازی...' : 'Run Backtest ⚡'}
           </button>
         </div>
       </section>
@@ -439,6 +461,7 @@ export default function DashboardPage() {
       {/* Error Banner */}
       {btError && (
         <div
+          dir="rtl"
           style={{
             backgroundColor: 'rgba(248, 81, 73, 0.1)',
             border: '1px solid #f85149',
@@ -446,18 +469,28 @@ export default function DashboardPage() {
             padding: '12px 16px',
             color: '#f85149',
             fontSize: '14px',
+            textAlign: 'right',
           }}
         >
-          Error: {btError}
+          خطا در اجرای بک‌تست: {btError}
         </div>
       )}
 
       {/* Chart Section - Always Visible & Independent */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
+        <div
+          dir="rtl"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0 4px',
+            textAlign: 'right',
+          }}
+        >
           <div style={{ fontSize: '13px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>📈</span>
-            <span>نمای چارت زنده و بررسی کندل‌ها (تغییر تایم‌فریم چارت تأثیری بر نتایج بک‌تست نخواهد داشت)</span>
+            <span>نمای چارت تکنیکال (تغییر تایم‌فریم چارت، نتایج بک‌تست را تغییر نمی‌دهد)</span>
           </div>
 
           {backtestResult && !isBacktestMatchingChart && (
@@ -467,11 +500,11 @@ export default function DashboardPage() {
                 color: '#38bdf8',
                 backgroundColor: 'rgba(56, 189, 248, 0.1)',
                 border: '1px solid rgba(56, 189, 248, 0.25)',
-                padding: '3px 8px',
+                padding: '3px 10px',
                 borderRadius: '4px',
               }}
             >
-              ℹ️ تریدهای بک‌تست در تایم‌فریم {backtestResult.interval} قرار دارند
+              نتایج بک‌تست روی تایم‌فریم <bdi>{backtestResult.interval}</bdi> ثبت شده است
             </span>
           )}
         </div>
@@ -495,27 +528,30 @@ export default function DashboardPage() {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Execution Summary Banner */}
           <div
+            dir="rtl"
             style={{
               backgroundColor: '#161b22',
               border: '1px solid #30363d',
               borderRadius: '8px',
-              padding: '12px 18px',
+              padding: '14px 20px',
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: '12px',
+              textAlign: 'right',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px' }}>📊</span>
-              <span style={{ fontSize: '13px', color: '#c9d1d9' }}>
-                نتایج بک‌تست استراتژی روی <strong style={{ color: '#38bdf8' }}>{backtestResult.totalCandles.toLocaleString()}</strong> کندل در تایم‌فریم <strong style={{ color: '#fbbf24' }}>{backtestResult.interval}</strong> برای <strong style={{ color: '#f0f6fc' }}>{backtestResult.symbol}</strong>
+              <span style={{ fontSize: '20px' }}>📊</span>
+              <span style={{ fontSize: '13px', color: '#c9d1d9', lineHeight: 1.6 }}>
+                بک‌تست استراتژی روی نماد <bdi style={{ color: '#38bdf8', fontWeight: 700 }}>{backtestResult.symbol}</bdi> در تایم‌فریم <bdi style={{ color: '#fbbf24', fontWeight: 700 }}>{backtestResult.interval}</bdi> با مجموع <bdi style={{ color: '#38bdf8', fontWeight: 700 }}>{backtestResult.totalCandles.toLocaleString()}</bdi> کندل انجام شد
                 {backtestResult.startTime && backtestResult.endTime && (
-                  <span style={{ color: '#8b949e', marginLeft: '6px' }}>
-                    ({new Date(backtestResult.startTime).toLocaleDateString('fa-IR')} تا {new Date(backtestResult.endTime).toLocaleDateString('fa-IR')})
+                  <span style={{ color: '#8b949e', marginRight: '6px' }}>
+                    (از <bdi>{formatDate(backtestResult.startTime)}</bdi> تا <bdi>{formatDate(backtestResult.endTime)}</bdi>)
                   </span>
                 )}
+                . تمامی معاملات در پایان بازه با موفقیت تسویه و بسته شدند.
               </span>
             </div>
 
@@ -525,17 +561,14 @@ export default function DashboardPage() {
                 backgroundColor: 'rgba(46, 160, 67, 0.15)',
                 border: '1px solid #2ea043',
                 color: '#3fb950',
-                padding: '4px 10px',
+                padding: '4px 12px',
                 borderRadius: '6px',
                 fontWeight: 600,
               }}
             >
-              ✔ شبیه‌سازی با موفقیت انجام شد
+              ✔ شبیه‌سازی کامل شد
             </span>
           </div>
-
-          {/* Real-Time Active Position Card */}
-          <ActivePositionCard position={backtestResult.activePosition} symbol={backtestResult.symbol} />
 
           {/* Metrics Cards */}
           <MetricsCards metrics={backtestResult.metrics} initialBalance={backtestResult.initialBalance} />
@@ -549,51 +582,13 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* Trade Section Tabs */}
-          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #30363d', paddingBottom: '8px' }}>
-            <button
-              onClick={() => setActiveTab('position')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: activeTab === 'position' ? 700 : 500,
-                backgroundColor: activeTab === 'position' ? '#21262d' : 'transparent',
-                color: activeTab === 'position' ? '#f0f6fc' : '#8b949e',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              🟢 Active Position {backtestResult.activePosition ? '(1 Live)' : '(0)'}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('trades')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: activeTab === 'trades' ? 700 : 500,
-                backgroundColor: activeTab === 'trades' ? '#21262d' : 'transparent',
-                color: activeTab === 'trades' ? '#f0f6fc' : '#8b949e',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              📋 Executed Trades History ({backtestResult.trades.length})
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          {activeTab === 'position' ? (
-            <ActivePositionCard position={backtestResult.activePosition} symbol={backtestResult.symbol} />
-          ) : (
-            <TradesTable trades={backtestResult.trades} />
-          )}
+          {/* Closed Trades History Table */}
+          <TradesTable trades={backtestResult.trades} />
         </section>
       ) : (
         /* Empty / Ready State for Backtest */
         <section
+          dir="rtl"
           style={{
             backgroundColor: '#161b22',
             border: '1px dashed #30363d',
@@ -608,11 +603,11 @@ export default function DashboardPage() {
           }}
         >
           <div style={{ fontSize: '36px' }}>⚡</div>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: '#f0f6fc' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#f0f6fc' }}>
             بک‌تست هنوز اجرا نشده است
           </div>
-          <p style={{ fontSize: '13px', color: '#8b949e', maxWidth: '540px', margin: 0 }}>
-            چارت بالا به صورت مستقل فعال است و می‌توانید تایم‌فریم‌های مختلف را بررسی کنید. هر زمان مایل بودید، در باکس بالا دکمه <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> را بزنید تا استراتژی روی تایم‌فریم انتخابی شبیه‌سازی گردد.
+          <p style={{ fontSize: '13px', color: '#8b949e', maxWidth: '580px', margin: 0, lineHeight: 1.6 }}>
+            چارت بالا به صورت مستقل فعال است و می‌توانید کندل‌های تایم‌فریم‌های مختلف را بررسی نمایید. هر زمان مایل بودید، در کنترل پنل بالا روی دکمه <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> کلیک کنید تا شبیه‌سازی کامل روی دیتای تاریخی آغاز شود.
           </p>
         </section>
       )}

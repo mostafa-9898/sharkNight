@@ -78,7 +78,7 @@ export default function EquityChart({
           time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
           value: equity[i],
         }))
-        .filter((d) => !Number.isNaN(d.value));
+        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
 
       areaSeries.setData(data);
       chart.timeScale().fitContent();

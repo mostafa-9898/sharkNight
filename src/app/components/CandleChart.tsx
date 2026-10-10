@@ -160,7 +160,7 @@ export default function CandleChart({
               time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
               value: smaFast[i],
             }))
-            .filter((d) => !Number.isNaN(d.value));
+            .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
           fastLineRef.current.setData(fastData);
         } else {
           fastLineRef.current.setData([]);
@@ -176,7 +176,7 @@ export default function CandleChart({
               time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
               value: smaSlow[i],
             }))
-            .filter((d) => !Number.isNaN(d.value));
+            .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
           slowLineRef.current.setData(slowData);
         } else {
           slowLineRef.current.setData([]);
