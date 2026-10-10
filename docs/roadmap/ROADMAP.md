@@ -54,10 +54,14 @@
 
 ## Future Phases (Not in current scope)
 
-### Phase 7: Dashboard (Next.js)
-- [ ] Setup Next.js app
-- [ ] Strategy configuration UI
-- [ ] Backtest results visualization with charts
+### Phase 7: Dashboard (Next.js) ✅
+- [x] Setup Next.js app with App Router and dark modern trading theme
+- [x] Strategy & market configuration UI (Symbols, Timeframes, SMA periods, Balance, Fees)
+- [x] Backtest results visualization with interactive Lightweight-Charts candlestick chart
+- [x] Performance metrics cards (PnL, Win Rate, Drawdown, Sharpe)
+- [x] Portfolio equity curve chart
+- [x] Complete executed trade history table
+- [x] Multi-exchange resilience (Binance & KuCoin fallback)
 
 ### Phase 8: Paper Trading
 - [ ] Real-time data streaming

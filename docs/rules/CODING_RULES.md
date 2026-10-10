@@ -42,6 +42,8 @@ Every time we learn something new or find a better approach, it gets documented 
 | 2026-10-10 | Indicator Design | Dual-layer API: pure functional math (`calculateSMA`) + pluggable classes (`SMAIndicator`) | Provides maximum flexibility for backtesting engine while remaining easily testable |
 | 2026-10-10 | Strategy Performance | Local window calculation (`slowPeriod + 1` lookback) in `analyze()` | Prevents $O(N^2)$ scaling during backtesting by only computing required points for crossover |
 | 2026-10-10 | Backtest Realization | Synthetic position auto-close at final candle | Ensures all open positions are marked-to-market/realized at backtest conclusion |
+| 2026-10-10 | Regional Connectivity | Multi-provider fallback chain (Binance -> KuCoin) | Seamlessly handles geo-blocked API endpoints without breaking user workflow |
+| 2026-10-10 | Charting Integration | Dynamic import of browser-only canvas charting inside `useEffect` | Prevents SSR hydration mismatches and commonjs/esm bundling issues |
 
 ## ❌ What Didn't Work / Mistakes
 
@@ -52,6 +54,7 @@ Every time we learn something new or find a better approach, it gets documented 
 | 2026-10-04 | IDE Type Resolution | IDE red squiggly lines on Jest globals (`describe`, `it`, `expect`) | Include `"types": ["node", "jest"]` in `tsconfig.json` compilerOptions |
 | 2026-10-04 | Type Imports | Separate duplicate imports for types caused lint warnings | Consolidate imports and use `import type` syntax |
 | 2026-10-10 | Destructuring Lint | `const { candles: _unused, ...rest } = config` triggered unused-vars warning | Build subset object explicitly without creating unused destructured bindings |
+| 2026-10-10 | NodeNext Module Bundling | NodeNext module resolution clashed with Next.js path aliases | Use `"module": "ESNext"` and `"moduleResolution": "bundler"` for Next.js apps |
 
 ## 💡 Patterns & Best Practices
 
