@@ -319,30 +319,27 @@ export default function CandleChart({
           </span>
 
           {/* Timeframe Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: '#8b949e' }}>تایم‌فریم:</span>
-            <select
-              value={currentInterval}
-              onChange={(e) => onIntervalChange?.(e.target.value as CandleInterval)}
-              style={{
-                backgroundColor: '#21262d',
-                color: '#e6edf3',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              {TIMEFRAME_OPTIONS.map((tf) => (
-                <option key={tf} value={tf}>
-                  🕒 {tf}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={currentInterval}
+            onChange={(e) => onIntervalChange?.(e.target.value as CandleInterval)}
+            style={{
+              backgroundColor: '#21262d',
+              color: '#e6edf3',
+              border: '1px solid #30363d',
+              borderRadius: '6px',
+              padding: '5px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            {TIMEFRAME_OPTIONS.map((tf) => (
+              <option key={tf} value={tf}>
+                🕒 {tf}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Right Side: Indicators Dropdown & Info */}
@@ -367,7 +364,7 @@ export default function CandleChart({
               }}
             >
               <span>📊</span>
-              <span>اندیکاتورها</span>
+              <span>Indicators</span>
               {activeIndicatorsCount > 0 && (
                 <span
                   style={{
@@ -388,7 +385,6 @@ export default function CandleChart({
             {/* Dropdown Menu (does NOT close on item clicks, closes on outside click) */}
             {indicatorsOpen && (
               <div
-                dir="rtl"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   position: 'absolute',
@@ -399,7 +395,7 @@ export default function CandleChart({
                   border: '1px solid #30363d',
                   borderRadius: '8px',
                   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
-                  width: '280px',
+                  width: '240px',
                   padding: '8px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -407,7 +403,7 @@ export default function CandleChart({
                   zIndex: 100,
                 }}
               >
-                {/* 1. Clear All Option (پاک کردن همه) */}
+                {/* 1. Clear All Option */}
                 <button
                   onClick={handleClearAll}
                   disabled={activeIndicatorsCount === 0}
@@ -429,10 +425,10 @@ export default function CandleChart({
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>🗑️</span>
-                    <span>پاک کردن همه (خاموش‌سازی)</span>
+                    <span>Clear All</span>
                   </span>
                   {activeIndicatorsCount > 0 && (
-                    <span style={{ fontSize: '11px', opacity: 0.85 }}>({activeIndicatorsCount} فعال)</span>
+                    <span style={{ fontSize: '11px', opacity: 0.85 }}>({activeIndicatorsCount} active)</span>
                   )}
                 </button>
 
@@ -445,7 +441,7 @@ export default function CandleChart({
                     marginBottom: '4px',
                   }}
                 >
-                  انتخاب اندیکاتورهای روی چارت:
+                  Overlay Indicators:
                 </div>
 
                 {/* Fast SMA Item */}
@@ -538,7 +534,7 @@ export default function CandleChart({
                   />
                   <span style={{ fontSize: '13px', flexShrink: 0 }}>🎯</span>
                   <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    سیگنال‌های ترید (Buy/Sell)
+                    Trade Signals (Buy/Sell)
                   </span>
                   <span
                     style={{
@@ -557,7 +553,7 @@ export default function CandleChart({
           </div>
 
           <span style={{ color: '#8b949e', fontSize: '12px' }}>
-            {candles.length.toLocaleString()} کندل
+            {candles.length.toLocaleString()} candles
           </span>
         </div>
       </div>

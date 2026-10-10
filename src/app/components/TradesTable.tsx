@@ -28,14 +28,14 @@ interface ColumnConfig {
 
 const COLUMNS: ColumnConfig[] = [
   { key: 'id', label: '#', align: 'center' },
-  { key: 'entryTime', label: 'زمان ورود (Entry Time)', align: 'left' },
-  { key: 'entryPrice', label: 'قیمت ورود (Entry Price)', align: 'right' },
-  { key: 'exitTime', label: 'زمان خروج (Exit Time)', align: 'left' },
-  { key: 'exitPrice', label: 'قیمت خروج (Exit Price)', align: 'right' },
-  { key: 'duration', label: 'مدت پوزیشن (Duration)', align: 'center' },
-  { key: 'fee', label: 'کارمزد (Fee)', align: 'right' },
-  { key: 'pnl', label: 'سود/زیان خالص (Net PnL)', align: 'right' },
-  { key: 'pnlPercent', label: 'بازدهی (Return %)', align: 'right' },
+  { key: 'entryTime', label: 'Entry Time', align: 'left' },
+  { key: 'entryPrice', label: 'Entry Price', align: 'right' },
+  { key: 'exitTime', label: 'Exit Time', align: 'left' },
+  { key: 'exitPrice', label: 'Exit Price', align: 'right' },
+  { key: 'duration', label: 'Duration', align: 'center' },
+  { key: 'fee', label: 'Fee', align: 'right' },
+  { key: 'pnl', label: 'Net PnL', align: 'right' },
+  { key: 'pnlPercent', label: 'Return (%)', align: 'right' },
 ];
 
 export default function TradesTable({ trades }: TradesTableProps) {
@@ -128,7 +128,6 @@ export default function TradesTable({ trades }: TradesTableProps) {
   if (trades.length === 0) {
     return (
       <div
-        dir="rtl"
         style={{
           backgroundColor: '#161b22',
           border: '1px solid #30363d',
@@ -139,7 +138,7 @@ export default function TradesTable({ trades }: TradesTableProps) {
           fontSize: '13px',
         }}
       >
-        هیچ معامله‌ای با پارامترهای مشخص شده در این بازه تاریخی ثبت نگردید.
+        No trades were executed with the specified parameters.
       </div>
     );
   }
@@ -188,7 +187,7 @@ export default function TradesTable({ trades }: TradesTableProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, color: '#f0f6fc', fontSize: '14px' }}>
-            📋 تاریخچه معاملات (Trade History)
+            Trade History
           </span>
           <span
             style={{
@@ -200,7 +199,7 @@ export default function TradesTable({ trades }: TradesTableProps) {
               fontWeight: 600,
             }}
           >
-            {trades.length} معامله
+            {trades.length} Trades
           </span>
           <span
             style={{
@@ -244,15 +243,11 @@ export default function TradesTable({ trades }: TradesTableProps) {
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              title="بازنشانی به ترتیب زمانی معاملات"
+              title="Reset to default chronological order"
             >
-              🔄 ترتیب اولیه
+              🔄 Reset Sort
             </button>
           )}
-
-          <span style={{ fontSize: '12px', color: '#8b949e' }}>
-            (برای مرتب‌سازی روی عنوان هر ستون کلیک کنید)
-          </span>
         </div>
       </div>
 
@@ -283,7 +278,7 @@ export default function TradesTable({ trades }: TradesTableProps) {
                       whiteSpace: 'nowrap',
                       transition: 'all 0.15s ease',
                     }}
-                    title={`مرتب‌سازی بر اساس ${col.label}`}
+                    title={`Sort by ${col.label}`}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                       <span>{col.label}</span>
