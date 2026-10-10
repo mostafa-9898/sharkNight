@@ -9,5 +9,5 @@ export interface IndicatorResult {
 export interface Indicator {
   readonly name: string;
   readonly requiredPeriod: number;
-  calculate(candles: Candle[]): IndicatorResult;
+  calculate(candles: readonly Candle[]): IndicatorResult;
 }

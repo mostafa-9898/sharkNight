@@ -8,24 +8,24 @@
 - [x] Define base interfaces & types (Candle, Signal, Strategy, Backtest)
 - [x] Create documentation structure
 
-## Phase 2: Data Layer
-- [ ] Implement Binance Public API data provider
+## Phase 2: Data Layer ✅
+- [x] Implement Binance Public API data provider
   - Endpoint: `GET /api/v3/klines`
   - No API key required for historical data
   - Support pagination for large datasets
-- [ ] Define Candle/OHLCV data model validation
-- [ ] Implement JSON local storage for caching historical data
-- [ ] Write tests for data provider (with mocked HTTP responses)
-- [ ] Write tests for JSON storage (read/write/cache invalidation)
+- [x] Define Candle/OHLCV data model validation
+- [x] Implement JSON local storage for caching historical data
+- [x] Write tests for data provider (with mocked HTTP responses)
+- [x] Write tests for JSON storage (read/write/cache invalidation)
 
-## Phase 3: Technical Indicators
-- [ ] Implement SMA (Simple Moving Average)
-- [ ] Implement EMA (Exponential Moving Average)
-- [ ] Implement RSI (Relative Strength Index)
-- [ ] Implement MACD (Moving Average Convergence Divergence)
-- [ ] Implement Bollinger Bands
-- [ ] Write tests for each indicator against known correct values
-- [ ] Validate edge cases (insufficient data, empty arrays, etc.)
+## Phase 3: Technical Indicators ✅
+- [x] Implement SMA (Simple Moving Average)
+- [x] Implement EMA (Exponential Moving Average)
+- [x] Implement RSI (Relative Strength Index)
+- [x] Implement MACD (Moving Average Convergence Divergence)
+- [x] Implement Bollinger Bands
+- [x] Write tests for each indicator against known correct values
+- [x] Validate edge cases (insufficient data, empty arrays, etc.)
 
 ## Phase 4: Strategy Engine
 - [ ] Implement Strategy runner
