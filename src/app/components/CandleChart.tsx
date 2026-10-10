@@ -12,6 +12,7 @@ import type { Trade } from '@/backtest/types';
 
 interface CandleChartProps {
   candles: Candle[];
+  symbol?: string;
   smaFast?: number[];
   smaSlow?: number[];
   fastPeriod?: number;
@@ -26,6 +27,7 @@ const TIMEFRAME_PILLS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h',
 
 export default function CandleChart({
   candles,
+  symbol = 'BTCUSDT',
   smaFast,
   smaSlow,
   fastPeriod = 10,
@@ -236,7 +238,10 @@ export default function CandleChart({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 600, color: '#f0f6fc', marginRight: '6px' }}>Timeframe:</span>
+          <span style={{ fontWeight: 700, color: '#f0f6fc', marginRight: '6px', fontSize: '13px' }}>
+            {symbol}
+          </span>
+          <span style={{ fontSize: '12px', color: '#8b949e', marginRight: '4px' }}>Timeframe:</span>
           {TIMEFRAME_PILLS.map((tf) => {
             const isActive = tf === currentInterval;
             return (
@@ -251,6 +256,8 @@ export default function CandleChart({
                   backgroundColor: isActive ? '#38bdf8' : '#21262d',
                   color: isActive ? '#0d1117' : '#c9d1d9',
                   transition: 'all 0.15s ease',
+                  cursor: 'pointer',
+                  border: 'none',
                 }}
               >
                 {tf}
@@ -259,11 +266,22 @@ export default function CandleChart({
           })}
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
-          <span style={{ color: '#38bdf8' }}>● Fast SMA ({fastPeriod})</span>
-          <span style={{ color: '#fbbf24' }}>● Slow SMA ({slowPeriod})</span>
-          <span style={{ color: '#2ea043' }}>▲ Buy</span>
-          <span style={{ color: '#f85149' }}>▼ Sell</span>
+        <div style={{ display: 'flex', gap: '14px', fontSize: '12px', alignItems: 'center' }}>
+          {smaFast && smaFast.length > 0 && (
+            <>
+              <span style={{ color: '#38bdf8' }}>● Fast SMA ({fastPeriod})</span>
+              <span style={{ color: '#fbbf24' }}>● Slow SMA ({slowPeriod})</span>
+            </>
+          )}
+          {trades.length > 0 && (
+            <>
+              <span style={{ color: '#2ea043' }}>▲ Buy</span>
+              <span style={{ color: '#f85149' }}>▼ Sell</span>
+            </>
+          )}
+          <span style={{ color: '#8b949e' }}>
+            {candles.length.toLocaleString()} Candles
+          </span>
         </div>
       </div>
 

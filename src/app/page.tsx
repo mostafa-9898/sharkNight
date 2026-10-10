@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CandleChart from './components/CandleChart';
 import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
@@ -12,154 +12,158 @@ import type { BacktestMetrics, Trade, ActivePosition } from '@/backtest/types';
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
-interface CachedData {
-  candles: Candle[];
-  smaFast: number[];
-  smaSlow: number[];
+interface BacktestResultData {
+  symbol: string;
+  interval: CandleInterval;
+  fastPeriod: number;
+  slowPeriod: number;
+  initialBalance: number;
   metrics: BacktestMetrics;
   trades: Trade[];
   equity: number[];
   activePosition: ActivePosition | null;
+  indicators: {
+    smaFast: number[];
+    smaSlow: number[];
+  };
+  candles: Candle[];
   totalCandles: number;
   startTime: number | null;
   endTime: number | null;
 }
 
 export default function DashboardPage() {
-  const [symbol, setSymbol] = useState('BTCUSDT');
-  const [interval, setInterval] = useState<CandleInterval>('15m');
-  const [fastPeriod, setFastPeriod] = useState(10);
-  const [slowPeriod, setSlowPeriod] = useState(30);
-  const [initialBalance, setInitialBalance] = useState(10000);
-  const [tradeFeePercent, setTradeFeePercent] = useState(0.1);
-  const [limit, setLimit] = useState<string>('all');
+  // --- 1. Top Backtest Configuration Box State ---
+  const [btSymbol, setBtSymbol] = useState('BTCUSDT');
+  const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
+  const [btFastPeriod, setBtFastPeriod] = useState(10);
+  const [btSlowPeriod, setBtSlowPeriod] = useState(30);
+  const [btInitialBalance, setBtInitialBalance] = useState(10000);
+  const [btTradeFeePercent, setBtTradeFeePercent] = useState(0.1);
+  const [btLimit, setBtLimit] = useState<string>('all');
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btError, setBtError] = useState<string | null>(null);
+  const [backtestResult, setBacktestResult] = useState<BacktestResultData | null>(null);
 
-  const [hasExecuted, setHasExecuted] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
-  const [candleStats, setCandleStats] = useState<{
-    totalCandles: number;
-    startTime: number | null;
-    endTime: number | null;
-  } | null>(null);
+  // --- 2. Independent Chart Viewer State ---
+  const [chartSymbol, setChartSymbol] = useState('BTCUSDT');
+  const [chartInterval, setChartInterval] = useState<CandleInterval>('15m');
+  const [chartCandles, setChartCandles] = useState<Candle[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
-  const [candles, setCandles] = useState<Candle[]>([]);
-  const [smaFast, setSmaFast] = useState<number[]>([]);
-  const [smaSlow, setSmaSlow] = useState<number[]>([]);
-  const [metrics, setMetrics] = useState<BacktestMetrics | null>(null);
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [equity, setEquity] = useState<number[]>([]);
-  const [activePosition, setActivePosition] = useState<ActivePosition | null>(null);
+  // In-memory cache for candles to achieve 0ms switching
+  const candlesCache = useRef<Map<string, Candle[]>>(new Map());
 
+  // Tab state
   const [activeTab, setActiveTab] = useState<'position' | 'trades'>('position');
 
-  // In-memory instant client-side cache
-  const memoryCache = useRef<Map<string, CachedData>>(new Map());
+  // Load candles for the chart view only (does NOT run backtest)
+  const loadChartCandles = useCallback(
+    async (sym: string, int: CandleInterval) => {
+      const cacheKey = `${sym}_${int}`;
+      if (candlesCache.current.has(cacheKey)) {
+        setChartCandles(candlesCache.current.get(cacheKey)!);
+        setChartSymbol(sym);
+        setChartInterval(int);
+        return;
+      }
 
-  const getCacheKey = useCallback(
-    (sym: string, int: CandleInterval, f: number, s: number, lim: string) =>
-      `${sym}_${int}_${f}_${s}_${lim}`,
+      setChartLoading(true);
+      try {
+        const res = await fetch(`/api/candles?symbol=${sym}&interval=${int}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.candles)) {
+          candlesCache.current.set(cacheKey, data.candles);
+          setChartCandles(data.candles);
+          setChartSymbol(sym);
+          setChartInterval(int);
+        }
+      } catch (err) {
+        console.error('Failed to load chart candles', err);
+      } finally {
+        setChartLoading(false);
+      }
+    },
     []
   );
 
+  // Initial load: Only load candles so user can view the chart right away. NO backtest is triggered!
+  useEffect(() => {
+    loadChartCandles('BTCUSDT', '15m');
+  }, [loadChartCandles]);
+
+  // When timeframe is changed on the chart, ONLY update the chart candles!
+  const handleChartIntervalChange = (newInterval: CandleInterval) => {
+    loadChartCandles(chartSymbol, newInterval);
+  };
+
+  // Run Backtest exclusively when user clicks the "Run Backtest ⚡" button
   const runBacktest = useCallback(async () => {
-    const cacheKey = getCacheKey(symbol, interval, fastPeriod, slowPeriod, limit);
-
-    // Check instant memory cache first (0ms latency!)
-    if (memoryCache.current.has(cacheKey)) {
-      const cached = memoryCache.current.get(cacheKey)!;
-      setCandles(cached.candles);
-      setSmaFast(cached.smaFast);
-      setSmaSlow(cached.smaSlow);
-      setMetrics(cached.metrics);
-      setTrades(cached.trades);
-      setEquity(cached.equity);
-      setActivePosition(cached.activePosition);
-      setCandleStats({
-        totalCandles: cached.totalCandles,
-        startTime: cached.startTime,
-        endTime: cached.endTime,
-      });
-      setHasExecuted(true);
-      setIsDirty(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
+    setBtLoading(true);
+    setBtError(null);
 
     try {
       const res = await fetch('/api/backtest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol,
-          interval,
-          limit: limit === 'all' ? undefined : Number(limit),
-          fastPeriod,
-          slowPeriod,
-          initialBalance,
-          tradeFeePercent,
+          symbol: btSymbol,
+          interval: btInterval,
+          limit: btLimit === 'all' ? undefined : Number(btLimit),
+          fastPeriod: btFastPeriod,
+          slowPeriod: btSlowPeriod,
+          initialBalance: btInitialBalance,
+          tradeFeePercent: btTradeFeePercent,
         }),
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to execute backtest');
       }
 
-      const newCandles = data.candles ?? [];
-      const newFast = data.indicators?.smaFast ?? [];
-      const newSlow = data.indicators?.smaSlow ?? [];
-      const newMetrics = data.backtest?.metrics ?? null;
-      const newTrades = data.backtest?.trades ?? [];
-      const newEquity = data.backtest?.equity ?? [];
-      const newActivePos = data.backtest?.activePosition ?? null;
-      const stats = {
-        totalCandles: data.totalCandles ?? newCandles.length,
+      const candles: Candle[] = data.candles ?? [];
+      const result: BacktestResultData = {
+        symbol: btSymbol,
+        interval: btInterval,
+        fastPeriod: btFastPeriod,
+        slowPeriod: btSlowPeriod,
+        initialBalance: btInitialBalance,
+        metrics: data.backtest?.metrics,
+        trades: data.backtest?.trades ?? [],
+        equity: data.backtest?.equity ?? [],
+        activePosition: data.backtest?.activePosition ?? null,
+        indicators: {
+          smaFast: data.indicators?.smaFast ?? [],
+          smaSlow: data.indicators?.smaSlow ?? [],
+        },
+        candles,
+        totalCandles: data.totalCandles ?? candles.length,
         startTime: data.startTime ?? null,
         endTime: data.endTime ?? null,
       };
 
-      setCandles(newCandles);
-      setSmaFast(newFast);
-      setSmaSlow(newSlow);
-      setMetrics(newMetrics);
-      setTrades(newTrades);
-      setEquity(newEquity);
-      setActivePosition(newActivePos);
-      setCandleStats(stats);
-      setHasExecuted(true);
-      setIsDirty(false);
+      setBacktestResult(result);
 
-      // Save to in-memory cache
-      memoryCache.current.set(cacheKey, {
-        candles: newCandles,
-        smaFast: newFast,
-        smaSlow: newSlow,
-        metrics: newMetrics,
-        trades: newTrades,
-        equity: newEquity,
-        activePosition: newActivePos,
-        totalCandles: stats.totalCandles,
-        startTime: stats.startTime,
-        endTime: stats.endTime,
-      });
+      // Cache candles
+      candlesCache.current.set(`${btSymbol}_${btInterval}`, candles);
+
+      // Sync chart to backtest symbol & timeframe
+      setChartSymbol(btSymbol);
+      setChartInterval(btInterval);
+      setChartCandles(candles);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setBtError(err instanceof Error ? err.message : 'An error occurred during backtest');
     } finally {
-      setLoading(false);
+      setBtLoading(false);
     }
-  }, [symbol, interval, fastPeriod, slowPeriod, limit, initialBalance, tradeFeePercent, getCacheKey]);
+  }, [btSymbol, btInterval, btFastPeriod, btSlowPeriod, btInitialBalance, btTradeFeePercent, btLimit]);
 
-  // User timeframe change from chart pills or dropdown - only updates state, DOES NOT auto-run backtest!
-  const handleTimeframeChange = (newInterval: CandleInterval) => {
-    setInterval(newInterval);
-    setIsDirty(true);
-  };
+  const isBacktestMatchingChart =
+    backtestResult !== null &&
+    backtestResult.symbol === chartSymbol &&
+    backtestResult.interval === chartInterval;
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -197,7 +201,7 @@ export default function DashboardPage() {
               fontWeight: 600,
             }}
           >
-            ⚡ Manual Trigger Mode
+            ⚡ Independent Chart & Engine
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
@@ -206,237 +210,234 @@ export default function DashboardPage() {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: hasExecuted ? '#2ea043' : '#8b949e',
-                boxShadow: hasExecuted ? '0 0 6px #2ea043' : 'none',
+                backgroundColor: backtestResult ? '#2ea043' : '#8b949e',
+                boxShadow: backtestResult ? '0 0 6px #2ea043' : 'none',
               }}
             />
             <span style={{ fontSize: '12px', color: '#8b949e' }}>
-              {hasExecuted ? 'Simulated' : 'Ready'}
+              {backtestResult ? 'Simulated' : 'Ready'}
             </span>
           </div>
         </div>
       </header>
 
-      {/* Control Bar */}
+      {/* Box 1: Backtesting Control Center (Top Box) */}
       <section
         style={{
           backgroundColor: '#161b22',
           border: '1px solid #30363d',
           borderRadius: '8px',
-          padding: '16px',
+          padding: '16px 20px',
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: '16px',
-          alignItems: 'flex-end',
+          flexDirection: 'column',
+          gap: '12px',
         }}
       >
-        {/* Symbol */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Symbol</label>
-          <select
-            value={symbol}
-            onChange={(e) => {
-              setSymbol(e.target.value);
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-              fontWeight: 600,
-            }}
-          >
-            {SYMBOLS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#f0f6fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>⚙️</span> تنظیمات و کنترل پنل بک‌تست (Backtesting Control Center)
+          </div>
+          <span style={{ fontSize: '12px', color: '#8b949e' }}>
+            تغییر این مقادیر فقط با فشردن دکمه زیر اجرا می‌شود
+          </span>
         </div>
 
-        {/* Timeframe */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Timeframe</label>
-          <select
-            value={interval}
-            onChange={(e) => {
-              handleTimeframeChange(e.target.value as CandleInterval);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          >
-            {INTERVALS.map((int) => (
-              <option key={int} value={int}>
-                {int}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Candle Count / Range */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Historical Range</label>
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(e.target.value);
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          >
-            <option value="all">Full 1-Year Dataset (Recommended)</option>
-            <option value="1000">1,000 Candles (~Recent)</option>
-            <option value="500">500 Candles</option>
-            <option value="300">300 Candles</option>
-          </select>
-        </div>
-
-        {/* Fast SMA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast SMA</label>
-          <input
-            type="number"
-            min={2}
-            max={100}
-            value={fastPeriod}
-            onChange={(e) => {
-              setFastPeriod(Number(e.target.value));
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          />
-        </div>
-
-        {/* Slow SMA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow SMA</label>
-          <input
-            type="number"
-            min={3}
-            max={300}
-            value={slowPeriod}
-            onChange={(e) => {
-              setSlowPeriod(Number(e.target.value));
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          />
-        </div>
-
-        {/* Initial Balance */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '120px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Capital ($)</label>
-          <input
-            type="number"
-            step={1000}
-            min={100}
-            value={initialBalance}
-            onChange={(e) => {
-              setInitialBalance(Number(e.target.value));
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          />
-        </div>
-
-        {/* Fee % */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '80px' }}>
-          <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fee (%)</label>
-          <input
-            type="number"
-            step={0.05}
-            min={0}
-            value={tradeFeePercent}
-            onChange={(e) => {
-              setTradeFeePercent(Number(e.target.value));
-              setIsDirty(true);
-            }}
-            style={{
-              backgroundColor: '#0d1117',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-            }}
-          />
-        </div>
-
-        {/* Run Button */}
-        <button
-          onClick={() => runBacktest()}
-          disabled={loading}
+        <div
           style={{
-            backgroundColor: loading ? '#21262d' : '#238636',
-            color: '#ffffff',
-            fontWeight: 700,
-            padding: '8px 24px',
-            borderRadius: '6px',
-            fontSize: '14px',
-            height: '37px',
             display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: '0 0 10px rgba(35, 134, 54, 0.3)',
+            flexWrap: 'wrap',
+            gap: '16px',
+            alignItems: 'flex-end',
           }}
         >
-          {loading && (
-            <span
+          {/* Symbol */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>ارز بک‌تست (Symbol)</label>
+            <select
+              value={btSymbol}
+              onChange={(e) => setBtSymbol(e.target.value)}
               style={{
-                width: '12px',
-                height: '12px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTopColor: '#ffffff',
-                borderRadius: '50%',
-                display: 'inline-block',
-                animation: 'spin 0.8s linear infinite',
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              {SYMBOLS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Timeframe */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>تایم‌فریم بک‌تست</label>
+            <select
+              value={btInterval}
+              onChange={(e) => setBtInterval(e.target.value as CandleInterval)}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+              }}
+            >
+              {INTERVALS.map((int) => (
+                <option key={int} value={int}>
+                  {int}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Candle Count / Range */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>بازه دیتای بک‌تست</label>
+            <select
+              value={btLimit}
+              onChange={(e) => setBtLimit(e.target.value)}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+              }}
+            >
+              <option value="all">Full 1-Year Dataset (پیش‌فرض: کل دیتای ۱ ساله)</option>
+              <option value="1000">1,000 Candles (~Recent)</option>
+              <option value="500">500 Candles</option>
+              <option value="300">300 Candles</option>
+            </select>
+          </div>
+
+          {/* Fast SMA */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast SMA</label>
+            <input
+              type="number"
+              min={2}
+              max={100}
+              value={btFastPeriod}
+              onChange={(e) => setBtFastPeriod(Number(e.target.value))}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
               }}
             />
-          )}
-          {loading ? 'Simulating...' : 'Run Backtest ⚡'}
-        </button>
+          </div>
+
+          {/* Slow SMA */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow SMA</label>
+            <input
+              type="number"
+              min={3}
+              max={300}
+              value={btSlowPeriod}
+              onChange={(e) => setBtSlowPeriod(Number(e.target.value))}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+              }}
+            />
+          </div>
+
+          {/* Initial Balance */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '110px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Capital ($)</label>
+            <input
+              type="number"
+              step={1000}
+              min={100}
+              value={btInitialBalance}
+              onChange={(e) => setBtInitialBalance(Number(e.target.value))}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+              }}
+            />
+          </div>
+
+          {/* Fee % */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '80px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fee (%)</label>
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              value={btTradeFeePercent}
+              onChange={(e) => setBtTradeFeePercent(Number(e.target.value))}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+              }}
+            />
+          </div>
+
+          {/* Run Button */}
+          <button
+            onClick={() => runBacktest()}
+            disabled={btLoading}
+            style={{
+              backgroundColor: btLoading ? '#21262d' : '#238636',
+              color: '#ffffff',
+              fontWeight: 700,
+              padding: '8px 24px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              height: '37px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: btLoading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 0 10px rgba(35, 134, 54, 0.3)',
+            }}
+          >
+            {btLoading && (
+              <span
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: '#ffffff',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+            )}
+            {btLoading ? 'Simulating...' : 'Run Backtest ⚡'}
+          </button>
+        </div>
       </section>
 
       {/* Error Banner */}
-      {error && (
+      {btError && (
         <div
           style={{
             backgroundColor: 'rgba(248, 81, 73, 0.1)',
@@ -447,141 +448,104 @@ export default function DashboardPage() {
             fontSize: '14px',
           }}
         >
-          Error: {error}
+          Error: {btError}
         </div>
       )}
 
-      {/* Initial Landing Hero (Before Running Backtest) */}
-      {!hasExecuted && (
-        <section
-          style={{
-            backgroundColor: '#161b22',
-            border: '1px dashed #30363d',
-            borderRadius: '12px',
-            padding: '60px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            gap: '16px',
-          }}
-        >
-          <div style={{ fontSize: '48px' }}>🚀</div>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#f0f6fc' }}>
-            آماده برای اجرای بک‌تست استراتژی
-          </h2>
-          <p style={{ fontSize: '14px', color: '#8b949e', maxWidth: '640px', lineHeight: 1.6 }}>
-            ارز ({symbol})، تایم‌فریم ({interval}) و تنظیمات مورد نظر خود را در نوار بالا بررسی کرده و سپس روی دکمه{' '}
-            <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> کلیک کنید تا شبیه‌سازی شروع شده و چارت به همراه نتایج پوزیشن‌ها بارگذاری گردد.
-          </p>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
-            <span style={{ fontSize: '12px', backgroundColor: '#21262d', padding: '6px 14px', borderRadius: '16px', color: '#38bdf8' }}>
-              ✔ دیتای ۱ ساله کامل پیش‌بارگذاری شده
-            </span>
-            <span style={{ fontSize: '12px', backgroundColor: '#21262d', padding: '6px 14px', borderRadius: '16px', color: '#38bdf8' }}>
-              ✔ اجرای ۳۵,۰۴۰ کندل در تایم‌فریم ۱۵ دقیقه
-            </span>
-            <span style={{ fontSize: '12px', backgroundColor: '#21262d', padding: '6px 14px', borderRadius: '16px', color: '#38bdf8' }}>
-              ✔ عدم اجرای خودکار تا زمان فشردن دکمه
-            </span>
-          </div>
-          <button
-            onClick={() => runBacktest()}
-            disabled={loading}
-            style={{
-              marginTop: '16px',
-              backgroundColor: '#238636',
-              color: '#ffffff',
-              fontWeight: 700,
-              padding: '12px 36px',
-              borderRadius: '8px',
-              fontSize: '15px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              boxShadow: '0 0 18px rgba(35, 134, 54, 0.4)',
-            }}
-          >
-            {loading ? 'در حال اجرای شبیه‌سازی...' : 'Run Backtest ⚡'}
-          </button>
-        </section>
-      )}
-
-      {/* Dataset & Execution Info Banner */}
-      {hasExecuted && candleStats && (
-        <div
-          style={{
-            backgroundColor: '#161b22',
-            border: '1px solid #30363d',
-            borderRadius: '8px',
-            padding: '12px 18px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '18px' }}>📊</span>
-            <span style={{ fontSize: '13px', color: '#c9d1d9' }}>
-              بک‌تست بر روی <strong style={{ color: '#38bdf8' }}>{candleStats.totalCandles.toLocaleString()}</strong> کندل در تایم‌فریم <strong style={{ color: '#fbbf24' }}>{interval}</strong> برای <strong style={{ color: '#f0f6fc' }}>{symbol}</strong> انجام شد.
-              {candleStats.startTime && candleStats.endTime && (
-                <span style={{ color: '#8b949e', marginLeft: '6px' }}>
-                  ({new Date(candleStats.startTime).toLocaleDateString('fa-IR')} تا {new Date(candleStats.endTime).toLocaleDateString('fa-IR')})
-                </span>
-              )}
-            </span>
+      {/* Chart Section - Always Visible & Independent */}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
+          <div style={{ fontSize: '13px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>📈</span>
+            <span>نمای چارت زنده و بررسی کندل‌ها (تغییر تایم‌فریم چارت تأثیری بر نتایج بک‌تست نخواهد داشت)</span>
           </div>
 
-          {isDirty && (
+          {backtestResult && !isBacktestMatchingChart && (
             <span
               style={{
                 fontSize: '12px',
-                backgroundColor: 'rgba(234, 179, 8, 0.15)',
-                border: '1px solid #eab308',
-                color: '#facc15',
+                color: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                padding: '3px 8px',
+                borderRadius: '4px',
+              }}
+            >
+              ℹ️ تریدهای بک‌تست در تایم‌فریم {backtestResult.interval} قرار دارند
+            </span>
+          )}
+        </div>
+
+        <CandleChart
+          candles={chartCandles}
+          symbol={chartSymbol}
+          smaFast={isBacktestMatchingChart ? backtestResult?.indicators.smaFast : []}
+          smaSlow={isBacktestMatchingChart ? backtestResult?.indicators.smaSlow : []}
+          fastPeriod={backtestResult?.fastPeriod}
+          slowPeriod={backtestResult?.slowPeriod}
+          trades={isBacktestMatchingChart ? backtestResult?.trades : []}
+          currentInterval={chartInterval}
+          onIntervalChange={handleChartIntervalChange}
+          loading={chartLoading}
+        />
+      </section>
+
+      {/* Backtest Results Area */}
+      {backtestResult ? (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Execution Summary Banner */}
+          <div
+            style={{
+              backgroundColor: '#161b22',
+              border: '1px solid #30363d',
+              borderRadius: '8px',
+              padding: '12px 18px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px' }}>📊</span>
+              <span style={{ fontSize: '13px', color: '#c9d1d9' }}>
+                نتایج بک‌تست استراتژی روی <strong style={{ color: '#38bdf8' }}>{backtestResult.totalCandles.toLocaleString()}</strong> کندل در تایم‌فریم <strong style={{ color: '#fbbf24' }}>{backtestResult.interval}</strong> برای <strong style={{ color: '#f0f6fc' }}>{backtestResult.symbol}</strong>
+                {backtestResult.startTime && backtestResult.endTime && (
+                  <span style={{ color: '#8b949e', marginLeft: '6px' }}>
+                    ({new Date(backtestResult.startTime).toLocaleDateString('fa-IR')} تا {new Date(backtestResult.endTime).toLocaleDateString('fa-IR')})
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <span
+              style={{
+                fontSize: '12px',
+                backgroundColor: 'rgba(46, 160, 67, 0.15)',
+                border: '1px solid #2ea043',
+                color: '#3fb950',
                 padding: '4px 10px',
                 borderRadius: '6px',
                 fontWeight: 600,
               }}
             >
-              ⚠️ تنظیمات تغییر کرده است. برای اعمال مجدد، دکمه Run Backtest را بزنید.
+              ✔ شبیه‌سازی با موفقیت انجام شد
             </span>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* Results View */}
-      {hasExecuted && (
-        <>
           {/* Real-Time Active Position Card */}
-          <ActivePositionCard position={activePosition} symbol={symbol} />
+          <ActivePositionCard position={backtestResult.activePosition} symbol={backtestResult.symbol} />
 
           {/* Metrics Cards */}
-          {metrics && <MetricsCards metrics={metrics} initialBalance={initialBalance} />}
-
-          {/* Interactive Candlestick Chart */}
-          <CandleChart
-            candles={candles}
-            smaFast={smaFast}
-            smaSlow={smaSlow}
-            fastPeriod={fastPeriod}
-            slowPeriod={slowPeriod}
-            trades={trades}
-            currentInterval={interval}
-            onIntervalChange={handleTimeframeChange}
-            loading={loading}
-          />
+          <MetricsCards metrics={backtestResult.metrics} initialBalance={backtestResult.initialBalance} />
 
           {/* Equity Curve Chart */}
-          {equity.length > 0 && (
+          {backtestResult.equity.length > 0 && (
             <EquityChart
-              candles={candles}
-              equity={equity}
-              initialBalance={initialBalance}
+              candles={backtestResult.candles}
+              equity={backtestResult.equity}
+              initialBalance={backtestResult.initialBalance}
             />
           )}
 
@@ -596,9 +560,11 @@ export default function DashboardPage() {
                 fontWeight: activeTab === 'position' ? 700 : 500,
                 backgroundColor: activeTab === 'position' ? '#21262d' : 'transparent',
                 color: activeTab === 'position' ? '#f0f6fc' : '#8b949e',
+                border: 'none',
+                cursor: 'pointer',
               }}
             >
-              🟢 Active Position {activePosition ? '(1 Live)' : '(0)'}
+              🟢 Active Position {backtestResult.activePosition ? '(1 Live)' : '(0)'}
             </button>
 
             <button
@@ -610,19 +576,45 @@ export default function DashboardPage() {
                 fontWeight: activeTab === 'trades' ? 700 : 500,
                 backgroundColor: activeTab === 'trades' ? '#21262d' : 'transparent',
                 color: activeTab === 'trades' ? '#f0f6fc' : '#8b949e',
+                border: 'none',
+                cursor: 'pointer',
               }}
             >
-              📋 Executed Trades History ({trades.length})
+              📋 Executed Trades History ({backtestResult.trades.length})
             </button>
           </div>
 
           {/* Tab Content */}
           {activeTab === 'position' ? (
-            <ActivePositionCard position={activePosition} symbol={symbol} />
+            <ActivePositionCard position={backtestResult.activePosition} symbol={backtestResult.symbol} />
           ) : (
-            <TradesTable trades={trades} />
+            <TradesTable trades={backtestResult.trades} />
           )}
-        </>
+        </section>
+      ) : (
+        /* Empty / Ready State for Backtest */
+        <section
+          style={{
+            backgroundColor: '#161b22',
+            border: '1px dashed #30363d',
+            borderRadius: '8px',
+            padding: '36px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '36px' }}>⚡</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: '#f0f6fc' }}>
+            بک‌تست هنوز اجرا نشده است
+          </div>
+          <p style={{ fontSize: '13px', color: '#8b949e', maxWidth: '540px', margin: 0 }}>
+            چارت بالا به صورت مستقل فعال است و می‌توانید تایم‌فریم‌های مختلف را بررسی کنید. هر زمان مایل بودید، در باکس بالا دکمه <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> را بزنید تا استراتژی روی تایم‌فریم انتخابی شبیه‌سازی گردد.
+          </p>
+        </section>
       )}
     </div>
   );
