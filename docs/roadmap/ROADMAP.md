@@ -27,12 +27,12 @@
 - [x] Write tests for each indicator against known correct values
 - [x] Validate edge cases (insufficient data, empty arrays, etc.)
 
-## Phase 4: Strategy Engine
-- [ ] Implement Strategy runner
-- [ ] Implement SMA Crossover strategy (first strategy)
-- [ ] Signal generation: BUY, SELL, HOLD
-- [ ] Write tests for strategy signal generation
-- [ ] Document strategy in STRATEGIES_LOG.md
+## Phase 4: Strategy Engine ✅
+- [x] Implement Strategy runner
+- [x] Implement SMA Crossover strategy (first strategy)
+- [x] Signal generation: BUY, SELL, HOLD
+- [x] Write tests for strategy signal generation
+- [x] Document strategy in STRATEGIES_LOG.md
 
 ## Phase 5: Backtesting Engine
 - [ ] Implement backtest runner (feeds candles to strategy)

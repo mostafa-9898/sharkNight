@@ -39,7 +39,15 @@ When adding a new strategy, copy this template:
 
 ## Tested Strategies
 
-_No strategies tested yet. Will be populated in Phase 4._
+### SMA Crossover Strategy
+- **Type:** Trend Following (Moving Average Crossover)
+- **Indicators Used:** Fast SMA, Slow SMA
+- **Default Parameters:** fastPeriod: 10, slowPeriod: 30, source: 'close'
+- **Signal Conditions:**
+  - **BUY (Golden Cross):** Fast SMA crosses strictly above Slow SMA (`prevFast <= prevSlow && currentFast > currentSlow`)
+  - **SELL (Death Cross):** Fast SMA crosses strictly below Slow SMA (`prevFast >= prevSlow && currentFast < currentSlow`)
+  - **HOLD:** No crossover or insufficient history
+- **Status:** 🔄 Ready for Backtesting (Phase 5)
 
 ---
 

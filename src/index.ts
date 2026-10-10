@@ -1,5 +1,5 @@
 export * from './data';
 export * from './indicators';
-export * from './strategies/types';
+export * from './strategies';
 export * from './backtest/types';
 export * from './utils';

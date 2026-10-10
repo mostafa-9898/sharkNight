@@ -1,5 +1,4 @@
-import type { Candle } from '../data/models';
-import type { TradeSignal } from '../data/models';
+import type { Candle, TradeSignal } from '../data/models';
 
 export interface StrategyConfig {
   name: string;
@@ -9,5 +8,7 @@ export interface StrategyConfig {
 export interface Strategy {
   readonly name: string;
   readonly description: string;
-  analyze(candles: Candle[], currentIndex: number): TradeSignal;
+  readonly requiredCandles: number;
+  analyze(candles: readonly Candle[], currentIndex: number): TradeSignal;
 }
+

@@ -40,6 +40,7 @@ Every time we learn something new or find a better approach, it gets documented 
 | 2026-10-10 | Data Provider DI | Injectable `fetchFn` in provider constructor | Allows 100% offline, deterministic unit tests without network mocking libraries |
 | 2026-10-10 | Storage Merging | Map-based deduplication on timestamp | Prevents duplicate candles when appending overlapping time ranges |
 | 2026-10-10 | Indicator Design | Dual-layer API: pure functional math (`calculateSMA`) + pluggable classes (`SMAIndicator`) | Provides maximum flexibility for backtesting engine while remaining easily testable |
+| 2026-10-10 | Strategy Performance | Local window calculation (`slowPeriod + 1` lookback) in `analyze()` | Prevents $O(N^2)$ scaling during backtesting by only computing required points for crossover |
 
 ## ❌ What Didn't Work / Mistakes
 
