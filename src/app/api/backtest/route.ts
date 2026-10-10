@@ -70,11 +70,15 @@ export async function POST(request: Request) {
     const rsiPeriod = Math.max(2, Number(body.rsiPeriod ?? 14));
     const rsiOversold = Math.max(1, Math.min(99, Number(body.rsiOversold ?? 30)));
     const rsiOverbought = Math.max(rsiOversold + 1, Math.min(99, Number(body.rsiOverbought ?? 70)));
+    const rsiTolerance = Math.max(0, Math.min(25, Number(body.rsiTolerance ?? 5)));
 
     const macdEnabled = Boolean(body.macdEnabled);
     const macdFastPeriod = Math.max(2, Number(body.macdFastPeriod ?? 12));
     const macdSlowPeriod = Math.max(macdFastPeriod + 1, Number(body.macdSlowPeriod ?? 26));
     const macdSignalPeriod = Math.max(2, Number(body.macdSignalPeriod ?? 9));
+
+    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 5)));
+    const takeProfitPercent = Math.max(0.5, Number(body.takeProfitPercent ?? 10));
 
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
     const tradeFeePercent = Math.max(0, Number(body.tradeFeePercent ?? 0.1));
@@ -122,7 +126,7 @@ export async function POST(request: Request) {
       candles = candles.slice(-limit);
     }
 
-    // Run Strategy Backtest using ModularStrategy
+    // Run Strategy Backtest using ModularStrategy (Strategy 1)
     const strategy = new ModularStrategy({
       ma: {
         enabled: maEnabled,
@@ -135,6 +139,7 @@ export async function POST(request: Request) {
         period: rsiPeriod,
         oversold: rsiOversold,
         overbought: rsiOverbought,
+        tolerance: rsiTolerance,
       },
       macd: {
         enabled: macdEnabled,
@@ -142,6 +147,8 @@ export async function POST(request: Request) {
         slowPeriod: macdSlowPeriod,
         signalPeriod: macdSignalPeriod,
       },
+      confirmationWindow,
+      takeProfitPercent,
     });
 
     const engine = new BacktestEngine();
@@ -183,9 +190,12 @@ export async function POST(request: Request) {
         smaSlow: slowValues,
         rsiEnabled,
         rsiPeriod,
+        rsiTolerance,
         rsi: rsiValues,
         macdEnabled,
         macd: macdValues,
+        confirmationWindow,
+        takeProfitPercent,
       },
       backtest: {
         metrics: backtestResult.metrics,

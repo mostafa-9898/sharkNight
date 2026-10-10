@@ -28,7 +28,10 @@ interface BacktestResultData {
     smaFast: number[];
     smaSlow: number[];
     rsi?: number[];
+    rsiTolerance?: number;
     macd?: { macd: number[]; signal: number[]; histogram: number[] };
+    confirmationWindow?: number;
+    takeProfitPercent?: number;
   };
   candles: Candle[];
   totalCandles: number;
@@ -44,21 +47,25 @@ export default function DashboardPage() {
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
   const [btTradeFeePercent, setBtTradeFeePercent] = useState(0.1);
 
-  // Indicators State
+  // Indicators State (Strategy 1 defaults: EMA + RSI + MACD)
   const [maEnabled, setMaEnabled] = useState(true);
   const [maType, setMaType] = useState<'ema' | 'sma'>('ema');
   const [btFastPeriod, setBtFastPeriod] = useState(10);
   const [btSlowPeriod, setBtSlowPeriod] = useState(30);
 
-  const [rsiEnabled, setRsiEnabled] = useState(false);
+  const [rsiEnabled, setRsiEnabled] = useState(true);
   const [rsiPeriod, setRsiPeriod] = useState(14);
   const [rsiOversold, setRsiOversold] = useState(30);
   const [rsiOverbought, setRsiOverbought] = useState(70);
+  const [rsiTolerance, setRsiTolerance] = useState(5);
 
-  const [macdEnabled, setMacdEnabled] = useState(false);
+  const [macdEnabled, setMacdEnabled] = useState(true);
   const [macdFastPeriod, setMacdFastPeriod] = useState(12);
   const [macdSlowPeriod, setMacdSlowPeriod] = useState(26);
   const [macdSignalPeriod, setMacdSignalPeriod] = useState(9);
+
+  const [takeProfitPercent, setTakeProfitPercent] = useState(10);
+  const [confirmationWindow, setConfirmationWindow] = useState(5);
 
   const hasAtLeastOneIndicator = maEnabled || rsiEnabled || macdEnabled;
 
@@ -143,10 +150,13 @@ export default function DashboardPage() {
           rsiPeriod,
           rsiOversold,
           rsiOverbought,
+          rsiTolerance,
           macdEnabled,
           macdFastPeriod,
           macdSlowPeriod,
           macdSignalPeriod,
+          takeProfitPercent,
+          confirmationWindow,
         }),
       });
 
@@ -173,7 +183,10 @@ export default function DashboardPage() {
           smaFast: data.indicators?.smaFast ?? [],
           smaSlow: data.indicators?.smaSlow ?? [],
           rsi: data.indicators?.rsi ?? [],
+          rsiTolerance: data.indicators?.rsiTolerance ?? rsiTolerance,
           macd: data.indicators?.macd ?? null,
+          confirmationWindow: data.indicators?.confirmationWindow ?? confirmationWindow,
+          takeProfitPercent: data.indicators?.takeProfitPercent ?? takeProfitPercent,
         },
         candles,
         totalCandles: data.totalCandles ?? candles.length,
@@ -209,10 +222,13 @@ export default function DashboardPage() {
     rsiPeriod,
     rsiOversold,
     rsiOverbought,
+    rsiTolerance,
     macdEnabled,
     macdFastPeriod,
     macdSlowPeriod,
     macdSignalPeriod,
+    takeProfitPercent,
+    confirmationWindow,
     hasAtLeastOneIndicator,
   ]);
 
@@ -730,6 +746,29 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {/* Tolerance */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Tolerance (±):</label>
+              <input
+                type="number"
+                min={0}
+                max={25}
+                disabled={!rsiEnabled}
+                value={rsiTolerance}
+                onChange={(e) => setRsiTolerance(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
           </div>
 
           {/* Line 3: MACD */}
@@ -847,6 +886,74 @@ export default function DashboardPage() {
                   cursor: macdEnabled ? 'text' : 'not-allowed',
                 }}
               />
+            </div>
+          </div>
+
+          {/* Line 4: Strategy Rules & Take Profit */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              backgroundColor: '#0d1117',
+              border: '1px solid #21262d',
+              borderRadius: '6px',
+              padding: '10px 14px',
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc', minWidth: '220px' }}>
+              🎯 Strategy Rules & Exit
+            </span>
+
+            {/* Take Profit % */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Take Profit:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={takeProfitPercent}
+                  onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#2ea043',
+                    fontWeight: 700,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    width: '65px',
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+              </div>
+            </div>
+
+            {/* Crossover Window */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Crossover Window:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={confirmationWindow}
+                  onChange={(e) => setConfirmationWindow(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#e6edf3',
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    width: '65px',
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>candles</span>
+              </div>
             </div>
           </div>
         </div>
