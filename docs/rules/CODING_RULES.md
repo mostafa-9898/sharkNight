@@ -41,6 +41,7 @@ Every time we learn something new or find a better approach, it gets documented 
 | 2026-10-10 | Storage Merging | Map-based deduplication on timestamp | Prevents duplicate candles when appending overlapping time ranges |
 | 2026-10-10 | Indicator Design | Dual-layer API: pure functional math (`calculateSMA`) + pluggable classes (`SMAIndicator`) | Provides maximum flexibility for backtesting engine while remaining easily testable |
 | 2026-10-10 | Strategy Performance | Local window calculation (`slowPeriod + 1` lookback) in `analyze()` | Prevents $O(N^2)$ scaling during backtesting by only computing required points for crossover |
+| 2026-10-10 | Backtest Realization | Synthetic position auto-close at final candle | Ensures all open positions are marked-to-market/realized at backtest conclusion |
 
 ## ❌ What Didn't Work / Mistakes
 
@@ -50,6 +51,7 @@ Every time we learn something new or find a better approach, it gets documented 
 | 2026-10-04 | ts-jest + NodeNext | ts-jest warns about hybrid module kind without `isolatedModules` | Set `isolatedModules: true` in tsconfig.json when using NodeNext module |
 | 2026-10-04 | IDE Type Resolution | IDE red squiggly lines on Jest globals (`describe`, `it`, `expect`) | Include `"types": ["node", "jest"]` in `tsconfig.json` compilerOptions |
 | 2026-10-04 | Type Imports | Separate duplicate imports for types caused lint warnings | Consolidate imports and use `import type` syntax |
+| 2026-10-10 | Destructuring Lint | `const { candles: _unused, ...rest } = config` triggered unused-vars warning | Build subset object explicitly without creating unused destructured bindings |
 
 ## 💡 Patterns & Best Practices
 

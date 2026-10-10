@@ -34,15 +34,15 @@
 - [x] Write tests for strategy signal generation
 - [x] Document strategy in STRATEGIES_LOG.md
 
-## Phase 5: Backtesting Engine
-- [ ] Implement backtest runner (feeds candles to strategy)
-- [ ] Implement virtual portfolio (balance, positions, fees)
-- [ ] Implement trade execution simulation
-- [ ] Calculate metrics: PnL, Win Rate, Max Drawdown, Sharpe Ratio
-- [ ] Generate equity curve
-- [ ] Write tests for backtest engine
-- [ ] Write tests for portfolio simulation
-- [ ] Write tests for metrics calculation
+## Phase 5: Backtesting Engine ✅
+- [x] Implement backtest runner (feeds candles to strategy)
+- [x] Implement virtual portfolio (balance, positions, fees)
+- [x] Implement trade execution simulation
+- [x] Calculate metrics: PnL, Win Rate, Max Drawdown, Sharpe Ratio
+- [x] Generate equity curve
+- [x] Write tests for backtest engine
+- [x] Write tests for portfolio simulation
+- [x] Write tests for metrics calculation
 
 ## Phase 6: Results & Reporting
 - [ ] Console reporter (pretty-printed backtest results)

@@ -3,7 +3,7 @@ import type { Strategy } from '../strategies/types';
 
 export interface BacktestConfig {
   strategy: Strategy;
-  candles: Candle[];
+  candles: readonly Candle[];
   initialBalance: number;
   tradeFeePercent?: number;   // e.g., 0.1 for 0.1%
   positionSizePercent?: number; // e.g., 100 for 100% of balance
@@ -18,6 +18,9 @@ export interface Trade {
   pnl: number;
   pnlPercent: number;
   fee: number;
+  entryTime?: number;
+  exitTime?: number;
+  duration?: number;
 }
 
 export interface BacktestResult {
