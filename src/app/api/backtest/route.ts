@@ -47,7 +47,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const symbol = (body.symbol ?? 'BTCUSDT').toString().trim().toUpperCase();
     const interval = (body.interval ?? '1h') as CandleInterval;
-    const limit = Math.min(150000, Math.max(50, Number(body.limit ?? 1000)));
+    const rawLimit = body.limit;
+    const isAll =
+      rawLimit === 'all' ||
+      rawLimit === 0 ||
+      rawLimit === '0' ||
+      rawLimit === undefined ||
+      rawLimit === null;
+    const limit = isAll ? 150000 : Math.min(150000, Math.max(50, Number(rawLimit)));
     const fastPeriod = Math.max(2, Number(body.fastPeriod ?? 10));
     const slowPeriod = Math.max(fastPeriod + 1, Number(body.slowPeriod ?? 30));
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
@@ -56,7 +63,7 @@ export async function POST(request: Request) {
     const storage = new JsonStorage();
     let candles: Candle[] | null = await storage.loadCandles(symbol, interval);
 
-    if (!candles || candles.length < limit) {
+    if (!candles || candles.length === 0 || (!isAll && candles.length < limit)) {
       // 1. Try Binance
       try {
         const binance = new BinancePublicProvider();
@@ -85,7 +92,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (candles.length > limit) {
+    if (!isAll && candles.length > limit) {
       candles = candles.slice(-limit);
     }
 
@@ -108,10 +115,17 @@ export async function POST(request: Request) {
     const smaSlow = calculateSMA(closePrices, slowPeriod);
     const rsi = calculateRSI(closePrices, 14);
 
+    const firstCandle = candles[0];
+    const lastCandle = candles[candles.length - 1];
+
     return NextResponse.json({
       success: true,
       symbol,
       interval,
+      totalCandles: candles.length,
+      startTime: firstCandle?.timestamp ?? null,
+      endTime: lastCandle?.timestamp ?? null,
+      isFullDataset: isAll || candles.length >= 2000,
       candles,
       indicators: {
         smaFast,

@@ -171,3 +171,4 @@ export default function ActivePositionCard({ position, symbol }: ActivePositionC
     </div>
   );
 }
+
