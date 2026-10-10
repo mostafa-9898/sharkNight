@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type {
   IChartApi,
   ISeriesApi,
   UTCTimestamp,
+  Time,
   SeriesMarker,
+  ISeriesMarkersPluginApi,
 } from 'lightweight-charts';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import type { Trade } from '@/backtest/types';
@@ -23,7 +25,7 @@ interface CandleChartProps {
   loading?: boolean;
 }
 
-const TIMEFRAME_PILLS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
+const TIMEFRAME_OPTIONS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
 export default function CandleChart({
   candles,
@@ -33,7 +35,7 @@ export default function CandleChart({
   fastPeriod = 10,
   slowPeriod = 30,
   trades = [],
-  currentInterval = '1h',
+  currentInterval = '15m',
   onIntervalChange,
   loading = false,
 }: CandleChartProps) {
@@ -42,8 +44,34 @@ export default function CandleChart({
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const fastLineRef = useRef<ISeriesApi<'Line'> | null>(null);
   const slowLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
-  // Initialize chart canvas once
+  // Indicators: OFF by default on initial load!
+  const [showFastSMA, setShowFastSMA] = useState(false);
+  const [showSlowSMA, setShowSlowSMA] = useState(false);
+  const [showSignals, setShowSignals] = useState(false);
+
+  // Indicators Dropdown menu state
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIndicatorsOpen(false);
+      }
+    };
+
+    if (indicatorsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [indicatorsOpen]);
+
+  // 1. Initialize chart canvas ONCE on mount
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -54,7 +82,6 @@ export default function CandleChart({
       ({ createChart, CandlestickSeries, LineSeries, ColorType }) => {
         if (!isMounted || !containerRef.current) return;
 
-        // Clean previous if any
         if (chartRef.current) {
           chartRef.current.remove();
         }
@@ -95,6 +122,7 @@ export default function CandleChart({
           color: '#38bdf8',
           lineWidth: 2,
           title: `SMA ${fastPeriod}`,
+          visible: false,
         });
         fastLineRef.current = fastLine;
 
@@ -102,6 +130,7 @@ export default function CandleChart({
           color: '#fbbf24',
           lineWidth: 2,
           title: `SMA ${slowPeriod}`,
+          visible: false,
         });
         slowLineRef.current = slowLine;
 
@@ -122,6 +151,14 @@ export default function CandleChart({
       if (handleResize) {
         window.removeEventListener('resize', handleResize);
       }
+      if (markersPluginRef.current) {
+        try {
+          markersPluginRef.current.detach();
+        } catch {
+          // ignore
+        }
+        markersPluginRef.current = null;
+      }
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
@@ -132,88 +169,124 @@ export default function CandleChart({
     };
   }, []); // Run ONCE on mount!
 
-  // Instant data update without chart re-creation!
+  // 2. ONLY update candles and fitContent when `candles` dataset itself changes (e.g. timeframe change)
   useEffect(() => {
     if (!candleSeriesRef.current || !chartRef.current || candles.length === 0) {
       return;
     }
 
+    const formattedCandles = candles.map((c) => ({
+      time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+
+    candleSeriesRef.current.setData(formattedCandles);
+    chartRef.current.timeScale().fitContent();
+  }, [candles]);
+
+  // 3. Fast SMA data update (does NOT fitContent, preserving zoom)
+  useEffect(() => {
+    if (!fastLineRef.current) return;
+    fastLineRef.current.applyOptions({ title: `SMA ${fastPeriod}` });
+    if (smaFast && smaFast.length === candles.length) {
+      const fastData = candles
+        .map((c, i) => ({
+          time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
+          value: smaFast[i],
+        }))
+        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
+      fastLineRef.current.setData(fastData);
+    } else {
+      fastLineRef.current.setData([]);
+    }
+  }, [smaFast, fastPeriod, candles]);
+
+  // 4. Slow SMA data update (does NOT fitContent, preserving zoom)
+  useEffect(() => {
+    if (!slowLineRef.current) return;
+    slowLineRef.current.applyOptions({ title: `SMA ${slowPeriod}` });
+    if (smaSlow && smaSlow.length === candles.length) {
+      const slowData = candles
+        .map((c, i) => ({
+          time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
+          value: smaSlow[i],
+        }))
+        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
+      slowLineRef.current.setData(slowData);
+    } else {
+      slowLineRef.current.setData([]);
+    }
+  }, [smaSlow, slowPeriod, candles]);
+
+  // 5. Fast SMA Toggle (instant visibility, zero zoom change)
+  useEffect(() => {
+    if (fastLineRef.current) {
+      fastLineRef.current.applyOptions({ visible: showFastSMA });
+    }
+  }, [showFastSMA]);
+
+  // 6. Slow SMA Toggle (instant visibility, zero zoom change)
+  useEffect(() => {
+    if (slowLineRef.current) {
+      slowLineRef.current.applyOptions({ visible: showSlowSMA });
+    }
+  }, [showSlowSMA]);
+
+  // 7. Trade Signals Toggle (instant markers update via setMarkers, zero zoom change)
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+
     import('lightweight-charts').then(({ createSeriesMarkers }) => {
-      if (!candleSeriesRef.current || !chartRef.current) return;
+      if (!candleSeriesRef.current) return;
 
-      const formattedCandles = candles.map((c) => ({
-        time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-
-      candleSeriesRef.current.setData(formattedCandles);
-
-      // Fast SMA update
-      if (fastLineRef.current) {
-        fastLineRef.current.applyOptions({ title: `SMA ${fastPeriod}` });
-        if (smaFast && smaFast.length === candles.length) {
-          const fastData = candles
-            .map((c, i) => ({
-              time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-              value: smaFast[i],
-            }))
-            .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
-          fastLineRef.current.setData(fastData);
-        } else {
-          fastLineRef.current.setData([]);
-        }
+      if (!markersPluginRef.current) {
+        markersPluginRef.current = createSeriesMarkers(candleSeriesRef.current, []);
       }
 
-      // Slow SMA update
-      if (slowLineRef.current) {
-        slowLineRef.current.applyOptions({ title: `SMA ${slowPeriod}` });
-        if (smaSlow && smaSlow.length === candles.length) {
-          const slowData = candles
-            .map((c, i) => ({
-              time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-              value: smaSlow[i],
-            }))
-            .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
-          slowLineRef.current.setData(slowData);
-        } else {
-          slowLineRef.current.setData([]);
-        }
+      if (!showSignals || trades.length === 0) {
+        markersPluginRef.current.setMarkers([]);
+        return;
       }
 
-      // Trade markers
-      const markers: SeriesMarker<UTCTimestamp>[] = [];
-      if (trades.length > 0) {
-        for (const trade of trades) {
-          if (trade.entryTime) {
-            markers.push({
-              time: Math.floor(trade.entryTime / 1000) as UTCTimestamp,
-              position: 'belowBar',
-              color: '#2ea043',
-              shape: 'arrowUp',
-              text: `BUY @ $${trade.entryPrice.toLocaleString()}`,
-            });
-          }
-          if (trade.exitTime) {
-            const isWin = trade.pnl > 0;
-            markers.push({
-              time: Math.floor(trade.exitTime / 1000) as UTCTimestamp,
-              position: 'aboveBar',
-              color: isWin ? '#38bdf8' : '#f85149',
-              shape: 'arrowDown',
-              text: `SELL (${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%)`,
-            });
-          }
+      const markers: SeriesMarker<Time>[] = [];
+      for (const trade of trades) {
+        if (trade.entryTime) {
+          markers.push({
+            time: Math.floor(trade.entryTime / 1000) as UTCTimestamp,
+            position: 'belowBar',
+            color: '#2ea043',
+            shape: 'arrowUp',
+            text: `BUY @ $${trade.entryPrice.toLocaleString()}`,
+          });
         }
-        markers.sort((a, b) => Number(a.time) - Number(b.time));
+        if (trade.exitTime) {
+          const isWin = trade.pnl > 0;
+          markers.push({
+            time: Math.floor(trade.exitTime / 1000) as UTCTimestamp,
+            position: 'aboveBar',
+            color: isWin ? '#38bdf8' : '#f85149',
+            shape: 'arrowDown',
+            text: `SELL (${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%)`,
+          });
+        }
       }
-      createSeriesMarkers(candleSeriesRef.current, markers);
-
-      chartRef.current.timeScale().fitContent();
+      markers.sort((a, b) => Number(a.time) - Number(b.time));
+      markersPluginRef.current.setMarkers(markers);
     });
-  }, [candles, smaFast, smaSlow, fastPeriod, slowPeriod, trades]);
+  }, [showSignals, trades]);
+
+  // Clear all indicators handler
+  const handleClearAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowFastSMA(false);
+    setShowSlowSMA(false);
+    setShowSignals(false);
+  };
+
+  const activeIndicatorsCount = [showFastSMA, showSlowSMA, showSignals].filter(Boolean).length;
 
   return (
     <div
@@ -221,66 +294,270 @@ export default function CandleChart({
         backgroundColor: '#161b22',
         borderRadius: '8px',
         border: '1px solid #30363d',
-        overflow: 'hidden',
+        overflow: 'visible',
         position: 'relative',
       }}
     >
-      {/* Chart Header with Timeframe Pills */}
+      {/* Clean Minimalist Chart Header */}
       <div
         style={{
-          padding: '12px 16px',
+          padding: '10px 16px',
           borderBottom: '1px solid #30363d',
           display: 'flex',
-          flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '12px',
+          backgroundColor: '#161b22',
+          borderTopLeftRadius: '8px',
+          borderTopRightRadius: '8px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 700, color: '#f0f6fc', marginRight: '6px', fontSize: '13px' }}>
+        {/* Left Side: Symbol & Timeframe Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontWeight: 700, color: '#f0f6fc', fontSize: '15px', letterSpacing: '0.5px' }}>
             {symbol}
           </span>
-          <span style={{ fontSize: '12px', color: '#8b949e', marginRight: '4px' }}>Timeframe:</span>
-          {TIMEFRAME_PILLS.map((tf) => {
-            const isActive = tf === currentInterval;
-            return (
-              <button
-                key={tf}
-                onClick={() => onIntervalChange?.(tf)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: isActive ? 700 : 500,
-                  backgroundColor: isActive ? '#38bdf8' : '#21262d',
-                  color: isActive ? '#0d1117' : '#c9d1d9',
-                  transition: 'all 0.15s ease',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                {tf}
-              </button>
-            );
-          })}
+
+          {/* Timeframe Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#8b949e' }}>تایم‌فریم:</span>
+            <select
+              value={currentInterval}
+              onChange={(e) => onIntervalChange?.(e.target.value as CandleInterval)}
+              style={{
+                backgroundColor: '#21262d',
+                color: '#e6edf3',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {TIMEFRAME_OPTIONS.map((tf) => (
+                <option key={tf} value={tf}>
+                  🕒 {tf}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '14px', fontSize: '12px', alignItems: 'center' }}>
-          {smaFast && smaFast.length > 0 && (
-            <>
-              <span style={{ color: '#38bdf8' }}>● Fast SMA ({fastPeriod})</span>
-              <span style={{ color: '#fbbf24' }}>● Slow SMA ({slowPeriod})</span>
-            </>
-          )}
-          {trades.length > 0 && (
-            <>
-              <span style={{ color: '#2ea043' }}>▲ Buy</span>
-              <span style={{ color: '#f85149' }}>▼ Sell</span>
-            </>
-          )}
-          <span style={{ color: '#8b949e' }}>
-            {candles.length.toLocaleString()} Candles
+        {/* Right Side: Indicators Dropdown & Info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
+          {/* Indicators Dropdown Toggle */}
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIndicatorsOpen((prev) => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                backgroundColor: indicatorsOpen || activeIndicatorsCount > 0 ? '#21262d' : '#161b22',
+                border: `1px solid ${activeIndicatorsCount > 0 ? '#38bdf8' : '#30363d'}`,
+                color: activeIndicatorsCount > 0 ? '#38bdf8' : '#c9d1d9',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📊</span>
+              <span>اندیکاتورها</span>
+              {activeIndicatorsCount > 0 && (
+                <span
+                  style={{
+                    backgroundColor: '#38bdf8',
+                    color: '#0d1117',
+                    borderRadius: '10px',
+                    padding: '1px 6px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {activeIndicatorsCount}
+                </span>
+              )}
+              <span style={{ fontSize: '10px', opacity: 0.7 }}>{indicatorsOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {/* Dropdown Menu (does NOT close on item clicks, closes on outside click) */}
+            {indicatorsOpen && (
+              <div
+                dir="rtl"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  backgroundColor: '#161b22',
+                  border: '1px solid #30363d',
+                  borderRadius: '8px',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+                  width: '280px',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  zIndex: 100,
+                }}
+              >
+                {/* 1. Clear All Option (پاک کردن همه) */}
+                <button
+                  onClick={handleClearAll}
+                  disabled={activeIndicatorsCount === 0}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: activeIndicatorsCount > 0 ? 'rgba(248, 81, 73, 0.1)' : '#21262d',
+                    border: `1px solid ${activeIndicatorsCount > 0 ? 'rgba(248, 81, 73, 0.3)' : '#30363d'}`,
+                    color: activeIndicatorsCount > 0 ? '#f85149' : '#6e7681',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: activeIndicatorsCount > 0 ? 'pointer' : 'default',
+                    transition: 'all 0.15s ease',
+                    marginBottom: '4px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🗑️</span>
+                    <span>پاک کردن همه (خاموش‌سازی)</span>
+                  </span>
+                  {activeIndicatorsCount > 0 && (
+                    <span style={{ fontSize: '11px', opacity: 0.85 }}>({activeIndicatorsCount} فعال)</span>
+                  )}
+                </button>
+
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: '#8b949e',
+                    padding: '4px 8px 6px',
+                    borderBottom: '1px solid #21262d',
+                    marginBottom: '4px',
+                  }}
+                >
+                  انتخاب اندیکاتورهای روی چارت:
+                </div>
+
+                {/* Fast SMA Item */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    backgroundColor: showFastSMA ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showFastSMA}
+                    onChange={(e) => setShowFastSMA(e.target.checked)}
+                    style={{ accentColor: '#38bdf8', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: '#38bdf8',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
+                    Fast SMA ({fastPeriod})
+                  </span>
+                </label>
+
+                {/* Slow SMA Item */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    backgroundColor: showSlowSMA ? 'rgba(251, 191, 36, 0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showSlowSMA}
+                    onChange={(e) => setShowSlowSMA(e.target.checked)}
+                    style={{ accentColor: '#fbbf24', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: '#fbbf24',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
+                    Slow SMA ({slowPeriod})
+                  </span>
+                </label>
+
+                {/* Signals Item */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    backgroundColor: showSignals ? 'rgba(46, 160, 67, 0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showSignals}
+                    onChange={(e) => setShowSignals(e.target.checked)}
+                    style={{ accentColor: '#2ea043', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '13px', flexShrink: 0 }}>🎯</span>
+                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
+                    سیگنال‌های ترید (Buy/Sell)
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      backgroundColor: '#21262d',
+                      color: '#8b949e',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                    }}
+                  >
+                    {trades.length}
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
+
+          <span style={{ color: '#8b949e', fontSize: '12px' }}>
+            {candles.length.toLocaleString()} کندل
           </span>
         </div>
       </div>

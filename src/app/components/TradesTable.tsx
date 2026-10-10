@@ -1,16 +1,134 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Trade } from '@/backtest/types';
 
 interface TradesTableProps {
   trades: Trade[];
 }
 
+type SortField =
+  | 'id'
+  | 'entryTime'
+  | 'entryPrice'
+  | 'exitTime'
+  | 'exitPrice'
+  | 'duration'
+  | 'fee'
+  | 'pnl'
+  | 'pnlPercent';
+
+type SortDirection = 'asc' | 'desc';
+
+interface ColumnConfig {
+  key: SortField;
+  label: string;
+  align?: 'left' | 'right' | 'center';
+}
+
+const COLUMNS: ColumnConfig[] = [
+  { key: 'id', label: '#', align: 'center' },
+  { key: 'entryTime', label: 'زمان ورود (Entry Time)', align: 'left' },
+  { key: 'entryPrice', label: 'قیمت ورود (Entry Price)', align: 'right' },
+  { key: 'exitTime', label: 'زمان خروج (Exit Time)', align: 'left' },
+  { key: 'exitPrice', label: 'قیمت خروج (Exit Price)', align: 'right' },
+  { key: 'duration', label: 'مدت پوزیشن (Duration)', align: 'center' },
+  { key: 'fee', label: 'کارمزد (Fee)', align: 'right' },
+  { key: 'pnl', label: 'سود/زیان خالص (Net PnL)', align: 'right' },
+  { key: 'pnlPercent', label: 'بازدهی (Return %)', align: 'right' },
+];
+
 export default function TradesTable({ trades }: TradesTableProps) {
+  // Default sorting: chronological by ID
+  const [sortField, setSortField] = useState<SortField>('id');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      // For profit/return, default to descending (highest first)
+      if (field === 'pnl' || field === 'pnlPercent' || field === 'duration') {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
+    }
+  };
+
+  const resetSort = () => {
+    setSortField('id');
+    setSortDirection('asc');
+  };
+
+  const winningTradesCount = useMemo(() => trades.filter((t) => t.pnl > 0).length, [trades]);
+  const losingTradesCount = useMemo(() => trades.filter((t) => t.pnl <= 0).length, [trades]);
+
+  // Sort trades with useMemo
+  const sortedTrades = useMemo(() => {
+    const list = trades.map((trade, originalIndex) => ({
+      ...trade,
+      originalIndex: originalIndex + 1,
+    }));
+
+    return list.sort((a, b) => {
+      let valA: number;
+      let valB: number;
+
+      switch (sortField) {
+        case 'id':
+          valA = a.originalIndex;
+          valB = b.originalIndex;
+          break;
+        case 'entryTime':
+          valA = a.entryTime ?? 0;
+          valB = b.entryTime ?? 0;
+          break;
+        case 'entryPrice':
+          valA = a.entryPrice;
+          valB = b.entryPrice;
+          break;
+        case 'exitTime':
+          valA = a.exitTime ?? 0;
+          valB = b.exitTime ?? 0;
+          break;
+        case 'exitPrice':
+          valA = a.exitPrice;
+          valB = b.exitPrice;
+          break;
+        case 'duration':
+          valA = a.duration ?? 0;
+          valB = b.duration ?? 0;
+          break;
+        case 'fee':
+          valA = a.fee;
+          valB = b.fee;
+          break;
+        case 'pnl':
+          valA = a.pnl;
+          valB = b.pnl;
+          break;
+        case 'pnlPercent':
+          valA = a.pnlPercent;
+          valB = b.pnlPercent;
+          break;
+        default:
+          valA = a.originalIndex;
+          valB = b.originalIndex;
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [trades, sortField, sortDirection]);
+
   if (trades.length === 0) {
     return (
       <div
+        dir="rtl"
         style={{
           backgroundColor: '#161b22',
           border: '1px solid #30363d',
@@ -18,9 +136,10 @@ export default function TradesTable({ trades }: TradesTableProps) {
           padding: '24px',
           textAlign: 'center',
           color: '#8b949e',
+          fontSize: '13px',
         }}
       >
-        No trades were triggered by this strategy for the given parameters and time range.
+        هیچ معامله‌ای با پارامترهای مشخص شده در این بازه تاریخی ثبت نگردید.
       </div>
     );
   }
@@ -50,37 +169,141 @@ export default function TradesTable({ trades }: TradesTableProps) {
         border: '1px solid #30363d',
         borderRadius: '8px',
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
+      {/* Table Header Bar */}
       <div
         style={{
-          padding: '12px 16px',
+          padding: '12px 18px',
           borderBottom: '1px solid #30363d',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+          backgroundColor: '#161b22',
         }}
       >
-        <span style={{ fontWeight: 600, color: '#f0f6fc' }}>Trade History ({trades.length} Trades)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 700, color: '#f0f6fc', fontSize: '14px' }}>
+            📋 تاریخچه معاملات (Trade History)
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              backgroundColor: '#21262d',
+              color: '#38bdf8',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontWeight: 600,
+            }}
+          >
+            {trades.length} معامله
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              backgroundColor: 'rgba(46, 160, 67, 0.15)',
+              border: '1px solid rgba(46, 160, 67, 0.3)',
+              color: '#3fb950',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontWeight: 600,
+            }}
+          >
+            ✓ {winningTradesCount} Win
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              backgroundColor: 'rgba(248, 81, 73, 0.15)',
+              border: '1px solid rgba(248, 81, 73, 0.3)',
+              color: '#f85149',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontWeight: 600,
+            }}
+          >
+            ✕ {losingTradesCount} Failed
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {sortField !== 'id' && (
+            <button
+              onClick={resetSort}
+              style={{
+                backgroundColor: '#21262d',
+                color: '#8b949e',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="بازنشانی به ترتیب زمانی معاملات"
+            >
+              🔄 ترتیب اولیه
+            </button>
+          )}
+
+          <span style={{ fontSize: '12px', color: '#8b949e' }}>
+            (برای مرتب‌سازی روی عنوان هر ستون کلیک کنید)
+          </span>
+        </div>
       </div>
 
-      <div style={{ overflowX: 'auto', maxHeight: '360px', overflowY: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+      {/* Scrollable Table with Sticky Headers */}
+      <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
-            <tr style={{ backgroundColor: '#0d1117', color: '#8b949e', borderBottom: '1px solid #30363d' }}>
-              <th style={{ padding: '10px 14px' }}>#</th>
-              <th style={{ padding: '10px 14px' }}>Entry Time</th>
-              <th style={{ padding: '10px 14px' }}>Entry Price</th>
-              <th style={{ padding: '10px 14px' }}>Exit Time</th>
-              <th style={{ padding: '10px 14px' }}>Exit Price</th>
-              <th style={{ padding: '10px 14px' }}>Duration</th>
-              <th style={{ padding: '10px 14px' }}>Fee</th>
-              <th style={{ padding: '10px 14px' }}>Net PnL</th>
-              <th style={{ padding: '10px 14px' }}>Return</th>
+            <tr style={{ backgroundColor: '#0d1117', borderBottom: '1px solid #30363d' }}>
+              {COLUMNS.map((col) => {
+                const isSorted = sortField === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    style={{
+                      position: 'sticky',
+                      top: 0,
+                      backgroundColor: '#0d1117',
+                      color: isSorted ? '#38bdf8' : '#8b949e',
+                      padding: '12px 14px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      textAlign: col.align ?? 'left',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      borderBottom: isSorted ? '2px solid #38bdf8' : '1px solid #30363d',
+                      zIndex: 2,
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title={`مرتب‌سازی بر اساس ${col.label}`}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{col.label}</span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          color: isSorted ? '#38bdf8' : '#484f58',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+                      </span>
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {trades.map((trade, idx) => {
+            {sortedTrades.map((trade, idx) => {
               const isProfit = trade.pnl >= 0;
               return (
                 <tr
@@ -88,29 +311,128 @@ export default function TradesTable({ trades }: TradesTableProps) {
                   style={{
                     borderBottom: '1px solid #21262d',
                     backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)',
+                    transition: 'background-color 0.1s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.04)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)';
                   }}
                 >
-                  <td style={{ padding: '10px 14px', color: '#8b949e' }}>{idx + 1}</td>
-                  <td style={{ padding: '10px 14px' }}>{formatTime(trade.entryTime)}</td>
-                  <td style={{ padding: '10px 14px', fontWeight: 500 }}>${trade.entryPrice.toLocaleString()}</td>
-                  <td style={{ padding: '10px 14px' }}>{formatTime(trade.exitTime)}</td>
-                  <td style={{ padding: '10px 14px', fontWeight: 500 }}>${trade.exitPrice.toLocaleString()}</td>
-                  <td style={{ padding: '10px 14px', color: '#8b949e' }}>{formatDuration(trade.duration)}</td>
-                  <td style={{ padding: '10px 14px', color: '#8b949e' }}>${trade.fee.toFixed(2)}</td>
+                  {/* # */}
                   <td
                     style={{
                       padding: '10px 14px',
-                      fontWeight: 600,
+                      color: '#8b949e',
+                      textAlign: 'center',
+                      fontWeight: sortField === 'id' ? 700 : 400,
+                    }}
+                  >
+                    {trade.originalIndex}
+                  </td>
+
+                  {/* Entry Time */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      whiteSpace: 'nowrap',
+                      color: sortField === 'entryTime' ? '#f0f6fc' : '#c9d1d9',
+                    }}
+                  >
+                    {formatTime(trade.entryTime)}
+                  </td>
+
+                  {/* Entry Price */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      textAlign: 'right',
+                      fontWeight: 500,
+                      color: sortField === 'entryPrice' ? '#f0f6fc' : '#e6edf3',
+                    }}
+                  >
+                    ${trade.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+
+                  {/* Exit Time */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      whiteSpace: 'nowrap',
+                      color: sortField === 'exitTime' ? '#f0f6fc' : '#c9d1d9',
+                    }}
+                  >
+                    {formatTime(trade.exitTime)}
+                  </td>
+
+                  {/* Exit Price */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      textAlign: 'right',
+                      fontWeight: 500,
+                      color: sortField === 'exitPrice' ? '#f0f6fc' : '#e6edf3',
+                    }}
+                  >
+                    ${trade.exitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+
+                  {/* Duration */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      color: '#8b949e',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {formatDuration(trade.duration)}
+                  </td>
+
+                  {/* Fee */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      color: '#8b949e',
+                      textAlign: 'right',
+                    }}
+                  >
+                    ${trade.fee.toFixed(2)}
+                  </td>
+
+                  {/* Net PnL */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      textAlign: 'right',
+                      fontWeight: 700,
                       color: isProfit ? '#3fb950' : '#f85149',
+                      backgroundColor:
+                        sortField === 'pnl'
+                          ? isProfit
+                            ? 'rgba(46, 160, 67, 0.08)'
+                            : 'rgba(248, 81, 73, 0.08)'
+                          : 'transparent',
                     }}
                   >
                     {isProfit ? '+' : ''}${trade.pnl.toFixed(2)}
                   </td>
+
+                  {/* Return % */}
                   <td
                     style={{
                       padding: '10px 14px',
-                      fontWeight: 600,
+                      textAlign: 'right',
+                      fontWeight: 700,
                       color: isProfit ? '#3fb950' : '#f85149',
+                      backgroundColor:
+                        sortField === 'pnlPercent'
+                          ? isProfit
+                            ? 'rgba(46, 160, 67, 0.08)'
+                            : 'rgba(248, 81, 73, 0.08)'
+                          : 'transparent',
                     }}
                   >
                     {isProfit ? '+' : ''}{trade.pnlPercent.toFixed(2)}%
@@ -124,4 +446,3 @@ export default function TradesTable({ trades }: TradesTableProps) {
     </div>
   );
 }
-
