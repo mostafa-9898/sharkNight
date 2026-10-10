@@ -45,9 +45,31 @@ export class BacktestEngine {
       equityCurve.push(portfolio.getTotalEquity(candle.close));
     }
 
-    // If position is still open at the end of data, close it at final candle's close price
+    // Capture active position status before final auto-close
+    let activePosition: import('./types').ActivePosition | null = null;
     if (portfolio.hasOpenPosition()) {
+      const openPos = portfolio.getOpenPosition()!;
       const finalCandle = candles[candles.length - 1];
+      const grossValue = openPos.quantity * finalCandle.close;
+      const exitFee = grossValue * (tradeFeePercent / 100);
+      const netValue = grossValue - exitFee;
+      const unrealizedPnl = netValue - openPos.entryCost;
+      const unrealizedPnlPercent = (unrealizedPnl / openPos.entryCost) * 100;
+
+      activePosition = {
+        entrySignal: openPos.entrySignal,
+        entryPrice: openPos.entryPrice,
+        currentPrice: finalCandle.close,
+        quantity: openPos.quantity,
+        investedCost: openPos.entryCost,
+        entryFee: openPos.entryFee,
+        unrealizedPnl,
+        unrealizedPnlPercent,
+        entryTime: openPos.entryTime,
+        duration: Math.max(0, finalCandle.timestamp - openPos.entryTime),
+      };
+
+      // Close open position to realize final balance
       const exitSignal: TradeSignal = {
         action: 'SELL',
         timestamp: finalCandle.timestamp,
@@ -55,8 +77,6 @@ export class BacktestEngine {
         reason: 'Backtest conclusion: closed remaining open position',
       };
       portfolio.closePosition(exitSignal, finalCandle.close, finalCandle.timestamp);
-
-      // Update final equity point to exact realized cash
       equityCurve[equityCurve.length - 1] = portfolio.getCash();
     }
 
@@ -75,6 +95,7 @@ export class BacktestEngine {
       trades,
       metrics,
       equity: equityCurve,
+      activePosition,
     };
   }
 }

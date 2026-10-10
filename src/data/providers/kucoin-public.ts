@@ -1,5 +1,5 @@
-import type { Candle, CandleRequest, CandleInterval } from '../models';
-import { isValidCandle, sortCandles, deduplicateCandles } from '../models';
+import type { Candle, CandleRequest, CandleInterval } from '../models/candle';
+import { isValidCandle, sortCandles, deduplicateCandles } from '../models/candle';
 import type { DataProvider } from './types';
 
 export interface KucoinProviderOptions {
@@ -46,62 +46,107 @@ export class KucoinPublicProvider implements DataProvider {
   async fetchCandles(request: CandleRequest): Promise<Candle[]> {
     const kucoinSymbol = this.formatSymbol(request.symbol);
     const kucoinType = INTERVAL_MAP[request.interval] ?? '1hour';
+    const targetLimit = request.limit ?? 1500;
+    const startTimeSec = request.startTime ? Math.floor(request.startTime / 1000) : undefined;
+    let currentEndSec = request.endTime ? Math.floor(request.endTime / 1000) : Math.floor(Date.now() / 1000);
 
-    const query = new URLSearchParams({
-      symbol: kucoinSymbol,
-      type: kucoinType,
-    });
+    const allCandles: Candle[] = [];
+    const maxBatches = 50; // Safety guard against infinite loops
 
-    if (request.startTime) {
-      query.set('startAt', Math.floor(request.startTime / 1000).toString());
-    }
-    if (request.endTime) {
-      query.set('endAt', Math.floor(request.endTime / 1000).toString());
-    }
+    for (let batch = 0; batch < maxBatches; batch++) {
+      const query = new URLSearchParams({
+        symbol: kucoinSymbol,
+        type: kucoinType,
+        endAt: currentEndSec.toString(),
+      });
 
-    const url = `${this.baseUrl}/api/v1/market/candles?${query.toString()}`;
-
-    let response: Response;
-    try {
-      response = await this.fetchFn(url);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to fetch candles from KuCoin: ${message}`);
-    }
-
-    if (!response.ok) {
-      throw new Error(`KuCoin API returned status ${response.status}: ${response.statusText}`);
-    }
-
-    const json = (await response.json()) as { code: string; msg?: string; data?: unknown[] };
-
-    if (json.code !== '200000' || !Array.isArray(json.data)) {
-      throw new Error(`KuCoin API error: ${json.msg || json.code || 'Unknown error'}`);
-    }
-
-    const candles: Candle[] = [];
-
-    // KuCoin row: [0: time, 1: open, 2: close, 3: high, 4: low, 5: volume, 6: turnover]
-    for (const row of json.data) {
-      if (!Array.isArray(row) || row.length < 6) {
-        continue;
+      if (startTimeSec !== undefined) {
+        query.set('startAt', startTimeSec.toString());
       }
 
-      const candle: Candle = {
-        timestamp: Number(row[0]) * 1000,
-        open: Number(row[1]),
-        close: Number(row[2]),
-        high: Number(row[3]),
-        low: Number(row[4]),
-        volume: Number(row[5]),
-      };
+      const url = `${this.baseUrl}/api/v1/market/candles?${query.toString()}`;
 
-      if (isValidCandle(candle)) {
-        candles.push(candle);
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          response = await this.fetchFn(url);
+          if (response.status === 429) {
+            // Rate limited: wait 1.5s then retry
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            continue;
+          }
+          break;
+        } catch (err) {
+          if (attempt === 2) {
+            const message = err instanceof Error ? err.message : String(err);
+            throw new Error(`Failed to fetch candles from KuCoin: ${message}`);
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
+
+      if (!response || !response.ok) {
+        throw new Error(
+          `KuCoin API returned status ${response?.status ?? 'unknown'}: ${response?.statusText ?? 'error'}`
+        );
+      }
+
+      const json = (await response.json()) as { code: string; msg?: string; data?: unknown[] };
+
+      if (json.code !== '200000') {
+        throw new Error(json.msg ?? `KuCoin API error code: ${json.code}`);
+      }
+
+      if (!Array.isArray(json.data) || json.data.length === 0) {
+        break;
+      }
+
+      // Small pacing delay to respect API rate limits
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const batchCandles: Candle[] = [];
+      let oldestSecInBatch = Infinity;
+
+      for (const row of json.data) {
+        if (!Array.isArray(row) || row.length < 6) {
+          continue;
+        }
+
+        const timeSec = Number(row[0]);
+        if (timeSec < oldestSecInBatch) {
+          oldestSecInBatch = timeSec;
+        }
+
+        const candle: Candle = {
+          timestamp: timeSec * 1000,
+          open: Number(row[1]),
+          close: Number(row[2]),
+          high: Number(row[3]),
+          low: Number(row[4]),
+          volume: Number(row[5]),
+        };
+
+        if (isValidCandle(candle)) {
+          batchCandles.push(candle);
+        }
+      }
+
+      allCandles.push(...batchCandles);
+
+      // Stop if reached requested count or startTime reached or no more candles returned
+      if (allCandles.length >= targetLimit || (startTimeSec !== undefined && oldestSecInBatch <= startTimeSec)) {
+        break;
+      }
+
+      // If KuCoin returned fewer than 1500 items, we reached the start of history
+      if (json.data.length < 1500) {
+        break;
+      }
+
+      currentEndSec = oldestSecInBatch - 1;
     }
 
-    const sorted = sortCandles(candles);
+    const sorted = sortCandles(allCandles);
     const deduplicated = deduplicateCandles(sorted);
 
     if (request.limit && request.limit > 0 && deduplicated.length > request.limit) {

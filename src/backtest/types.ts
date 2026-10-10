@@ -23,11 +23,26 @@ export interface Trade {
   duration?: number;
 }
 
+export interface ActivePosition {
+  symbol?: string;
+  entrySignal: TradeSignal;
+  entryPrice: number;
+  currentPrice: number;
+  quantity: number;
+  investedCost: number;
+  entryFee: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  entryTime: number;
+  duration: number;
+}
+
 export interface BacktestResult {
   config: Omit<BacktestConfig, 'candles'>;
   trades: Trade[];
   metrics: BacktestMetrics;
   equity: number[];           // Equity curve over time
+  activePosition?: ActivePosition | null;
 }
 
 export interface BacktestMetrics {

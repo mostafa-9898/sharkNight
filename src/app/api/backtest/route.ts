@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const symbol = (body.symbol ?? 'BTCUSDT').toString().trim().toUpperCase();
     const interval = (body.interval ?? '1h') as CandleInterval;
-    const limit = Math.min(1000, Math.max(50, Number(body.limit ?? 300)));
+    const limit = Math.min(150000, Math.max(50, Number(body.limit ?? 1000)));
     const fastPeriod = Math.max(2, Number(body.fastPeriod ?? 10));
     const slowPeriod = Math.max(fastPeriod + 1, Number(body.slowPeriod ?? 30));
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
@@ -122,6 +122,7 @@ export async function POST(request: Request) {
         metrics: backtestResult.metrics,
         trades: backtestResult.trades,
         equity: backtestResult.equity,
+        activePosition: backtestResult.activePosition,
       },
     });
   } catch (error) {

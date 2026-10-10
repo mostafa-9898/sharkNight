@@ -47,7 +47,7 @@ When adding a new strategy, copy this template:
   - **BUY (Golden Cross):** Fast SMA crosses strictly above Slow SMA (`prevFast <= prevSlow && currentFast > currentSlow`)
   - **SELL (Death Cross):** Fast SMA crosses strictly below Slow SMA (`prevFast >= prevSlow && currentFast < currentSlow`)
   - **HOLD:** No crossover or insufficient history
-- **Status:** 🔄 Ready for Backtesting (Phase 5)
+- **Status:** ✅ Tested & Live in Dashboard (Phase 5 & Phase 7)
 
 ---
 

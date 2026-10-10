@@ -1,5 +1,5 @@
-import type { Candle, CandleRequest } from '../models';
-import { isValidCandle, sortCandles, deduplicateCandles } from '../models';
+import type { Candle, CandleRequest } from '../models/candle';
+import { isValidCandle, sortCandles, deduplicateCandles } from '../models/candle';
 import type { DataProvider } from './types';
 
 export interface BinanceProviderOptions {

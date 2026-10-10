@@ -54,14 +54,18 @@
 
 ## Future Phases (Not in current scope)
 
-### Phase 7: Dashboard (Next.js) ✅
+### Phase 7: Dashboard (Next.js) & Real-Time Terminal ✅
 - [x] Setup Next.js app with App Router and dark modern trading theme
 - [x] Strategy & market configuration UI (Symbols, Timeframes, SMA periods, Balance, Fees)
-- [x] Backtest results visualization with interactive Lightweight-Charts candlestick chart
-- [x] Performance metrics cards (PnL, Win Rate, Drawdown, Sharpe)
+- [x] Zero-lag interactive Lightweight-Charts candlestick chart with timeframe pills
+- [x] In-memory instant client-side cache for 0ms timeframe switches without page reload
+- [x] Real-time active open position monitor (Live Price, Unrealized PnL, Duration)
+- [x] 1-Year historical datasets pre-cached on disk for BTCUSDT & ETHUSDT across 4h, 1h, 15m, 5m, 1m
+- [x] Performance metrics cards (Total PnL, Win Rate, Max Drawdown, Sharpe Ratio)
 - [x] Portfolio equity curve chart
 - [x] Complete executed trade history table
-- [x] Multi-exchange resilience (Binance & KuCoin fallback)
+- [x] Multi-exchange resilience (Binance with automatic KuCoin fallback)
+- [x] Visual loading states and spinner overlays for all async actions
 
 ### Phase 8: Paper Trading
 - [ ] Real-time data streaming
@@ -75,4 +79,4 @@
 
 ---
 
-> Last updated: 2026-10-04
+> Last updated: 2026-10-10
