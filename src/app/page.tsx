@@ -14,8 +14,12 @@ const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
 interface BacktestResultData {
   symbol: string;
   interval: CandleInterval;
+  maEnabled: boolean;
+  maType: 'ema' | 'sma';
   fastPeriod: number;
   slowPeriod: number;
+  rsiEnabled: boolean;
+  macdEnabled: boolean;
   initialBalance: number;
   metrics: BacktestMetrics;
   trades: Trade[];
@@ -23,6 +27,8 @@ interface BacktestResultData {
   indicators: {
     smaFast: number[];
     smaSlow: number[];
+    rsi?: number[];
+    macd?: { macd: number[]; signal: number[]; histogram: number[] };
   };
   candles: Candle[];
   totalCandles: number;
@@ -34,11 +40,27 @@ export default function DashboardPage() {
   // --- 1. Top Backtest Configuration Box State ---
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
   const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
-  const [btFastPeriod, setBtFastPeriod] = useState(10);
-  const [btSlowPeriod, setBtSlowPeriod] = useState(30);
+  const [btLimit, setBtLimit] = useState<string>('all');
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
   const [btTradeFeePercent, setBtTradeFeePercent] = useState(0.1);
-  const [btLimit, setBtLimit] = useState<string>('all');
+
+  // Indicators State
+  const [maEnabled, setMaEnabled] = useState(true);
+  const [maType, setMaType] = useState<'ema' | 'sma'>('ema');
+  const [btFastPeriod, setBtFastPeriod] = useState(10);
+  const [btSlowPeriod, setBtSlowPeriod] = useState(30);
+
+  const [rsiEnabled, setRsiEnabled] = useState(false);
+  const [rsiPeriod, setRsiPeriod] = useState(14);
+  const [rsiOversold, setRsiOversold] = useState(30);
+  const [rsiOverbought, setRsiOverbought] = useState(70);
+
+  const [macdEnabled, setMacdEnabled] = useState(false);
+  const [macdFastPeriod, setMacdFastPeriod] = useState(12);
+  const [macdSlowPeriod, setMacdSlowPeriod] = useState(26);
+  const [macdSignalPeriod, setMacdSignalPeriod] = useState(9);
+
+  const hasAtLeastOneIndicator = maEnabled || rsiEnabled || macdEnabled;
 
   const [btLoading, setBtLoading] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -95,6 +117,11 @@ export default function DashboardPage() {
 
   // Run Backtest exclusively when user clicks the "Run Backtest ⚡" button
   const runBacktest = useCallback(async () => {
+    if (!hasAtLeastOneIndicator) {
+      setBtError('Please enable at least one indicator to execute backtest.');
+      return;
+    }
+
     setBtLoading(true);
     setBtError(null);
 
@@ -106,10 +133,20 @@ export default function DashboardPage() {
           symbol: btSymbol,
           interval: btInterval,
           limit: btLimit === 'all' ? undefined : Number(btLimit),
-          fastPeriod: btFastPeriod,
-          slowPeriod: btSlowPeriod,
           initialBalance: btInitialBalance,
           tradeFeePercent: btTradeFeePercent,
+          maEnabled,
+          maType,
+          fastPeriod: btFastPeriod,
+          slowPeriod: btSlowPeriod,
+          rsiEnabled,
+          rsiPeriod,
+          rsiOversold,
+          rsiOverbought,
+          macdEnabled,
+          macdFastPeriod,
+          macdSlowPeriod,
+          macdSignalPeriod,
         }),
       });
 
@@ -122,8 +159,12 @@ export default function DashboardPage() {
       const result: BacktestResultData = {
         symbol: btSymbol,
         interval: btInterval,
+        maEnabled,
+        maType,
         fastPeriod: btFastPeriod,
         slowPeriod: btSlowPeriod,
+        rsiEnabled,
+        macdEnabled,
         initialBalance: btInitialBalance,
         metrics: data.backtest?.metrics,
         trades: data.backtest?.trades ?? [],
@@ -131,6 +172,8 @@ export default function DashboardPage() {
         indicators: {
           smaFast: data.indicators?.smaFast ?? [],
           smaSlow: data.indicators?.smaSlow ?? [],
+          rsi: data.indicators?.rsi ?? [],
+          macd: data.indicators?.macd ?? null,
         },
         candles,
         totalCandles: data.totalCandles ?? candles.length,
@@ -152,7 +195,26 @@ export default function DashboardPage() {
     } finally {
       setBtLoading(false);
     }
-  }, [btSymbol, btInterval, btFastPeriod, btSlowPeriod, btInitialBalance, btTradeFeePercent, btLimit]);
+  }, [
+    btSymbol,
+    btInterval,
+    btLimit,
+    btInitialBalance,
+    btTradeFeePercent,
+    maEnabled,
+    maType,
+    btFastPeriod,
+    btSlowPeriod,
+    rsiEnabled,
+    rsiPeriod,
+    rsiOversold,
+    rsiOverbought,
+    macdEnabled,
+    macdFastPeriod,
+    macdSlowPeriod,
+    macdSignalPeriod,
+    hasAtLeastOneIndicator,
+  ]);
 
   const isBacktestMatchingChart =
     backtestResult !== null &&
@@ -256,6 +318,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Row 1: Market & Account Parameters */}
         <div
           style={{
             display: 'flex',
@@ -333,48 +396,8 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          {/* Fast SMA */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
-            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast SMA</label>
-            <input
-              type="number"
-              min={2}
-              max={100}
-              value={btFastPeriod}
-              onChange={(e) => setBtFastPeriod(Number(e.target.value))}
-              style={{
-                backgroundColor: '#0d1117',
-                color: '#e6edf3',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                padding: '8px 12px',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-
-          {/* Slow SMA */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
-            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow SMA</label>
-            <input
-              type="number"
-              min={3}
-              max={300}
-              value={btSlowPeriod}
-              onChange={(e) => setBtSlowPeriod(Number(e.target.value))}
-              style={{
-                backgroundColor: '#0d1117',
-                color: '#e6edf3',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                padding: '8px 12px',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-
           {/* Initial Balance */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '110px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '120px' }}>
             <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Capital ($)</label>
             <input
               type="number"
@@ -394,7 +417,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Fee % */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '80px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '90px' }}>
             <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fee (%)</label>
             <input
               type="number"
@@ -414,39 +437,418 @@ export default function DashboardPage() {
           </div>
 
           {/* Run Button */}
-          <button
-            onClick={() => runBacktest()}
-            disabled={btLoading}
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              onClick={() => runBacktest()}
+              disabled={btLoading || !hasAtLeastOneIndicator}
+              style={{
+                backgroundColor: btLoading || !hasAtLeastOneIndicator ? '#21262d' : '#238636',
+                color: '#ffffff',
+                fontWeight: 700,
+                padding: '8px 24px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                height: '37px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: btLoading || !hasAtLeastOneIndicator ? 'not-allowed' : 'pointer',
+                boxShadow: hasAtLeastOneIndicator ? '0 0 10px rgba(35, 134, 54, 0.3)' : 'none',
+                opacity: !hasAtLeastOneIndicator ? 0.6 : 1,
+              }}
+              title={!hasAtLeastOneIndicator ? 'Please enable at least one indicator below to run backtest' : ''}
+            >
+              {btLoading && (
+                <span
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: '#ffffff',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+              )}
+              {btLoading ? 'Simulating...' : 'Run Backtest ⚡'}
+            </button>
+          </div>
+        </div>
+
+        {/* Section 2: Strategy Indicators (Each Indicator on its own Line) */}
+        <div
+          style={{
+            borderTop: '1px solid #30363d',
+            paddingTop: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b949e', letterSpacing: '0.6px' }}>
+              STRATEGY INDICATORS (TOGGLE ON/OFF)
+            </span>
+            {!hasAtLeastOneIndicator && (
+              <span style={{ fontSize: '12px', color: '#f85149', fontWeight: 600 }}>
+                ⚠️ At least one indicator must be enabled
+              </span>
+            )}
+          </div>
+
+          {/* Line 1: Moving Average Crossover (EMA / SMA) */}
+          <div
             style={{
-              backgroundColor: btLoading ? '#21262d' : '#238636',
-              color: '#ffffff',
-              fontWeight: 700,
-              padding: '8px 24px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              height: '37px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              cursor: btLoading ? 'not-allowed' : 'pointer',
-              boxShadow: '0 0 10px rgba(35, 134, 54, 0.3)',
+              flexWrap: 'wrap',
+              gap: '16px',
+              backgroundColor: maEnabled ? 'rgba(56, 189, 248, 0.05)' : '#0d1117',
+              border: `1px solid ${maEnabled ? 'rgba(56, 189, 248, 0.35)' : '#21262d'}`,
+              borderRadius: '6px',
+              padding: '10px 14px',
+              transition: 'all 0.15s ease',
             }}
           >
-            {btLoading && (
+            {/* Checkbox & Name */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                minWidth: '220px',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={maEnabled}
+                onChange={(e) => setMaEnabled(e.target.checked)}
+                style={{ accentColor: '#38bdf8', width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: maEnabled ? '#f0f6fc' : '#8b949e' }}>
+                Moving Average Crossover
+              </span>
               <span
                 style={{
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: '#ffffff',
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.8s linear infinite',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: maEnabled ? 'rgba(56, 189, 248, 0.2)' : '#21262d',
+                  color: maEnabled ? '#38bdf8' : '#6e7681',
+                }}
+              >
+                {maEnabled ? 'ON' : 'OFF'}
+              </span>
+            </label>
+
+            {/* MA Type */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Type:</label>
+              <select
+                value={maType}
+                disabled={!maEnabled}
+                onChange={(e) => setMaType(e.target.value as 'ema' | 'sma')}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  cursor: maEnabled ? 'pointer' : 'not-allowed',
+                }}
+              >
+                <option value="ema">EMA (Exponential)</option>
+                <option value="sma">SMA (Simple)</option>
+              </select>
+            </div>
+
+            {/* Fast Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast Period:</label>
+              <input
+                type="number"
+                min={2}
+                max={100}
+                disabled={!maEnabled}
+                value={btFastPeriod}
+                onChange={(e) => setBtFastPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '75px',
+                  cursor: maEnabled ? 'text' : 'not-allowed',
                 }}
               />
-            )}
-            {btLoading ? 'Simulating...' : 'Run Backtest ⚡'}
-          </button>
+            </div>
+
+            {/* Slow Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow Period:</label>
+              <input
+                type="number"
+                min={3}
+                max={300}
+                disabled={!maEnabled}
+                value={btSlowPeriod}
+                onChange={(e) => setBtSlowPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '75px',
+                  cursor: maEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Line 2: Relative Strength Index (RSI) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              backgroundColor: rsiEnabled ? 'rgba(168, 85, 247, 0.05)' : '#0d1117',
+              border: `1px solid ${rsiEnabled ? 'rgba(168, 85, 247, 0.35)' : '#21262d'}`,
+              borderRadius: '6px',
+              padding: '10px 14px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {/* Checkbox & Name */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                minWidth: '220px',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={rsiEnabled}
+                onChange={(e) => setRsiEnabled(e.target.checked)}
+                style={{ accentColor: '#a855f7', width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: rsiEnabled ? '#f0f6fc' : '#8b949e' }}>
+                Relative Strength Index (RSI)
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: rsiEnabled ? 'rgba(168, 85, 247, 0.2)' : '#21262d',
+                  color: rsiEnabled ? '#c084fc' : '#6e7681',
+                }}
+              >
+                {rsiEnabled ? 'ON' : 'OFF'}
+              </span>
+            </label>
+
+            {/* RSI Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Period:</label>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                disabled={!rsiEnabled}
+                value={rsiPeriod}
+                onChange={(e) => setRsiPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+
+            {/* Oversold */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Oversold:</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                disabled={!rsiEnabled}
+                value={rsiOversold}
+                onChange={(e) => setRsiOversold(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+
+            {/* Overbought */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Overbought:</label>
+              <input
+                type="number"
+                min={51}
+                max={99}
+                disabled={!rsiEnabled}
+                value={rsiOverbought}
+                onChange={(e) => setRsiOverbought(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Line 3: MACD */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              backgroundColor: macdEnabled ? 'rgba(234, 179, 8, 0.05)' : '#0d1117',
+              border: `1px solid ${macdEnabled ? 'rgba(234, 179, 8, 0.35)' : '#21262d'}`,
+              borderRadius: '6px',
+              padding: '10px 14px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {/* Checkbox & Name */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                minWidth: '220px',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={macdEnabled}
+                onChange={(e) => setMacdEnabled(e.target.checked)}
+                style={{ accentColor: '#eab308', width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: macdEnabled ? '#f0f6fc' : '#8b949e' }}>
+                MACD (Convergence / Divergence)
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: macdEnabled ? 'rgba(234, 179, 8, 0.2)' : '#21262d',
+                  color: macdEnabled ? '#facc15' : '#6e7681',
+                }}
+              >
+                {macdEnabled ? 'ON' : 'OFF'}
+              </span>
+            </label>
+
+            {/* Fast */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast:</label>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                disabled={!macdEnabled}
+                value={macdFastPeriod}
+                onChange={(e) => setMacdFastPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: macdEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+
+            {/* Slow */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow:</label>
+              <input
+                type="number"
+                min={3}
+                max={100}
+                disabled={!macdEnabled}
+                value={macdSlowPeriod}
+                onChange={(e) => setMacdSlowPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: macdEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+
+            {/* Signal */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Signal:</label>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                disabled={!macdEnabled}
+                value={macdSignalPeriod}
+                onChange={(e) => setMacdSignalPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                  cursor: macdEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -488,10 +890,17 @@ export default function DashboardPage() {
         <CandleChart
           candles={chartCandles}
           symbol={chartSymbol}
-          smaFast={isBacktestMatchingChart ? backtestResult?.indicators.smaFast : []}
-          smaSlow={isBacktestMatchingChart ? backtestResult?.indicators.smaSlow : []}
-          fastPeriod={backtestResult?.fastPeriod}
-          slowPeriod={backtestResult?.slowPeriod}
+          smaFast={isBacktestMatchingChart && backtestResult?.maEnabled ? backtestResult?.indicators.smaFast : []}
+          smaSlow={isBacktestMatchingChart && backtestResult?.maEnabled ? backtestResult?.indicators.smaSlow : []}
+          maType={backtestResult?.maType ?? maType}
+          fastPeriod={backtestResult?.fastPeriod ?? btFastPeriod}
+          slowPeriod={backtestResult?.slowPeriod ?? btSlowPeriod}
+          rsiValues={isBacktestMatchingChart ? backtestResult?.indicators.rsi : undefined}
+          rsiPeriod={rsiPeriod}
+          macdValues={isBacktestMatchingChart ? backtestResult?.indicators.macd : undefined}
+          macdFast={macdFastPeriod}
+          macdSlow={macdSlowPeriod}
+          macdSignal={macdSignalPeriod}
           trades={isBacktestMatchingChart ? backtestResult?.trades : []}
           currentInterval={chartInterval}
           onIntervalChange={handleChartIntervalChange}
@@ -528,6 +937,13 @@ export default function DashboardPage() {
                     ({formatDate(backtestResult.startTime)} – {formatDate(backtestResult.endTime)})
                   </span>
                 )}
+                <span style={{ color: '#8b949e', marginLeft: '10px' }}>
+                  Indicators: {[
+                    backtestResult.maEnabled ? `${backtestResult.maType.toUpperCase()} (${backtestResult.fastPeriod}/${backtestResult.slowPeriod})` : null,
+                    backtestResult.rsiEnabled ? 'RSI' : null,
+                    backtestResult.macdEnabled ? 'MACD' : null,
+                  ].filter(Boolean).join(', ')}
+                </span>
               </span>
             </div>
 

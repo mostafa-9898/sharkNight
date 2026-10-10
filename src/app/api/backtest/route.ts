@@ -8,6 +8,10 @@ import { BacktestEngine } from '@/backtest/engine';
 import { calculateSMA } from '@/indicators/sma';
 import { calculateRSI } from '@/indicators/rsi';
 
+import { calculateEMA } from '@/indicators/ema';
+import { calculateMACD } from '@/indicators/macd';
+import { ModularStrategy } from '@/strategies/modular-strategy';
+
 /**
  * Fallback generator for realistic market candles in case external exchanges are completely blocked.
  */
@@ -55,10 +59,32 @@ export async function POST(request: Request) {
       rawLimit === undefined ||
       rawLimit === null;
     const limit = isAll ? 150000 : Math.min(150000, Math.max(50, Number(rawLimit)));
+
+    // Indicator parameters
+    const maEnabled = body.maEnabled !== undefined ? Boolean(body.maEnabled) : true;
+    const maType = (body.maType === 'sma' ? 'sma' : 'ema') as 'ema' | 'sma';
     const fastPeriod = Math.max(2, Number(body.fastPeriod ?? 10));
     const slowPeriod = Math.max(fastPeriod + 1, Number(body.slowPeriod ?? 30));
+
+    const rsiEnabled = Boolean(body.rsiEnabled);
+    const rsiPeriod = Math.max(2, Number(body.rsiPeriod ?? 14));
+    const rsiOversold = Math.max(1, Math.min(99, Number(body.rsiOversold ?? 30)));
+    const rsiOverbought = Math.max(rsiOversold + 1, Math.min(99, Number(body.rsiOverbought ?? 70)));
+
+    const macdEnabled = Boolean(body.macdEnabled);
+    const macdFastPeriod = Math.max(2, Number(body.macdFastPeriod ?? 12));
+    const macdSlowPeriod = Math.max(macdFastPeriod + 1, Number(body.macdSlowPeriod ?? 26));
+    const macdSignalPeriod = Math.max(2, Number(body.macdSignalPeriod ?? 9));
+
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
     const tradeFeePercent = Math.max(0, Number(body.tradeFeePercent ?? 0.1));
+
+    if (!maEnabled && !rsiEnabled && !macdEnabled) {
+      return NextResponse.json(
+        { success: false, error: 'At least one indicator must be enabled to run backtest.' },
+        { status: 400 }
+      );
+    }
 
     const storage = new JsonStorage();
     let candles: Candle[] | null = await storage.loadCandles(symbol, interval);
@@ -96,10 +122,26 @@ export async function POST(request: Request) {
       candles = candles.slice(-limit);
     }
 
-    // Run Strategy Backtest
-    const strategy = new SMACrossoverStrategy({
-      fastPeriod,
-      slowPeriod,
+    // Run Strategy Backtest using ModularStrategy
+    const strategy = new ModularStrategy({
+      ma: {
+        enabled: maEnabled,
+        type: maType,
+        fastPeriod,
+        slowPeriod,
+      },
+      rsi: {
+        enabled: rsiEnabled,
+        period: rsiPeriod,
+        oversold: rsiOversold,
+        overbought: rsiOverbought,
+      },
+      macd: {
+        enabled: macdEnabled,
+        fastPeriod: macdFastPeriod,
+        slowPeriod: macdSlowPeriod,
+        signalPeriod: macdSignalPeriod,
+      },
     });
 
     const engine = new BacktestEngine();
@@ -111,9 +153,14 @@ export async function POST(request: Request) {
     });
 
     const closePrices = candles.map((c) => c.close);
-    const smaFast = calculateSMA(closePrices, fastPeriod);
-    const smaSlow = calculateSMA(closePrices, slowPeriod);
-    const rsi = calculateRSI(closePrices, 14);
+    const fastValues = maType === 'ema' ? calculateEMA(closePrices, fastPeriod) : calculateSMA(closePrices, fastPeriod);
+    const slowValues = maType === 'ema' ? calculateEMA(closePrices, slowPeriod) : calculateSMA(closePrices, slowPeriod);
+    const rsiValues = calculateRSI(closePrices, rsiPeriod);
+    const macdValues = calculateMACD(closePrices, {
+      fastPeriod: macdFastPeriod,
+      slowPeriod: macdSlowPeriod,
+      signalPeriod: macdSignalPeriod,
+    });
 
     const firstCandle = candles[0];
     const lastCandle = candles[candles.length - 1];
@@ -128,9 +175,17 @@ export async function POST(request: Request) {
       isFullDataset: isAll || candles.length >= 2000,
       candles,
       indicators: {
-        smaFast,
-        smaSlow,
-        rsi,
+        maEnabled,
+        maType,
+        fastPeriod,
+        slowPeriod,
+        smaFast: fastValues,
+        smaSlow: slowValues,
+        rsiEnabled,
+        rsiPeriod,
+        rsi: rsiValues,
+        macdEnabled,
+        macd: macdValues,
       },
       backtest: {
         metrics: backtestResult.metrics,

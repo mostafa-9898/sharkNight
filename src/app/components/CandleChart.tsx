@@ -11,14 +11,24 @@ import type {
 } from 'lightweight-charts';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import type { Trade } from '@/backtest/types';
+import type { MACDResult } from '@/indicators/macd';
+import RsiSubChart from './RsiSubChart';
+import MacdSubChart from './MacdSubChart';
 
 interface CandleChartProps {
   candles: Candle[];
   symbol?: string;
   smaFast?: number[];
   smaSlow?: number[];
+  maType?: 'ema' | 'sma';
   fastPeriod?: number;
   slowPeriod?: number;
+  rsiValues?: number[];
+  rsiPeriod?: number;
+  macdValues?: MACDResult | null;
+  macdFast?: number;
+  macdSlow?: number;
+  macdSignal?: number;
   trades?: Trade[];
   currentInterval?: CandleInterval;
   onIntervalChange?: (interval: CandleInterval) => void;
@@ -32,8 +42,15 @@ export default function CandleChart({
   symbol = 'BTCUSDT',
   smaFast,
   smaSlow,
+  maType = 'ema',
   fastPeriod = 10,
   slowPeriod = 30,
+  rsiValues,
+  rsiPeriod = 14,
+  macdValues,
+  macdFast = 12,
+  macdSlow = 26,
+  macdSignal = 9,
   trades = [],
   currentInterval = '15m',
   onIntervalChange,
@@ -49,6 +66,8 @@ export default function CandleChart({
   // Indicators: OFF by default on initial load!
   const [showFastSMA, setShowFastSMA] = useState(false);
   const [showSlowSMA, setShowSlowSMA] = useState(false);
+  const [showRSI, setShowRSI] = useState(false);
+  const [showMACD, setShowMACD] = useState(false);
   const [showSignals, setShowSignals] = useState(false);
 
   // Indicators Dropdown menu state
@@ -121,7 +140,7 @@ export default function CandleChart({
         const fastLine = chart.addSeries(LineSeries, {
           color: '#38bdf8',
           lineWidth: 2,
-          title: `SMA ${fastPeriod}`,
+          title: `${maType.toUpperCase()} ${fastPeriod}`,
           visible: false,
         });
         fastLineRef.current = fastLine;
@@ -129,7 +148,7 @@ export default function CandleChart({
         const slowLine = chart.addSeries(LineSeries, {
           color: '#fbbf24',
           lineWidth: 2,
-          title: `SMA ${slowPeriod}`,
+          title: `${maType.toUpperCase()} ${slowPeriod}`,
           visible: false,
         });
         slowLineRef.current = slowLine;
@@ -187,10 +206,10 @@ export default function CandleChart({
     chartRef.current.timeScale().fitContent();
   }, [candles]);
 
-  // 3. Fast SMA data update (does NOT fitContent, preserving zoom)
+  // 3. Fast MA data update (does NOT fitContent, preserving zoom)
   useEffect(() => {
     if (!fastLineRef.current) return;
-    fastLineRef.current.applyOptions({ title: `SMA ${fastPeriod}` });
+    fastLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${fastPeriod}` });
     if (smaFast && smaFast.length === candles.length) {
       const fastData = candles
         .map((c, i) => ({
@@ -202,12 +221,12 @@ export default function CandleChart({
     } else {
       fastLineRef.current.setData([]);
     }
-  }, [smaFast, fastPeriod, candles]);
+  }, [smaFast, fastPeriod, maType, candles]);
 
-  // 4. Slow SMA data update (does NOT fitContent, preserving zoom)
+  // 4. Slow MA data update (does NOT fitContent, preserving zoom)
   useEffect(() => {
     if (!slowLineRef.current) return;
-    slowLineRef.current.applyOptions({ title: `SMA ${slowPeriod}` });
+    slowLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${slowPeriod}` });
     if (smaSlow && smaSlow.length === candles.length) {
       const slowData = candles
         .map((c, i) => ({
@@ -219,7 +238,7 @@ export default function CandleChart({
     } else {
       slowLineRef.current.setData([]);
     }
-  }, [smaSlow, slowPeriod, candles]);
+  }, [smaSlow, slowPeriod, maType, candles]);
 
   // 5. Fast SMA Toggle (instant visibility, zero zoom change)
   useEffect(() => {
@@ -283,10 +302,18 @@ export default function CandleChart({
     e.stopPropagation();
     setShowFastSMA(false);
     setShowSlowSMA(false);
+    setShowRSI(false);
+    setShowMACD(false);
     setShowSignals(false);
   };
 
-  const activeIndicatorsCount = [showFastSMA, showSlowSMA, showSignals].filter(Boolean).length;
+  const activeIndicatorsCount = [
+    showFastSMA,
+    showSlowSMA,
+    showRSI,
+    showMACD,
+    showSignals,
+  ].filter(Boolean).length;
 
   return (
     <div
@@ -342,8 +369,48 @@ export default function CandleChart({
           </select>
         </div>
 
-        {/* Right Side: Indicators Dropdown & Info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
+        {/* Right Side: Trade Signals Button & Indicators Dropdown & Info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+          {/* Quick Toggle: Trade Signals (Executed Backtest Trades) */}
+          <button
+            onClick={() => setShowSignals((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor: showSignals ? 'rgba(46, 160, 67, 0.15)' : '#21262d',
+              border: `1px solid ${showSignals ? '#2ea043' : '#30363d'}`,
+              color: showSignals ? '#3fb950' : '#c9d1d9',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Toggle Backtest Execution Markers on Chart"
+          >
+            <span>🎯</span>
+            <span>Trade Signals</span>
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '1px 6px',
+                borderRadius: '8px',
+                backgroundColor: showSignals ? '#2ea043' : '#30363d',
+                color: showSignals ? '#ffffff' : '#8b949e',
+                fontWeight: 700,
+              }}
+            >
+              {showSignals ? 'ON' : 'OFF'}
+            </span>
+            {trades.length > 0 && (
+              <span style={{ fontSize: '10px', color: '#8b949e' }}>
+                ({trades.length})
+              </span>
+            )}
+          </button>
+
           {/* Indicators Dropdown Toggle */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
@@ -395,7 +462,7 @@ export default function CandleChart({
                   border: '1px solid #30363d',
                   borderRadius: '8px',
                   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
-                  width: '240px',
+                  width: '260px',
                   padding: '8px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -441,10 +508,10 @@ export default function CandleChart({
                     marginBottom: '4px',
                   }}
                 >
-                  Overlay Indicators:
+                  Overlay Moving Averages:
                 </div>
 
-                {/* Fast SMA Item */}
+                {/* Fast MA Item */}
                 <label
                   style={{
                     display: 'flex',
@@ -474,11 +541,11 @@ export default function CandleChart({
                     }}
                   />
                   <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    Fast SMA ({fastPeriod})
+                    Fast {maType.toUpperCase()} ({fastPeriod})
                   </span>
                 </label>
 
-                {/* Slow SMA Item */}
+                {/* Slow MA Item */}
                 <label
                   style={{
                     display: 'flex',
@@ -508,9 +575,101 @@ export default function CandleChart({
                     }}
                   />
                   <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    Slow SMA ({slowPeriod})
+                    Slow {maType.toUpperCase()} ({slowPeriod})
                   </span>
                 </label>
+
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: '#8b949e',
+                    padding: '8px 8px 4px',
+                    borderTop: '1px solid #21262d',
+                    marginTop: '4px',
+                  }}
+                >
+                  Oscillators & Sub-Panels:
+                </div>
+
+                {/* RSI Item */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    backgroundColor: showRSI ? 'rgba(168, 85, 247, 0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showRSI}
+                    onChange={(e) => setShowRSI(e.target.checked)}
+                    style={{ accentColor: '#a855f7', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: '#a855f7',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
+                    RSI ({rsiPeriod})
+                  </span>
+                </label>
+
+                {/* MACD Item */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    backgroundColor: showMACD ? 'rgba(234, 179, 8, 0.08)' : 'transparent',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showMACD}
+                    onChange={(e) => setShowMACD(e.target.checked)}
+                    style={{ accentColor: '#eab308', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: '#eab308',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
+                    MACD ({macdFast}/{macdSlow}/{macdSignal})
+                  </span>
+                </label>
+
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: '#8b949e',
+                    padding: '8px 8px 4px',
+                    borderTop: '1px solid #21262d',
+                    marginTop: '4px',
+                  }}
+                >
+                  Signals & Executions:
+                </div>
 
                 {/* Signals Item */}
                 <label
@@ -593,6 +752,30 @@ export default function CandleChart({
 
       {/* Container */}
       <div ref={containerRef} style={{ width: '100%', height: '480px' }} />
+
+      {/* RSI Sub-Chart Panel */}
+      {showRSI && (
+        <RsiSubChart
+          candles={candles}
+          rsiValues={rsiValues}
+          period={rsiPeriod}
+          onClose={() => setShowRSI(false)}
+          mainChartRef={chartRef}
+        />
+      )}
+
+      {/* MACD Sub-Chart Panel */}
+      {showMACD && (
+        <MacdSubChart
+          candles={candles}
+          macdValues={macdValues}
+          fastPeriod={macdFast}
+          slowPeriod={macdSlow}
+          signalPeriod={macdSignal}
+          onClose={() => setShowMACD(false)}
+          mainChartRef={chartRef}
+        />
+      )}
 
       <style jsx global>{`
         @keyframes spin {
