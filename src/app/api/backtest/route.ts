@@ -3,13 +3,14 @@ import { BinancePublicProvider } from '@/data/providers/binance-public';
 import { KucoinPublicProvider } from '@/data/providers/kucoin-public';
 import { JsonStorage } from '@/data/storage/json-storage';
 import type { Candle, CandleInterval } from '@/data/models/candle';
+import { performCandleSanityCheck } from '@/data/models/candle';
 import { BacktestEngine } from '@/backtest/engine';
 import { calculateSMA } from '@/indicators/sma';
 import { calculateRSI } from '@/indicators/rsi';
 
 import { calculateEMA } from '@/indicators/ema';
 import { calculateMACD } from '@/indicators/macd';
-import { ModularStrategy } from '@/strategies/modular-strategy';
+import { ModularStrategy, type ExitMode } from '@/strategies/modular-strategy';
 
 /**
  * Fallback generator for realistic market candles in case external exchanges are completely blocked.
@@ -77,7 +78,9 @@ export async function POST(request: Request) {
     const macdSlowPeriod = Math.max(macdFastPeriod + 1, Number(body.macdSlowPeriod ?? 26));
     const macdSignalPeriod = Math.max(2, Number(body.macdSignalPeriod ?? 9));
 
-    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 3)));
+    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 6)));
+    const rsiLookback = Math.max(1, Math.min(50, Number(body.rsiLookback ?? 10)));
+    const exitMode = (body.exitMode === 'emaCross' || body.exitMode === 'macdCross' ? body.exitMode : 'mirror') as ExitMode;
     const takeProfitPercent =
       body.takeProfitPercent !== undefined &&
       body.takeProfitPercent !== null &&
@@ -85,6 +88,15 @@ export async function POST(request: Request) {
       Number(body.takeProfitPercent) > 0
         ? Number(body.takeProfitPercent)
         : undefined;
+    const stopLossPercent =
+      body.stopLossPercent !== undefined &&
+      body.stopLossPercent !== null &&
+      body.stopLossPercent !== '' &&
+      Number(body.stopLossPercent) > 0
+        ? Number(body.stopLossPercent)
+        : undefined;
+
+    const allowSynthetic = Boolean(body.allowSynthetic);
 
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
     const tradeFeePercent = Math.max(0, Number(body.tradeFeePercent ?? 0.1));
@@ -98,12 +110,19 @@ export async function POST(request: Request) {
 
     const storage = new JsonStorage();
     let candles: Candle[] | null = await storage.loadCandles(symbol, interval);
+    let dataSource: 'binance' | 'kucoin' | 'cache' | 'synthetic' = 'cache';
 
     if (!candles || candles.length === 0 || (!isAll && candles.length < limit)) {
+      candles = null;
+
       // 1. Try Binance
       try {
         const binance = new BinancePublicProvider();
         candles = await binance.fetchCandles({ symbol, interval, limit });
+        if (candles && candles.length > 0) {
+          dataSource = 'binance';
+          await storage.saveCandles(symbol, interval, candles);
+        }
       } catch {
         // Binance failed (likely geo-blocked or unreachable)
       }
@@ -113,19 +132,34 @@ export async function POST(request: Request) {
         try {
           const kucoin = new KucoinPublicProvider();
           candles = await kucoin.fetchCandles({ symbol, interval, limit });
+          if (candles && candles.length > 0) {
+            dataSource = 'kucoin';
+            await storage.saveCandles(symbol, interval, candles);
+          }
         } catch {
           // KuCoin failed
         }
       }
 
-      // 3. Fallback to synthetic if both fail
+      // 3. Fallback to synthetic ONLY if explicit allowSynthetic=true
       if (!candles || candles.length === 0) {
-        candles = generateSyntheticCandles(symbol, limit);
+        if (allowSynthetic) {
+          candles = generateSyntheticCandles(symbol, limit);
+          dataSource = 'synthetic';
+          // NEVER save synthetic candles to storage!
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                'Failed to fetch real market data from Binance and KuCoin. External exchanges are unreachable. Run backtest with allowSynthetic=true if simulated data is desired.',
+            },
+            { status: 503 }
+          );
+        }
       }
-
-      if (candles.length > 0) {
-        await storage.saveCandles(symbol, interval, candles);
-      }
+    } else {
+      dataSource = 'cache';
     }
 
     if (!isAll && candles.length > limit) {
@@ -155,7 +189,10 @@ export async function POST(request: Request) {
         signalPeriod: macdSignalPeriod,
       },
       confirmationWindow,
+      rsiLookback,
+      exitMode,
       takeProfitPercent,
+      stopLossPercent,
     });
 
     const engine = new BacktestEngine();
@@ -178,6 +215,7 @@ export async function POST(request: Request) {
 
     const firstCandle = candles[0];
     const lastCandle = candles[candles.length - 1];
+    const sanityCheck = performCandleSanityCheck(candles, interval);
 
     return NextResponse.json({
       success: true,
@@ -187,6 +225,8 @@ export async function POST(request: Request) {
       startTime: firstCandle?.timestamp ?? null,
       endTime: lastCandle?.timestamp ?? null,
       isFullDataset: isAll || candles.length >= 2000,
+      dataSource,
+      sanityCheck,
       candles,
       indicators: {
         maEnabled,
@@ -205,7 +245,10 @@ export async function POST(request: Request) {
         macdEnabled,
         macd: macdValues,
         confirmationWindow,
+        rsiLookback,
+        exitMode,
         takeProfitPercent,
+        stopLossPercent,
       },
       backtest: {
         metrics: backtestResult.metrics,

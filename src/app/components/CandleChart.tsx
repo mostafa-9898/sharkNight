@@ -63,6 +63,8 @@ export default function CandleChart({
   const slowLineRef = useRef<ISeriesApi<'Line'> | null>(null);
   const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
+  const [isChartReady, setIsChartReady] = useState(false);
+
   // Indicators: OFF by default on initial load!
   const [showFastSMA, setShowFastSMA] = useState(false);
   const [showSlowSMA, setShowSlowSMA] = useState(false);
@@ -141,7 +143,7 @@ export default function CandleChart({
           color: '#38bdf8',
           lineWidth: 2,
           title: `${maType.toUpperCase()} ${fastPeriod}`,
-          visible: false,
+          visible: showFastSMA,
         });
         fastLineRef.current = fastLine;
 
@@ -149,7 +151,7 @@ export default function CandleChart({
           color: '#fbbf24',
           lineWidth: 2,
           title: `${maType.toUpperCase()} ${slowPeriod}`,
-          visible: false,
+          visible: showSlowSMA,
         });
         slowLineRef.current = slowLine;
 
@@ -162,11 +164,13 @@ export default function CandleChart({
         };
 
         window.addEventListener('resize', handleResize);
+        setIsChartReady(true);
       }
     );
 
     return () => {
       isMounted = false;
+      setIsChartReady(false);
       if (handleResize) {
         window.removeEventListener('resize', handleResize);
       }
@@ -188,57 +192,174 @@ export default function CandleChart({
     };
   }, []); // Run ONCE on mount!
 
-  // 2. ONLY update candles and fitContent when `candles` dataset itself changes (e.g. timeframe change)
+  // 2. Coordinated update when `candles` dataset itself changes (e.g. timeframe change)
   useEffect(() => {
-    if (!candleSeriesRef.current || !chartRef.current || candles.length === 0) {
+    if (!isChartReady || !candleSeriesRef.current || !chartRef.current || candles.length === 0) {
       return;
     }
 
-    const formattedCandles = candles.map((c) => ({
-      time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
+    const formattedCandles: { time: UTCTimestamp; open: number; high: number; low: number; close: number }[] = [];
+    let lastTime: number | null = null;
+    for (const c of candles) {
+      if (typeof c.timestamp !== 'number' || !Number.isFinite(c.timestamp)) continue;
+      const t = Math.floor(c.timestamp / 1000) as UTCTimestamp;
+      if (lastTime === null || t > lastTime) {
+        formattedCandles.push({
+          time: t,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        });
+        lastTime = t;
+      }
+    }
 
-    candleSeriesRef.current.setData(formattedCandles);
-    chartRef.current.timeScale().fitContent();
-  }, [candles]);
+    // 1. Reset secondary line series and markers first to flush stale points from previous timeframe
+    if (fastLineRef.current) {
+      try {
+        fastLineRef.current.setData([]);
+      } catch {
+        // ignore
+      }
+    }
+    if (slowLineRef.current) {
+      try {
+        slowLineRef.current.setData([]);
+      } catch {
+        // ignore
+      }
+    }
+    if (markersPluginRef.current) {
+      try {
+        markersPluginRef.current.setMarkers([]);
+      } catch {
+        // ignore
+      }
+    }
 
-  // 3. Fast MA data update (does NOT fitContent, preserving zoom)
-  useEffect(() => {
-    if (!fastLineRef.current) return;
-    fastLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${fastPeriod}` });
-    if (smaFast && smaFast.length === candles.length) {
-      const fastData = candles
+    // 2. Set new candle data cleanly
+    try {
+      candleSeriesRef.current.setData(formattedCandles);
+    } catch (err) {
+      console.warn('Failed to set candle data on chart:', err);
+    }
+
+    // 3. Set matching fast MA data if available
+    if (fastLineRef.current && smaFast && smaFast.length === candles.length && candles.length > 0) {
+      const rawFastData = candles
         .map((c, i) => ({
           time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
           value: smaFast[i],
         }))
-        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
-      fastLineRef.current.setData(fastData);
-    } else {
-      fastLineRef.current.setData([]);
-    }
-  }, [smaFast, fastPeriod, maType, candles]);
+        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
 
-  // 4. Slow MA data update (does NOT fitContent, preserving zoom)
-  useEffect(() => {
-    if (!slowLineRef.current) return;
-    slowLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${slowPeriod}` });
-    if (smaSlow && smaSlow.length === candles.length) {
-      const slowData = candles
+      const uniqueFastData: { time: UTCTimestamp; value: number }[] = [];
+      let lastFastTime: number | null = null;
+      for (const d of rawFastData) {
+        if (lastFastTime === null || d.time > lastFastTime) {
+          uniqueFastData.push(d);
+          lastFastTime = d.time;
+        }
+      }
+      try {
+        fastLineRef.current.setData(uniqueFastData);
+      } catch (err) {
+        console.warn('Failed to set fast MA data:', err);
+      }
+    }
+
+    // 4. Set matching slow MA data if available
+    if (slowLineRef.current && smaSlow && smaSlow.length === candles.length && candles.length > 0) {
+      const rawSlowData = candles
         .map((c, i) => ({
           time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
           value: smaSlow[i],
         }))
-        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value));
-      slowLineRef.current.setData(slowData);
-    } else {
-      slowLineRef.current.setData([]);
+        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
+
+      const uniqueSlowData: { time: UTCTimestamp; value: number }[] = [];
+      let lastSlowTime: number | null = null;
+      for (const d of rawSlowData) {
+        if (lastSlowTime === null || d.time > lastSlowTime) {
+          uniqueSlowData.push(d);
+          lastSlowTime = d.time;
+        }
+      }
+      try {
+        slowLineRef.current.setData(uniqueSlowData);
+      } catch (err) {
+        console.warn('Failed to set slow MA data:', err);
+      }
     }
-  }, [smaSlow, slowPeriod, maType, candles]);
+
+    // 5. Fit content only after all series on the chart are synchronized to the new dataset!
+    try {
+      chartRef.current.timeScale().fitContent();
+    } catch (err) {
+      console.warn('Failed to fit content:', err);
+    }
+  }, [candles, isChartReady]);
+
+  // 3. Fast MA data update (does NOT fitContent, preserving zoom)
+  useEffect(() => {
+    if (!isChartReady || !fastLineRef.current) return;
+    try {
+      fastLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${fastPeriod}` });
+      if (smaFast && smaFast.length === candles.length && candles.length > 0) {
+        const rawFastData = candles
+          .map((c, i) => ({
+            time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
+            value: smaFast[i],
+          }))
+          .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
+
+        const uniqueFastData: { time: UTCTimestamp; value: number }[] = [];
+        let lastTime: number | null = null;
+        for (const d of rawFastData) {
+          if (lastTime === null || d.time > lastTime) {
+            uniqueFastData.push(d);
+            lastTime = d.time;
+          }
+        }
+        fastLineRef.current.setData(uniqueFastData);
+      } else {
+        fastLineRef.current.setData([]);
+      }
+    } catch (err) {
+      console.warn('Failed to set fast MA data:', err);
+    }
+  }, [smaFast, fastPeriod, maType, candles, isChartReady]);
+
+  // 4. Slow MA data update (does NOT fitContent, preserving zoom)
+  useEffect(() => {
+    if (!isChartReady || !slowLineRef.current) return;
+    try {
+      slowLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${slowPeriod}` });
+      if (smaSlow && smaSlow.length === candles.length && candles.length > 0) {
+        const rawSlowData = candles
+          .map((c, i) => ({
+            time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
+            value: smaSlow[i],
+          }))
+          .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
+
+        const uniqueSlowData: { time: UTCTimestamp; value: number }[] = [];
+        let lastTime: number | null = null;
+        for (const d of rawSlowData) {
+          if (lastTime === null || d.time > lastTime) {
+            uniqueSlowData.push(d);
+            lastTime = d.time;
+          }
+        }
+        slowLineRef.current.setData(uniqueSlowData);
+      } else {
+        slowLineRef.current.setData([]);
+      }
+    } catch (err) {
+      console.warn('Failed to set slow MA data:', err);
+    }
+  }, [smaSlow, slowPeriod, maType, candles, isChartReady]);
 
   // 5. Fast SMA Toggle (instant visibility, zero zoom change)
   useEffect(() => {
@@ -256,46 +377,77 @@ export default function CandleChart({
 
   // 7. Trade Signals Toggle (instant markers update via setMarkers, zero zoom change)
   useEffect(() => {
-    if (!candleSeriesRef.current) return;
+    if (!isChartReady || !candleSeriesRef.current) return;
 
+    let isMounted = true;
     import('lightweight-charts').then(({ createSeriesMarkers }) => {
-      if (!candleSeriesRef.current) return;
+      if (!isMounted || !candleSeriesRef.current) return;
 
       if (!markersPluginRef.current) {
-        markersPluginRef.current = createSeriesMarkers(candleSeriesRef.current, []);
+        try {
+          markersPluginRef.current = createSeriesMarkers(candleSeriesRef.current, []);
+        } catch (err) {
+          console.warn('Failed to initialize series markers plugin:', err);
+          return;
+        }
       }
 
-      if (!showSignals || trades.length === 0) {
-        markersPluginRef.current.setMarkers([]);
+      if (!showSignals || trades.length === 0 || candles.length === 0) {
+        try {
+          markersPluginRef.current.setMarkers([]);
+        } catch (err) {
+          console.warn('Failed to clear markers:', err);
+        }
         return;
+      }
+
+      const candleTimeSet = new Set<number>();
+      for (const c of candles) {
+        if (typeof c.timestamp === 'number' && Number.isFinite(c.timestamp)) {
+          candleTimeSet.add(Math.floor(c.timestamp / 1000));
+        }
       }
 
       const markers: SeriesMarker<Time>[] = [];
       for (const trade of trades) {
         if (trade.entryTime) {
-          markers.push({
-            time: Math.floor(trade.entryTime / 1000) as UTCTimestamp,
-            position: 'belowBar',
-            color: '#2ea043',
-            shape: 'arrowUp',
-            text: `BUY @ $${trade.entryPrice.toLocaleString()}`,
-          });
+          const entrySec = Math.floor(trade.entryTime / 1000) as UTCTimestamp;
+          if (candleTimeSet.has(entrySec)) {
+            markers.push({
+              time: entrySec,
+              position: 'belowBar',
+              color: '#2ea043',
+              shape: 'arrowUp',
+              text: `BUY @ $${trade.entryPrice.toLocaleString()}`,
+            });
+          }
         }
         if (trade.exitTime) {
-          const isWin = trade.pnl > 0;
-          markers.push({
-            time: Math.floor(trade.exitTime / 1000) as UTCTimestamp,
-            position: 'aboveBar',
-            color: isWin ? '#38bdf8' : '#f85149',
-            shape: 'arrowDown',
-            text: `SELL (${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%)`,
-          });
+          const exitSec = Math.floor(trade.exitTime / 1000) as UTCTimestamp;
+          if (candleTimeSet.has(exitSec)) {
+            const isWin = trade.pnl > 0;
+            markers.push({
+              time: exitSec,
+              position: 'aboveBar',
+              color: isWin ? '#38bdf8' : '#f85149',
+              shape: 'arrowDown',
+              text: `SELL (${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%)`,
+            });
+          }
         }
       }
       markers.sort((a, b) => Number(a.time) - Number(b.time));
-      markersPluginRef.current.setMarkers(markers);
+      try {
+        markersPluginRef.current.setMarkers(markers);
+      } catch (err) {
+        console.warn('Failed to set markers on chart:', err);
+      }
     });
-  }, [showSignals, trades]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showSignals, trades, candles, isChartReady]);
 
   // Clear all indicators handler
   const handleClearAll = (e: React.MouseEvent) => {

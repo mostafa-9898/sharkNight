@@ -24,6 +24,7 @@ interface BacktestResultData {
   metrics: BacktestMetrics;
   trades: Trade[];
   equity: number[];
+  dataSource?: 'binance' | 'kucoin' | 'cache' | 'synthetic';
   indicators: {
     smaFast: number[];
     smaSlow: number[];
@@ -34,7 +35,10 @@ interface BacktestResultData {
     rsiSellMax?: number;
     macd?: { macd: number[]; signal: number[]; histogram: number[] };
     confirmationWindow?: number;
+    rsiLookback?: number;
+    exitMode?: 'mirror' | 'emaCross' | 'macdCross';
     takeProfitPercent?: number;
+    stopLossPercent?: number;
   };
   candles: Candle[];
   totalCandles: number;
@@ -62,15 +66,19 @@ export default function DashboardPage() {
   const [rsiBuyMax, setRsiBuyMax] = useState(35);
   const [rsiSellMin, setRsiSellMin] = useState(65);
   const [rsiSellMax, setRsiSellMax] = useState(75);
+  const [rsiLookback, setRsiLookback] = useState(10);
 
   const [macdEnabled, setMacdEnabled] = useState(true);
   const [macdFastPeriod, setMacdFastPeriod] = useState(12);
   const [macdSlowPeriod, setMacdSlowPeriod] = useState(26);
   const [macdSignalPeriod, setMacdSignalPeriod] = useState(9);
 
+  const [confirmationWindow, setConfirmationWindow] = useState(6);
+  const [exitMode, setExitMode] = useState<'mirror' | 'emaCross' | 'macdCross'>('mirror');
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
-  const [confirmationWindow, setConfirmationWindow] = useState(3);
+  const [stopLossEnabled, setStopLossEnabled] = useState(false);
+  const [stopLossPercent, setStopLossPercent] = useState(5);
 
   const hasAtLeastOneIndicator = maEnabled || rsiEnabled || macdEnabled;
 
@@ -157,11 +165,14 @@ export default function DashboardPage() {
           rsiBuyMax,
           rsiSellMin,
           rsiSellMax,
+          rsiLookback,
           macdEnabled,
           macdFastPeriod,
           macdSlowPeriod,
           macdSignalPeriod,
+          exitMode,
           takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
+          stopLossPercent: stopLossEnabled ? stopLossPercent : undefined,
           confirmationWindow,
         }),
       });
@@ -175,6 +186,7 @@ export default function DashboardPage() {
       const result: BacktestResultData = {
         symbol: btSymbol,
         interval: btInterval,
+        dataSource: data.dataSource,
         maEnabled,
         maType,
         fastPeriod: btFastPeriod,
@@ -193,9 +205,12 @@ export default function DashboardPage() {
           rsiBuyMax: data.indicators?.rsiBuyMax ?? rsiBuyMax,
           rsiSellMin: data.indicators?.rsiSellMin ?? rsiSellMin,
           rsiSellMax: data.indicators?.rsiSellMax ?? rsiSellMax,
+          rsiLookback: data.indicators?.rsiLookback ?? rsiLookback,
           macd: data.indicators?.macd ?? null,
           confirmationWindow: data.indicators?.confirmationWindow ?? confirmationWindow,
+          exitMode: data.indicators?.exitMode ?? exitMode,
           takeProfitPercent: data.indicators?.takeProfitPercent,
+          stopLossPercent: data.indicators?.stopLossPercent,
         },
         candles,
         totalCandles: data.totalCandles ?? candles.length,
@@ -233,12 +248,16 @@ export default function DashboardPage() {
     rsiBuyMax,
     rsiSellMin,
     rsiSellMax,
+    rsiLookback,
     macdEnabled,
     macdFastPeriod,
     macdSlowPeriod,
     macdSignalPeriod,
+    exitMode,
     takeProfitEnabled,
     takeProfitPercent,
+    stopLossEnabled,
+    stopLossPercent,
     confirmationWindow,
     hasAtLeastOneIndicator,
   ]);
@@ -795,6 +814,30 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {/* Lookback (L) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Lookback (L):</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                disabled={!rsiEnabled}
+                value={rsiLookback}
+                onChange={(e) => setRsiLookback(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
+            </div>
           </div>
 
           {/* Line 3: MACD */}
@@ -932,6 +975,52 @@ export default function DashboardPage() {
               🎯 Strategy Rules & Exit
             </span>
 
+            {/* Exit Mode */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Exit Mode:</label>
+              <select
+                value={exitMode}
+                onChange={(e) => setExitMode(e.target.value as 'mirror' | 'emaCross' | 'macdCross')}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="mirror">Triple Mirror (AND)</option>
+                <option value="emaCross">EMA Cross Down</option>
+                <option value="macdCross">MACD Cross Down</option>
+              </select>
+            </div>
+
+            {/* Crossover Window */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Crossover Window:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={confirmationWindow}
+                  onChange={(e) => setConfirmationWindow(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#e6edf3',
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    width: '65px',
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>candles</span>
+              </div>
+            </div>
+
             {/* Take Profit % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -970,27 +1059,41 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Crossover Window */}
+            {/* Stop Loss % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Crossover Window:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={stopLossEnabled}
+                  onChange={(e) => setStopLossEnabled(e.target.checked)}
+                  style={{ accentColor: '#f85149', width: '14px', height: '14px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '12px', color: stopLossEnabled ? '#e6edf3' : '#8b949e', fontWeight: 600 }}>
+                  Stop Loss:
+                </span>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: stopLossEnabled ? 1 : 0.4 }}>
                 <input
                   type="number"
                   min={1}
-                  max={20}
-                  value={confirmationWindow}
-                  onChange={(e) => setConfirmationWindow(Number(e.target.value))}
+                  max={50}
+                  step={1}
+                  disabled={!stopLossEnabled}
+                  value={stopLossPercent}
+                  onChange={(e) => setStopLossPercent(Number(e.target.value))}
                   style={{
                     backgroundColor: '#0d1117',
-                    color: '#e6edf3',
+                    color: '#f85149',
+                    fontWeight: 700,
                     border: '1px solid #30363d',
                     borderRadius: '6px',
                     padding: '5px 10px',
                     fontSize: '12px',
                     width: '65px',
+                    cursor: stopLossEnabled ? 'text' : 'not-allowed',
                   }}
                 />
-                <span style={{ fontSize: '12px', color: '#8b949e' }}>candles</span>
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
               </div>
             </div>
           </div>
@@ -1033,6 +1136,7 @@ export default function DashboardPage() {
         )}
 
         <CandleChart
+          key={`${chartSymbol}_${chartInterval}`}
           candles={chartCandles}
           symbol={chartSymbol}
           smaFast={isBacktestMatchingChart && backtestResult?.maEnabled ? backtestResult?.indicators.smaFast : []}
@@ -1092,19 +1196,54 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <span
-              style={{
-                fontSize: '12px',
-                backgroundColor: 'rgba(46, 160, 67, 0.15)',
-                border: '1px solid #2ea043',
-                color: '#3fb950',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontWeight: 600,
-              }}
-            >
-              ✔ Completed
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {backtestResult.dataSource === 'synthetic' && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    backgroundColor: 'rgba(248, 81, 73, 0.2)',
+                    border: '1px solid #f85149',
+                    color: '#f85149',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ⚠️ SYNTHETIC DATA (SIMULATED)
+                </span>
+              )}
+              {backtestResult.dataSource && backtestResult.dataSource !== 'synthetic' && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    color: '#38bdf8',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Source: {backtestResult.dataSource}
+                </span>
+              )}
+
+              <span
+                style={{
+                  fontSize: '12px',
+                  backgroundColor: 'rgba(46, 160, 67, 0.15)',
+                  border: '1px solid #2ea043',
+                  color: '#3fb950',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                }}
+              >
+                ✔ Completed
+              </span>
+            </div>
           </div>
 
           {/* Metrics Cards */}

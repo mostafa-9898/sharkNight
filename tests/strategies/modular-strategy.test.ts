@@ -38,18 +38,21 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 1. Validation & Initialization (Bugs #8, #9)
+  // 1. Validation & Initialization
   // --------------------------------------------------------------------------
   describe('Validation & Initialization', () => {
-    it('should initialize ModularStrategy with default parameters (MA enabled)', () => {
+    it('should initialize ModularStrategy with default parameters (MA enabled, W=6, L=10, mirror)', () => {
       const strategy = new ModularStrategy();
       expect(strategy.ma.enabled).toBe(true);
       expect(strategy.ma.fastPeriod).toBe(10);
       expect(strategy.ma.slowPeriod).toBe(30);
       expect(strategy.rsi.enabled).toBe(false);
       expect(strategy.macd.enabled).toBe(false);
-      expect(strategy.confirmationWindow).toBe(3);
+      expect(strategy.confirmationWindow).toBe(6);
+      expect(strategy.rsiLookback).toBe(10);
+      expect(strategy.exitMode).toBe('mirror');
       expect(strategy.takeProfitPercent).toBeUndefined();
+      expect(strategy.stopLossPercent).toBeUndefined();
     });
 
     it('should initialize StrategyOne with all 3 indicators enabled and correct defaults', () => {
@@ -70,8 +73,11 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
       expect(s1.macd.slowPeriod).toBe(26);
       expect(s1.macd.signalPeriod).toBe(9);
 
-      expect(s1.confirmationWindow).toBe(3);
+      expect(s1.confirmationWindow).toBe(6);
+      expect(s1.rsiLookback).toBe(10);
+      expect(s1.exitMode).toBe('mirror');
       expect(s1.takeProfitPercent).toBeUndefined();
+      expect(s1.stopLossPercent).toBeUndefined();
     });
 
     it('should throw an error if all indicators are disabled', () => {
@@ -158,7 +164,6 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
         macd: { enabled: false },
       });
 
-      // Synthetic candles: sharp drop pushing RSI into 25-35 range
       const candles = [100, 80, 60, 45, 35, 32].map((p, idx) =>
         createCandle(p, 1000 + idx * 60000)
       );
@@ -169,324 +174,249 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 3. Strategy 1 (Triple Confluence: EMA + MACD + RSI) - BUY Rules
+  // 3. Triple Confluence BUY Rules & RSI Lookback (L)
   // --------------------------------------------------------------------------
-  describe('Triple Confluence BUY Rules', () => {
-    const len = 10;
+  describe('Triple Confluence BUY Rules & RSI Lookback', () => {
+    const len = 12;
     const candles = Array.from({ length: len }, (_, i) => createCandle(100, 1000 + i * 60000));
 
-    function createTripleStrategy(confirmationWindow = 3) {
+    function createTripleStrategy(confirmationWindow = 6, rsiLookback = 10) {
       return new ModularStrategy({
         ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
         rsi: { enabled: true, period: 2, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75 },
         macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
         confirmationWindow,
+        rsiLookback,
       });
     }
 
-    it('BUY fires when RSI=30 (in [25, 35]) + MACD cross up + EMA cross up inside window', () => {
-      const strategy = createTripleStrategy(3);
+    it('BUY fires when RSI=30 on current candle + MACD cross up + EMA cross up inside window', () => {
+      const strategy = createTripleStrategy(6, 10);
 
       injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 9 (prev 10<=12, curr 15>11)
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 11
         macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 9 (prev 0<=1, curr 1>0.5)
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 11
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
         },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30], // RSI=30 on current candle
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 30], // RSI=30 on index 11
       });
 
-      const signal = strategy.analyze(candles, 9);
+      const signal = strategy.analyze(candles, 11);
       expect(signal.action).toBe('BUY');
       expect(signal.reason).toContain('Strategy 1 Confluence');
       expect(signal.reason).toContain('Bullish Cross');
-      expect(signal.reason).toContain('RSI in buy zone [25-35] (30.0)');
     });
 
-    it('BUY does NOT fire when RSI=20 (strictly below 25) even if both crosses happen', () => {
-      const strategy = createTripleStrategy(3);
+    it('BUY fires when RSI was in [25, 35] on an earlier candle within rsiLookback (L=5)', () => {
+      const strategy = createTripleStrategy(6, 5);
 
+      // On currentIndex 11, RSI has recovered to 55 (outside [25, 35]).
+      // But at index 8 (within lookback [7, 8, 9, 10, 11]), RSI touched 30!
+      // Crosses happen at index 11.
       injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 9
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 11
         macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 9
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 11
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
         },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 20], // RSI=20 (< 25)
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 30, 45, 50, 55], // 30 at index 8 (inside L=5 window 7..11)
       });
 
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('BUY does NOT fire when RSI=40 (strictly above 35) even if both crosses happen', () => {
-      const strategy = createTripleStrategy(3);
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 9
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 9
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 40], // RSI=40 (> 35)
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('BUY does NOT fire with only EMA cross up (MACD has no cross up)', () => {
-      const strategy = createTripleStrategy(3);
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // EMA cross up at 9
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // MACD flat, below signal
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-          histogram: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30], // RSI in range
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('BUY does NOT fire with only MACD cross up (EMA has no cross up)', () => {
-      const strategy = createTripleStrategy(3);
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10], // EMA flat, below slow
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // MACD cross up at 9
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5],
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30], // RSI in range
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('BUY does NOT fire when cross is older than confirmation window (window=3)', () => {
-      const strategy = createTripleStrategy(3);
-
-      // EMA crossed up at index 5 (5 <= 12, 15 > 11).
-      // MACD crosses up at index 9.
-      // With window=3 and currentIndex=9, window covers indices [7, 8, 9].
-      // Index 5 is outside the window!
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 15, 15, 15, 15, 15],
-        slowMA: [12, 12, 12, 12, 12, 11, 11, 11, 11, 11],
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 9
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('BUY fires when crosses happen on different candles inside confirmation window (window=3)', () => {
-      const strategy = createTripleStrategy(3);
-
-      // EMA crossed up at index 8 (index 8 is inside window [7, 8, 9])
-      // MACD crosses up at index 9 (fresh trigger!)
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 15, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 11, 11], // Cross up at index 8
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 9 (fresh)
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
-      });
-
-      const signal = strategy.analyze(candles, 9);
+      const signal = strategy.analyze(candles, 11);
       expect(signal.action).toBe('BUY');
     });
 
-    it('BUY does NOT fire when both crosses happened earlier and neither is fresh on current candle', () => {
-      const strategy = createTripleStrategy(3);
+    it('BUY does NOT fire when RSI was in [25, 35] outside rsiLookback (L=3)', () => {
+      const strategy = createTripleStrategy(6, 3);
 
-      // Both crossed at index 8. Index 9 has no fresh cross.
+      // Current index 11, L=3 scans [9, 10, 11].
+      // RSI was 30 at index 7 (outside lookback window [9..11]).
       injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 15, 16],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 11, 10], // Crossed at 8
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 11
         macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 1, 1.2],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.6], // Crossed at 8
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.6],
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 11
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
         },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 30, 30],
+        rsi: [50, 50, 50, 50, 50, 50, 50, 30, 45, 50, 52, 55], // 30 at index 7 (outside [9..11])
       });
 
-      const signal = strategy.analyze(candles, 9);
+      const signal = strategy.analyze(candles, 11);
+      expect(signal.action).toBe('HOLD');
+    });
+
+    it('L=1 reproduces old signal-candle-only behavior', () => {
+      const strategy = createTripleStrategy(6, 1);
+
+      // RSI was 30 at index 10, but on index 11 RSI is 40.
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // Cross up at index 11
+        macd: {
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // Cross up at index 11
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 30, 40], // 30 at 10, 40 at 11
+      });
+
+      // With L=1, only index 11 is checked (RSI=40 > 35) -> HOLD
+      const signal = strategy.analyze(candles, 11);
+      expect(signal.action).toBe('HOLD');
+
+      // Now RSI is 30 on index 11 -> BUY
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11],
+        macd: {
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 40, 30],
+      });
+
+      const signalOnCurrent = strategy.analyze(candles, 11);
+      expect(signalOnCurrent.action).toBe('BUY');
+    });
+
+    it('BUY does NOT fire when RSI=20 (strictly below 25) even with crosses', () => {
+      const strategy = createTripleStrategy(6, 10);
+
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11],
+        macd: {
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+        },
+        rsi: [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20], // All 20 (< 25)
+      });
+
+      const signal = strategy.analyze(candles, 11);
       expect(signal.action).toBe('HOLD');
     });
   });
 
   // --------------------------------------------------------------------------
-  // 4. Strategy 1 (Triple Confluence) - SELL Rules (Bug #1, #2, #4)
+  // 4. Exit Modes (mirror, emaCross, macdCross)
   // --------------------------------------------------------------------------
-  describe('Triple Confluence SELL Rules (Strict AND Logic)', () => {
+  describe('Exit Modes (mirror, emaCross, macdCross)', () => {
     const len = 10;
     const candles = Array.from({ length: len }, (_, i) => createCandle(100, 1000 + i * 60000));
 
-    function createStrategyWithOpenPosition() {
+    function createStrategyWithOpenPosition(exitMode: 'mirror' | 'emaCross' | 'macdCross') {
       const strategy = new ModularStrategy({
         ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
         rsi: { enabled: true, period: 2, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75 },
         macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
-        confirmationWindow: 3,
+        confirmationWindow: 6,
+        rsiLookback: 10,
+        exitMode,
       });
 
-      // Simulate an open position
       (strategy as unknown as { lastEntryPrice: number | null }).lastEntryPrice = 90;
       (strategy as unknown as { lastEntryIndex: number }).lastEntryIndex = 5;
       return strategy;
     }
 
-    it('SELL fires when RSI=70 (in [65, 75]) + MACD cross down + EMA cross down', () => {
-      const strategy = createStrategyWithOpenPosition();
+    it('exitMode="mirror" requires all 3 bearish conditions (AND logic)', () => {
+      const strategy = createStrategyWithOpenPosition('mirror');
 
+      // EMA crosses down, but MACD and RSI are not in sell condition
       injectIndicatorCache(strategy, candles, {
         fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
-        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12], // Cross down at index 9 (15>=11, 10<12)
+        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12], // EMA cross down
+        macd: {
+          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // MACD bullish
+          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50], // RSI neutral
+      });
+
+      const signalPartial = strategy.analyze(candles, 9);
+      expect(signalPartial.action).toBe('HOLD');
+
+      // Now all 3 conditions met (EMA cross down + MACD cross down + RSI in 65..75)
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
+        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12],
         macd: {
           macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.8], // Cross down at index 9 (1>=0.5, 0<0.8)
+          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.8], // MACD cross down
           histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, -0.8],
         },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 70], // RSI=70 in [65, 75]
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 70], // RSI in sell zone
+      });
+
+      const signalFull = strategy.analyze(candles, 9);
+      expect(signalFull.action).toBe('SELL');
+      expect(signalFull.reason).toContain('Strategy 1 Bearish Confluence');
+    });
+
+    it('exitMode="emaCross" exits on EMA cross down ONLY (ignoring MACD and RSI)', () => {
+      const strategy = createStrategyWithOpenPosition('emaCross');
+
+      // EMA crosses down at index 9, MACD is bullish, RSI is neutral (50)
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
+        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12], // EMA cross down
+        macd: {
+          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // MACD remains bullish!
+          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50], // RSI is neutral 50!
       });
 
       const signal = strategy.analyze(candles, 9);
       expect(signal.action).toBe('SELL');
-      expect(signal.reason).toContain('Strategy 1 Bearish Confluence');
-      expect(signal.reason).toContain('Bearish Cross');
-      expect(signal.reason).toContain('RSI in sell zone [65-75] (70.0)');
+      expect(signal.reason).toContain('EMA Bearish Cross Exit');
     });
 
-    it('SELL does NOT fire for ONLY RSI in range (no crosses down)', () => {
-      const strategy = createStrategyWithOpenPosition();
+    it('exitMode="macdCross" exits on MACD cross down ONLY (ignoring EMA and RSI)', () => {
+      const strategy = createStrategyWithOpenPosition('macdCross');
 
+      // MACD crosses down at index 9, EMA is bullish, RSI is neutral (50)
       injectIndicatorCache(strategy, candles, {
-        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15], // Bullish, no cross down
+        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15], // EMA remains bullish!
         slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
-        macd: {
-          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Bullish, no cross down
-          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 70], // RSI=70 in sell zone
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('SELL does NOT fire for ONLY MACD cross down (EMA still bullish)', () => {
-      const strategy = createStrategyWithOpenPosition();
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15], // Bullish, no cross down
-        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
-        macd: {
-          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // MACD crosses down
-          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.8],
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, -0.8],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 70],
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('SELL does NOT fire for ONLY EMA cross down (MACD still bullish)', () => {
-      const strategy = createStrategyWithOpenPosition();
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10], // EMA crosses down
-        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12],
-        macd: {
-          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // MACD bullish, no cross down
-          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 70],
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('SELL does NOT fire when RSI=60 (below sellMin=65) even with both crosses down', () => {
-      const strategy = createStrategyWithOpenPosition();
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
-        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12], // EMA cross down
         macd: {
           macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // MACD cross down
           signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.8],
           histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, -0.8],
         },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 60], // RSI=60 (< 65)
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50], // RSI neutral
       });
 
       const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
-    });
-
-    it('SELL does NOT fire when RSI=80 (above sellMax=75) even with both crosses down', () => {
-      const strategy = createStrategyWithOpenPosition();
-
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
-        slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12], // EMA cross down
-        macd: {
-          macd:      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // MACD cross down
-          signal:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.8],
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, -0.8],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 80], // RSI=80 (> 75)
-      });
-
-      const signal = strategy.analyze(candles, 9);
-      expect(signal.action).toBe('HOLD');
+      expect(signal.action).toBe('SELL');
+      expect(signal.reason).toContain('MACD Bearish Cross Exit');
     });
   });
 
   // --------------------------------------------------------------------------
-  // 5. Long-Only Position Tracking
+  // 5. Position Tracking & Risk Limits (Take Profit & Stop Loss)
   // --------------------------------------------------------------------------
-  describe('Long-Only Position Tracking', () => {
+  describe('Position Tracking & Risk Limits', () => {
     const len = 10;
     const candles = Array.from({ length: len }, (_, i) => createCandle(100, 1000 + i * 60000));
 
-    it('SELL is ignored when no position is open', () => {
+    it('SELL is ignored when no position is open (flat)', () => {
       const strategy = new ModularStrategy({
         ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
         rsi: { enabled: true, period: 2, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75 },
         macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
       });
 
-      // Valid bearish confluence, but no open position
       injectIndicatorCache(strategy, candles, {
         fastMA: [15, 15, 15, 15, 15, 15, 15, 15, 15, 10],
         slowMA: [11, 11, 11, 11, 11, 11, 11, 11, 11, 12],
@@ -509,10 +439,8 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
         macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
       });
 
-      // Simulate open position
       (strategy as unknown as { lastEntryPrice: number | null }).lastEntryPrice = 85;
 
-      // Valid bullish confluence
       injectIndicatorCache(strategy, candles, {
         fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
         slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11],
@@ -527,78 +455,26 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
       const signal = strategy.analyze(candles, 9);
       expect(signal.action).toBe('HOLD');
     });
-  });
 
-  // --------------------------------------------------------------------------
-  // 6. Timing & Confirmation Window (Bug #7)
-  // --------------------------------------------------------------------------
-  describe('Timing & Confirmation Window', () => {
-    const len = 10;
-    const candles = Array.from({ length: len }, (_, i) => createCandle(100, 1000 + i * 60000));
-
-    it('Window=1 requires all conditions on the SAME candle', () => {
-      const strategy = new ModularStrategy({
-        ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
-        rsi: { enabled: true, period: 2, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75 },
-        macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
-        confirmationWindow: 1, // Strictly same candle
-      });
-
-      // EMA crossed up at index 8, MACD crossed up at index 9
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 15, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 11, 11], // EMA cross at 8
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // MACD cross at 9
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
-      });
-
-      // Window=1 scans only index 9. EMA cross at index 8 is missed!
-      const signalDiffCandle = strategy.analyze(candles, 9);
-      expect(signalDiffCandle.action).toBe('HOLD');
-
-      // Now both cross at index 9
-      injectIndicatorCache(strategy, candles, {
-        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
-        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11], // EMA cross at 9
-        macd: {
-          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5], // MACD cross at 9
-          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
-        },
-        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
-      });
-
-      const signalSameCandle = strategy.analyze(candles, 9);
-      expect(signalSameCandle.action).toBe('BUY');
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  // 7. Take Profit Behavior (Bug #5)
-  // --------------------------------------------------------------------------
-  describe('Take Profit Behavior', () => {
-    it('Take profit is disabled by default (no unwanted take profit sale)', () => {
+    it('Stop Loss fires when price drops by configured stopLossPercent', () => {
       const strategy = new ModularStrategy({
         ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
         rsi: { enabled: false },
         macd: { enabled: false },
+        stopLossPercent: 5, // -5% stop loss
       });
 
-      const candles = [100, 100, 100, 100, 100, 110, 150].map((p, idx) =>
+      // Entry at 100, price crashes to 94 (-6%)
+      const candleSeries = [100, 100, 100, 100, 100, 100, 94].map((p, idx) =>
         createCandle(p, 1000 + idx * 60000)
       );
 
-      // Simulate open position at 100
       (strategy as unknown as { lastEntryPrice: number | null }).lastEntryPrice = 100;
       (strategy as unknown as { lastEntryIndex: number }).lastEntryIndex = 4;
 
-      // Price is 150 (+50%). Without explicit takeProfitPercent, it must NOT exit on TP
-      const signal = strategy.analyze(candles, candles.length - 1);
-      expect(signal.action).not.toBe('SELL');
+      const signal = strategy.analyze(candleSeries, candleSeries.length - 1);
+      expect(signal.action).toBe('SELL');
+      expect(signal.reason).toContain('Stop Loss Hit (-6.0% <= -5%)');
     });
 
     it('Take profit only fires when explicitly configured', () => {
@@ -606,20 +482,64 @@ describe('ModularStrategy & Strategy 1 (Triple Confluence)', () => {
         ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
         rsi: { enabled: false },
         macd: { enabled: false },
-        takeProfitPercent: 10, // Explicitly opt-in
+        takeProfitPercent: 10,
       });
 
-      const candles = [100, 100, 100, 100, 100, 100, 112].map((p, idx) =>
+      const candleSeries = [100, 100, 100, 100, 100, 100, 112].map((p, idx) =>
         createCandle(p, 1000 + idx * 60000)
       );
 
-      // Simulate open position at 100
       (strategy as unknown as { lastEntryPrice: number | null }).lastEntryPrice = 100;
       (strategy as unknown as { lastEntryIndex: number }).lastEntryIndex = 4;
 
-      const signal = strategy.analyze(candles, candles.length - 1);
+      const signal = strategy.analyze(candleSeries, candleSeries.length - 1);
       expect(signal.action).toBe('SELL');
       expect(signal.reason).toContain('Take Profit Hit (+12.0% >= target 10%)');
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 6. Window Edge Cases (W=1 vs W=6)
+  // --------------------------------------------------------------------------
+  describe('Window Edge Cases', () => {
+    const len = 10;
+    const candles = Array.from({ length: len }, (_, i) => createCandle(100, 1000 + i * 60000));
+
+    it('Window=1 requires both crosses on the strictly same candle', () => {
+      const strategy = new ModularStrategy({
+        ma: { enabled: true, type: 'ema', fastPeriod: 2, slowPeriod: 4 },
+        rsi: { enabled: true, period: 2, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75 },
+        macd: { enabled: true, fastPeriod: 2, slowPeriod: 4, signalPeriod: 2 },
+        confirmationWindow: 1,
+      });
+
+      // EMA cross at 8, MACD cross at 9 -> misses W=1
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 15, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 11, 11],
+        macd: {
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
+      });
+
+      expect(strategy.analyze(candles, 9).action).toBe('HOLD');
+
+      // Both crosses on candle 9 -> triggers W=1
+      injectIndicatorCache(strategy, candles, {
+        fastMA: [10, 10, 10, 10, 10, 10, 10, 10, 10, 15],
+        slowMA: [12, 12, 12, 12, 12, 12, 12, 12, 12, 11],
+        macd: {
+          macd:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          signal:    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5],
+          histogram: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5],
+        },
+        rsi: [50, 50, 50, 50, 50, 50, 50, 50, 50, 30],
+      });
+
+      expect(strategy.analyze(candles, 9).action).toBe('BUY');
     });
   });
 });

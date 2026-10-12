@@ -3,6 +3,8 @@ import {
   areValidCandles,
   sortCandles,
   deduplicateCandles,
+  getIntervalMs,
+  performCandleSanityCheck,
   type Candle,
 } from '@/data/models/candle';
 
@@ -110,6 +112,39 @@ describe('Candle Model & Utilities', () => {
       expect(deduplicated).toHaveLength(2);
       expect(deduplicated[0].close).toBe(55);
       expect(deduplicated[1].close).toBe(60);
+    });
+  });
+
+  describe('getIntervalMs & performCandleSanityCheck', () => {
+    it('should return correct milliseconds for intervals', () => {
+      expect(getIntervalMs('1m')).toBe(60000);
+      expect(getIntervalMs('1h')).toBe(3600000);
+      expect(getIntervalMs('4h')).toBe(14400000);
+      expect(getIntervalMs('1d')).toBe(86400000);
+    });
+
+    it('should return empty check for empty candles array', () => {
+      const check = performCandleSanityCheck([], '1h');
+      expect(check.candleCount).toBe(0);
+      expect(check.firstTimestamp).toBeNull();
+      expect(check.lastTimestamp).toBeNull();
+      expect(check.gapCount).toBe(0);
+    });
+
+    it('should correctly detect min/max close and count gaps', () => {
+      const candles: Candle[] = [
+        { ...validCandle, timestamp: 1000000, close: 100 },
+        { ...validCandle, timestamp: 1000000 + 3600000, close: 90 }, // Normal 1h step
+        { ...validCandle, timestamp: 1000000 + 3600000 * 3, close: 120 }, // Gap of 2 hours!
+      ];
+
+      const check = performCandleSanityCheck(candles, '1h');
+      expect(check.candleCount).toBe(3);
+      expect(check.firstTimestamp).toBe(1000000);
+      expect(check.lastTimestamp).toBe(1000000 + 3600000 * 3);
+      expect(check.minClose).toBe(90);
+      expect(check.maxClose).toBe(120);
+      expect(check.gapCount).toBe(1);
     });
   });
 });

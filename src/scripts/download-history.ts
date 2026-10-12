@@ -1,73 +1,153 @@
 import { KucoinPublicProvider } from '../data/providers/kucoin-public';
+import { BinancePublicProvider } from '../data/providers/binance-public';
 import { JsonStorage } from '../data/storage/json-storage';
-import type { CandleInterval } from '../data/models/candle';
+import {
+  getIntervalMs,
+  performCandleSanityCheck,
+  type CandleInterval,
+  type Candle,
+} from '../data/models/candle';
 
-const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
-const INTERVALS: CandleInterval[] = ['4h', '1h', '15m', '5m', '1m'];
+// Parse command line arguments
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let symbols = ['BTCUSDT', 'ETHUSDT'];
+  let intervals: CandleInterval[] = ['1h', '4h'];
+  let years = 2;
 
-// Estimated 1-year candle targets
-const TARGETS_1_YEAR: Record<CandleInterval, number> = {
-  '4h': 2200,     // 365 * 6 = 2190
-  '1h': 8800,     // 365 * 24 = 8760
-  '15m': 35100,   // 365 * 96 = 35040
-  '5m': 105200,   // 365 * 288 = 105120
-  '1m': 15000,    // 1m is very large, download initial 15k (~10 days) or full
-  '30m': 17600,
-  '1d': 365,
-  '1w': 52,
-};
-
-async function download() {
-  console.log('====================================================');
-  console.log('  TradeBot - Historical Market Data Downloader (1 Year)');
-  console.log('====================================================\n');
-
-  const provider = new KucoinPublicProvider();
-  const storage = new JsonStorage();
-
-  const now = Date.now();
-  const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
-
-  for (const symbol of SYMBOLS) {
-    for (const interval of INTERVALS) {
-      if (await storage.hasCandles(symbol, interval)) {
-        const existing = await storage.loadCandles(symbol, interval);
-        if (existing && existing.length >= 1000) {
-          console.log(`  ✔ Already downloaded (${existing.length.toLocaleString()} candles cached). Skipping.\n`);
-          continue;
-        }
-      }
-
-      const targetLimit = TARGETS_1_YEAR[interval];
-      console.log(`[Fetching] ${symbol} | ${interval} (Target: ~${targetLimit.toLocaleString()} candles)...`);
-
-      const startTime = Date.now();
-      try {
-        const candles = await provider.fetchCandles({
-          symbol,
-          interval,
-          startTime: oneYearAgo,
-          endTime: now,
-          limit: targetLimit,
-        });
-
-        if (candles.length > 0) {
-          const filePath = await storage.saveCandles(symbol, interval, candles);
-          const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.log(
-            `  ✔ Saved ${candles.length.toLocaleString()} candles to ${filePath} (${elapsedSec}s)\n`
-          );
-        } else {
-          console.log(`  ⚠ No candles returned for ${symbol} ${interval}\n`);
-        }
-      } catch (err) {
-        console.error(`  ❌ Failed to download ${symbol} ${interval}: ${(err as Error).message}\n`);
+  for (const arg of args) {
+    if (arg.startsWith('--symbols=')) {
+      symbols = arg.slice('--symbols='.length).split(',').map((s) => s.trim().toUpperCase());
+    } else if (arg.startsWith('--intervals=')) {
+      intervals = arg.slice('--intervals='.length).split(',').map((i) => i.trim() as CandleInterval);
+    } else if (arg.startsWith('--years=')) {
+      const val = parseFloat(arg.slice('--years='.length));
+      if (!isNaN(val) && val > 0) {
+        years = val;
       }
     }
   }
 
-  console.log('All historical downloads completed successfully!');
+  return { symbols, intervals, years };
+}
+
+async function download() {
+  const { symbols, intervals, years } = parseArgs();
+
+  console.log('====================================================');
+  console.log(`  TradeBot - Historical Market Data Downloader (${years} Years)`);
+  console.log(`  Symbols:   ${symbols.join(', ')}`);
+  console.log(`  Intervals: ${intervals.join(', ')}`);
+  console.log('====================================================\n');
+
+  const kucoin = new KucoinPublicProvider();
+  const binance = new BinancePublicProvider();
+  const storage = new JsonStorage();
+
+  const now = Date.now();
+  const requestedStartTime = now - Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
+  const requestedSpan = now - requestedStartTime;
+
+  for (const symbol of symbols) {
+    for (const interval of intervals) {
+      const intervalMs = getIntervalMs(interval);
+      const expectedCandles = Math.ceil(requestedSpan / intervalMs);
+
+      // Check existing cache coverage
+      if (await storage.hasCandles(symbol, interval)) {
+        const existing = await storage.loadCandles(symbol, interval);
+        if (existing && existing.length > 0) {
+          const firstCandle = existing[0];
+          const lastCandle = existing[existing.length - 1];
+          const cachedSpan = lastCandle.timestamp - firstCandle.timestamp;
+
+          // Coverage check: must cover at least requested span minus one interval and have >= 85% of expected candles
+          const coversRequestedSpan = cachedSpan >= requestedSpan - intervalMs;
+          const hasSufficientCount = existing.length >= Math.floor(expectedCandles * 0.85);
+
+          if (coversRequestedSpan && hasSufficientCount) {
+            const sanity = performCandleSanityCheck(existing, interval);
+            console.log(
+              `  ✔ ${symbol} ${interval}: Already cached with full coverage (${existing.length.toLocaleString()} candles).`
+            );
+            console.log(
+              `    Span: ${new Date(sanity.firstTimestamp!).toISOString()} -> ${new Date(sanity.lastTimestamp!).toISOString()}`
+            );
+            console.log(
+              `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}\n`
+            );
+            continue;
+          } else {
+            console.log(
+              `  ℹ ${symbol} ${interval}: Existing cache has insufficient coverage (${existing.length.toLocaleString()} / ~${expectedCandles.toLocaleString()} candles). Refetching full ${years}-year history...`
+            );
+          }
+        }
+      }
+
+      console.log(`[Fetching] ${symbol} | ${interval} (Target: ~${expectedCandles.toLocaleString()} candles)...`);
+      const fetchStart = Date.now();
+
+      let candles: Candle[] | null = null;
+      let usedProvider = '';
+
+      // 1. Try KuCoin first (KuCoin is often accessible from regions where Binance is geo-blocked)
+      try {
+        candles = await kucoin.fetchCandles({
+          symbol,
+          interval,
+          startTime: requestedStartTime,
+          endTime: now,
+          limit: expectedCandles,
+        });
+        if (candles && candles.length > 0) {
+          usedProvider = 'KuCoin';
+        }
+      } catch (err) {
+        console.log(`    KuCoin fetch failed: ${(err as Error).message}. Trying Binance...`);
+      }
+
+      // 2. If KuCoin failed, try Binance
+      if (!candles || candles.length === 0) {
+        try {
+          candles = await binance.fetchCandles({
+            symbol,
+            interval,
+            startTime: requestedStartTime,
+            endTime: now,
+            limit: expectedCandles,
+          });
+          if (candles && candles.length > 0) {
+            usedProvider = 'Binance';
+          }
+        } catch (err) {
+          console.log(`    Binance fetch failed: ${(err as Error).message}`);
+        }
+      }
+
+      if (candles && candles.length > 0) {
+        const filePath = await storage.saveCandles(symbol, interval, candles);
+        const elapsedSec = ((Date.now() - fetchStart) / 1000).toFixed(1);
+        const sanity = performCandleSanityCheck(candles, interval);
+
+        console.log(
+          `  ✔ Saved ${candles.length.toLocaleString()} candles via ${usedProvider} to ${filePath} (${elapsedSec}s)`
+        );
+        console.log(
+          `    Span: ${new Date(sanity.firstTimestamp!).toISOString()} -> ${new Date(sanity.lastTimestamp!).toISOString()}`
+        );
+        console.log(
+          `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}\n`
+        );
+      } else {
+        console.error(
+          `  ❌ Failed to download ${symbol} ${interval}: Both KuCoin and Binance returned no data. Check internet/network connectivity.\n`
+        );
+      }
+    }
+  }
+
+  console.log('Historical download run finished.');
 }
 
 download().catch(console.error);
-

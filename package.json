@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "download": "tsx src/scripts/download-history.ts",
+    "optimize": "tsx src/scripts/optimize.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",

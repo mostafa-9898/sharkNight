@@ -84,3 +84,83 @@ export function deduplicateCandles(candles: readonly Candle[]): Candle[] {
   return sortCandles(Array.from(map.values()));
 }
 
+/**
+ * Returns the duration in milliseconds corresponding to a CandleInterval.
+ */
+export function getIntervalMs(interval: CandleInterval): number {
+  switch (interval) {
+    case '1m':
+      return 60 * 1000;
+    case '5m':
+      return 5 * 60 * 1000;
+    case '15m':
+      return 15 * 60 * 1000;
+    case '30m':
+      return 30 * 60 * 1000;
+    case '1h':
+      return 60 * 60 * 1000;
+    case '4h':
+      return 4 * 60 * 60 * 1000;
+    case '1d':
+      return 24 * 60 * 60 * 1000;
+    case '1w':
+      return 7 * 24 * 60 * 60 * 1000;
+  }
+}
+
+export interface CandleSanityCheck {
+  candleCount: number;
+  firstTimestamp: number | null;
+  lastTimestamp: number | null;
+  minClose: number | null;
+  maxClose: number | null;
+  gapCount: number; // Count of gaps larger than 1.5 intervals
+}
+
+/**
+ * Validates and inspects a sequence of candles for data integrity and gaps.
+ */
+export function performCandleSanityCheck(
+  candles: readonly Candle[],
+  interval: CandleInterval
+): CandleSanityCheck {
+  if (candles.length === 0) {
+    return {
+      candleCount: 0,
+      firstTimestamp: null,
+      lastTimestamp: null,
+      minClose: null,
+      maxClose: null,
+      gapCount: 0,
+    };
+  }
+
+  const intervalMs = getIntervalMs(interval);
+  let minClose = candles[0].close;
+  let maxClose = candles[0].close;
+  let gapCount = 0;
+
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    if (c.close < minClose) minClose = c.close;
+    if (c.close > maxClose) maxClose = c.close;
+
+    if (i > 0) {
+      const diff = c.timestamp - candles[i - 1].timestamp;
+      // Gap larger than 1.5x interval indicates a missing candle
+      if (diff > intervalMs * 1.5) {
+        gapCount++;
+      }
+    }
+  }
+
+  return {
+    candleCount: candles.length,
+    firstTimestamp: candles[0].timestamp,
+    lastTimestamp: candles[candles.length - 1].timestamp,
+    minClose,
+    maxClose,
+    gapCount,
+  };
+}
+

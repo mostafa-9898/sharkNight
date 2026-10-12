@@ -68,3 +68,11 @@ _No failures recorded yet._
 ---
 
 > This is a living document. Update after every backtest run.
+
+### Strategy 1 (Triple Confluence) Optimization - BTCUSDT (2026-10-12)
+- **Type:** Trend Following + Momentum Reversal (EMA + MACD + RSI)
+- **Data:** Real candles from data/ (1458 combos tested)
+- **Validation:** Chronological split (70% Train, 30% Test)
+- **Best Ranked Setting:** TF: 1h, EMA: 10/30, W: 6, L: 20, Exit: emaCross, Test Return: 18.62%, Calmar: 2.16
+- **Detailed Report:** [OPTIMIZATION_BTCUSDT_2026-10-12.md](./OPTIMIZATION_BTCUSDT_2026-10-12.md)
+- **Status:** ✅ Completed Optimization

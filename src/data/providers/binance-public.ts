@@ -53,43 +53,81 @@ export class BinancePublicProvider implements DataProvider {
     }
 
     const allCandles: Candle[] = [];
-    let currentStartTime = request.startTime;
-    const finalEndTime = request.endTime;
 
-    while (allCandles.length < targetLimit) {
-      const remainingLimit = targetLimit - allCandles.length;
-      const batchLimit = Math.min(remainingLimit, MAX_BINANCE_LIMIT);
+    if (request.startTime !== undefined) {
+      // Forward pagination when startTime is given
+      let currentStartTime = request.startTime;
+      const finalEndTime = request.endTime;
 
-      const batchCandles = await this.fetchBatch({
-        symbol,
-        interval: request.interval,
-        startTime: currentStartTime,
-        endTime: finalEndTime,
-        limit: batchLimit,
-      });
+      while (allCandles.length < targetLimit) {
+        const remainingLimit = targetLimit - allCandles.length;
+        const batchLimit = Math.min(remainingLimit, MAX_BINANCE_LIMIT);
 
-      if (batchCandles.length === 0) {
-        break;
+        const batchCandles = await this.fetchBatch({
+          symbol,
+          interval: request.interval,
+          startTime: currentStartTime,
+          endTime: finalEndTime,
+          limit: batchLimit,
+        });
+
+        if (batchCandles.length === 0) {
+          break;
+        }
+
+        allCandles.push(...batchCandles);
+
+        // If fewer candles than requested were returned, we have reached the end of available data
+        if (batchCandles.length < batchLimit) {
+          break;
+        }
+
+        const lastCandle = batchCandles[batchCandles.length - 1];
+        // Next batch should start 1ms after the last candle timestamp
+        currentStartTime = lastCandle.timestamp + 1;
+
+        // If we passed the requested endTime, stop
+        if (finalEndTime !== undefined && currentStartTime > finalEndTime) {
+          break;
+        }
       }
+    } else {
+      // Backward pagination when startTime is NOT given
+      let currentEndTime = request.endTime;
 
-      allCandles.push(...batchCandles);
+      while (allCandles.length < targetLimit) {
+        const remainingLimit = targetLimit - allCandles.length;
+        const batchLimit = Math.min(remainingLimit, MAX_BINANCE_LIMIT);
 
-      // If fewer candles than requested were returned, we have reached the end of available data
-      if (batchCandles.length < batchLimit) {
-        break;
-      }
+        const batchCandles = await this.fetchBatch({
+          symbol,
+          interval: request.interval,
+          endTime: currentEndTime,
+          limit: batchLimit,
+        });
 
-      const lastCandle = batchCandles[batchCandles.length - 1];
-      // Next batch should start 1ms after the last candle timestamp
-      currentStartTime = lastCandle.timestamp + 1;
+        if (batchCandles.length === 0) {
+          break;
+        }
 
-      // If we passed the requested endTime, stop
-      if (finalEndTime !== undefined && currentStartTime > finalEndTime) {
-        break;
+        allCandles.push(...batchCandles);
+
+        if (batchCandles.length < batchLimit) {
+          break;
+        }
+
+        // Oldest candle in this batch (Binance returns rows sorted ascending)
+        const oldestCandle = batchCandles[0];
+        currentEndTime = oldestCandle.timestamp - 1;
+
+        if (currentEndTime <= 0) {
+          break;
+        }
       }
     }
 
-    return deduplicateCandles(sortCandles(allCandles));
+    const sorted = deduplicateCandles(sortCandles(allCandles));
+    return sorted.length > targetLimit ? sorted.slice(-targetLimit) : sorted;
   }
 
   /**

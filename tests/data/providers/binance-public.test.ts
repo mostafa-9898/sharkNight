@@ -78,7 +78,7 @@ describe('BinancePublicProvider', () => {
     });
   });
 
-  it('should handle pagination when requested limit exceeds 1000', async () => {
+  it('should handle forward pagination when startTime is provided and limit exceeds 1000', async () => {
     // Generate 1000 rows for batch 1
     const batch1 = Array.from({ length: 1000 }, (_, i) =>
       sampleKlineRow(1000000 + i * 60000, 100)
@@ -108,6 +108,7 @@ describe('BinancePublicProvider', () => {
     const candles = await provider.fetchCandles({
       symbol: 'ETHUSDT',
       interval: '1m',
+      startTime: 1000000,
       limit: 1200,
     });
 
@@ -118,6 +119,57 @@ describe('BinancePublicProvider', () => {
     const secondCallUrl = mockFetch.mock.calls[1][0] as string;
     const lastBatch1Time = 1000000 + 999 * 60000;
     expect(secondCallUrl).toContain(`startTime=${lastBatch1Time + 1}`);
+  });
+
+  it('should handle backward pagination when startTime is NOT provided and limit exceeds 1000', async () => {
+    // Batch 1: returns most recent 1000 candles [2000000 to 2000000 + 999 * 60000]
+    const batch1 = Array.from({ length: 1000 }, (_, i) =>
+      sampleKlineRow(2000000 + i * 60000, 100)
+    );
+    // Batch 2: returns older 200 candles [1988000 to 1999940]
+    const batch2 = Array.from({ length: 200 }, (_, i) =>
+      sampleKlineRow(1988000 + i * 60000, 95)
+    );
+
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => batch1,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => batch2,
+      });
+
+    const provider = new BinancePublicProvider({
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    const candles = await provider.fetchCandles({
+      symbol: 'BTCUSDT',
+      interval: '1m',
+      limit: 1200,
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(candles).toHaveLength(1200);
+
+    // Verify first request had no startTime and no endTime
+    const firstCallUrl = mockFetch.mock.calls[0][0] as string;
+    expect(firstCallUrl).not.toContain('startTime=');
+    expect(firstCallUrl).not.toContain('endTime=');
+
+    // Verify second request uses endTime = batch1[0].timestamp - 1 (oldest candle - 1)
+    const secondCallUrl = mockFetch.mock.calls[1][0] as string;
+    expect(secondCallUrl).not.toContain('startTime=');
+    expect(secondCallUrl).toContain(`endTime=${2000000 - 1}`);
+
+    // Verify candles are sorted ascending chronologically
+    expect(candles[0].timestamp).toBe(1988000);
+    expect(candles[candles.length - 1].timestamp).toBe(2000000 + 999 * 60000);
   });
 
   it('should throw an error with status and text when response is not ok', async () => {

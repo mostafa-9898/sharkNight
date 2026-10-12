@@ -51,7 +51,9 @@ export class KucoinPublicProvider implements DataProvider {
     let currentEndSec = request.endTime ? Math.floor(request.endTime / 1000) : Math.floor(Date.now() / 1000);
 
     const allCandles: Candle[] = [];
-    const maxBatches = 50; // Safety guard against infinite loops
+    // KuCoin returns up to 1500 candles per batch. For 2 years of 15m (~70,080 candles), we need ~50-80 batches.
+    // Calculate maxBatches dynamically with an upper safety ceiling of 500 batches.
+    const maxBatches = Math.min(500, Math.max(50, Math.ceil(targetLimit / 1000) + 20));
 
     for (let batch = 0; batch < maxBatches; batch++) {
       const query = new URLSearchParams({
