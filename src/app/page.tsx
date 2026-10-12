@@ -28,7 +28,10 @@ interface BacktestResultData {
     smaFast: number[];
     smaSlow: number[];
     rsi?: number[];
-    rsiTolerance?: number;
+    rsiBuyMin?: number;
+    rsiBuyMax?: number;
+    rsiSellMin?: number;
+    rsiSellMax?: number;
     macd?: { macd: number[]; signal: number[]; histogram: number[] };
     confirmationWindow?: number;
     takeProfitPercent?: number;
@@ -55,17 +58,19 @@ export default function DashboardPage() {
 
   const [rsiEnabled, setRsiEnabled] = useState(true);
   const [rsiPeriod, setRsiPeriod] = useState(14);
-  const [rsiOversold, setRsiOversold] = useState(30);
-  const [rsiOverbought, setRsiOverbought] = useState(70);
-  const [rsiTolerance, setRsiTolerance] = useState(5);
+  const [rsiBuyMin, setRsiBuyMin] = useState(25);
+  const [rsiBuyMax, setRsiBuyMax] = useState(35);
+  const [rsiSellMin, setRsiSellMin] = useState(65);
+  const [rsiSellMax, setRsiSellMax] = useState(75);
 
   const [macdEnabled, setMacdEnabled] = useState(true);
   const [macdFastPeriod, setMacdFastPeriod] = useState(12);
   const [macdSlowPeriod, setMacdSlowPeriod] = useState(26);
   const [macdSignalPeriod, setMacdSignalPeriod] = useState(9);
 
+  const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
-  const [confirmationWindow, setConfirmationWindow] = useState(5);
+  const [confirmationWindow, setConfirmationWindow] = useState(3);
 
   const hasAtLeastOneIndicator = maEnabled || rsiEnabled || macdEnabled;
 
@@ -148,14 +153,15 @@ export default function DashboardPage() {
           slowPeriod: btSlowPeriod,
           rsiEnabled,
           rsiPeriod,
-          rsiOversold,
-          rsiOverbought,
-          rsiTolerance,
+          rsiBuyMin,
+          rsiBuyMax,
+          rsiSellMin,
+          rsiSellMax,
           macdEnabled,
           macdFastPeriod,
           macdSlowPeriod,
           macdSignalPeriod,
-          takeProfitPercent,
+          takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
           confirmationWindow,
         }),
       });
@@ -183,10 +189,13 @@ export default function DashboardPage() {
           smaFast: data.indicators?.smaFast ?? [],
           smaSlow: data.indicators?.smaSlow ?? [],
           rsi: data.indicators?.rsi ?? [],
-          rsiTolerance: data.indicators?.rsiTolerance ?? rsiTolerance,
+          rsiBuyMin: data.indicators?.rsiBuyMin ?? rsiBuyMin,
+          rsiBuyMax: data.indicators?.rsiBuyMax ?? rsiBuyMax,
+          rsiSellMin: data.indicators?.rsiSellMin ?? rsiSellMin,
+          rsiSellMax: data.indicators?.rsiSellMax ?? rsiSellMax,
           macd: data.indicators?.macd ?? null,
           confirmationWindow: data.indicators?.confirmationWindow ?? confirmationWindow,
-          takeProfitPercent: data.indicators?.takeProfitPercent ?? takeProfitPercent,
+          takeProfitPercent: data.indicators?.takeProfitPercent,
         },
         candles,
         totalCandles: data.totalCandles ?? candles.length,
@@ -220,13 +229,15 @@ export default function DashboardPage() {
     btSlowPeriod,
     rsiEnabled,
     rsiPeriod,
-    rsiOversold,
-    rsiOverbought,
-    rsiTolerance,
+    rsiBuyMin,
+    rsiBuyMax,
+    rsiSellMin,
+    rsiSellMax,
     macdEnabled,
     macdFastPeriod,
     macdSlowPeriod,
     macdSignalPeriod,
+    takeProfitEnabled,
     takeProfitPercent,
     confirmationWindow,
     hasAtLeastOneIndicator,
@@ -701,70 +712,85 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Oversold */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Oversold:</label>
+            {/* Buy Zone */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Buy Zone:</label>
               <input
                 type="number"
                 min={1}
-                max={50}
-                disabled={!rsiEnabled}
-                value={rsiOversold}
-                onChange={(e) => setRsiOversold(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  width: '65px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
-                }}
-              />
-            </div>
-
-            {/* Overbought */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Overbought:</label>
-              <input
-                type="number"
-                min={51}
                 max={99}
                 disabled={!rsiEnabled}
-                value={rsiOverbought}
-                onChange={(e) => setRsiOverbought(Number(e.target.value))}
+                value={rsiBuyMin}
+                onChange={(e) => setRsiBuyMin(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
                   color: '#e6edf3',
                   border: '1px solid #30363d',
                   borderRadius: '6px',
-                  padding: '5px 10px',
+                  padding: '5px 8px',
                   fontSize: '12px',
-                  width: '65px',
+                  width: '55px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+              <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                disabled={!rsiEnabled}
+                value={rsiBuyMax}
+                onChange={(e) => setRsiBuyMax(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
                   cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
             </div>
 
-            {/* Tolerance */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Tolerance (±):</label>
+            {/* Sell Zone */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Sell Zone:</label>
               <input
                 type="number"
-                min={0}
-                max={25}
+                min={1}
+                max={99}
                 disabled={!rsiEnabled}
-                value={rsiTolerance}
-                onChange={(e) => setRsiTolerance(Number(e.target.value))}
+                value={rsiSellMin}
+                onChange={(e) => setRsiSellMin(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
                   color: '#e6edf3',
                   border: '1px solid #30363d',
                   borderRadius: '6px',
-                  padding: '5px 10px',
+                  padding: '5px 8px',
                   fontSize: '12px',
-                  width: '65px',
+                  width: '55px',
+                  cursor: rsiEnabled ? 'text' : 'not-allowed',
+                }}
+              />
+              <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                disabled={!rsiEnabled}
+                value={rsiSellMax}
+                onChange={(e) => setRsiSellMax(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
                   cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
@@ -908,13 +934,24 @@ export default function DashboardPage() {
 
             {/* Take Profit % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Take Profit:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={takeProfitEnabled}
+                  onChange={(e) => setTakeProfitEnabled(e.target.checked)}
+                  style={{ accentColor: '#2ea043', width: '14px', height: '14px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '12px', color: takeProfitEnabled ? '#e6edf3' : '#8b949e', fontWeight: 600 }}>
+                  Take Profit:
+                </span>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: takeProfitEnabled ? 1 : 0.4 }}>
                 <input
                   type="number"
                   min={1}
                   max={100}
                   step={1}
+                  disabled={!takeProfitEnabled}
                   value={takeProfitPercent}
                   onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
                   style={{
@@ -926,6 +963,7 @@ export default function DashboardPage() {
                     padding: '5px 10px',
                     fontSize: '12px',
                     width: '65px',
+                    cursor: takeProfitEnabled ? 'text' : 'not-allowed',
                   }}
                 />
                 <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>

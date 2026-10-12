@@ -15,9 +15,14 @@ export interface MAConfig {
 export interface RSIConfig {
   enabled: boolean;
   period: number;
-  oversold: number;
-  overbought: number;
-  tolerance: number;
+  /** Lower bound of BUY zone (inclusive). Default 25. */
+  buyMin: number;
+  /** Upper bound of BUY zone (inclusive). Default 35. */
+  buyMax: number;
+  /** Lower bound of SELL zone (inclusive). Default 65. */
+  sellMin: number;
+  /** Upper bound of SELL zone (inclusive). Default 75. */
+  sellMax: number;
 }
 
 export interface MACDConfigSettings {
@@ -32,16 +37,28 @@ export interface ModularStrategyConfig {
   rsi?: Partial<RSIConfig>;
   macd?: Partial<MACDConfigSettings>;
   confirmationWindow?: number;
+  /** Optional take-profit percentage. Disabled (undefined) by default. */
   takeProfitPercent?: number;
 }
 
 /**
  * Modular Multi-Indicator Strategy (Strategy 1: Triple Confluence Engine).
- * Allows dynamic combination of:
- * - MA (EMA / SMA) Crossover
- * - RSI (Relative Strength Index) with tolerance zone
- * - MACD (Moving Average Convergence Divergence) Crossover
- * - Confluence Confirmation Window & Take Profit target
+ *
+ * BUY requires ALL enabled indicators to agree (AND):
+ *   - RSI in closed [buyMin, buyMax] on the CURRENT candle
+ *   - MACD bullish cross within confirmationWindow
+ *   - EMA bullish cross within confirmationWindow
+ *   At least one cross must be on the current candle (fresh trigger).
+ *   State must hold: fast EMA > slow EMA, macd > signal.
+ *
+ * SELL is the exact mirror (AND):
+ *   - RSI in closed [sellMin, sellMax] on the CURRENT candle
+ *   - MACD bearish cross within confirmationWindow
+ *   - EMA bearish cross within confirmationWindow
+ *   At least one cross must be on the current candle.
+ *   State must hold: fast EMA < slow EMA, macd < signal.
+ *
+ * Long-only: BUY ignored when position open, SELL ignored when no position.
  */
 export class ModularStrategy implements Strategy {
   readonly name: string;
@@ -52,9 +69,9 @@ export class ModularStrategy implements Strategy {
   readonly rsi: RSIConfig;
   readonly macd: MACDConfigSettings;
   readonly confirmationWindow: number;
-  readonly takeProfitPercent: number;
+  readonly takeProfitPercent: number | undefined;
 
-  // Position tracking for exit rules and take-profit target
+  // Position tracking for long-only logic
   private lastEntryPrice: number | null = null;
   private lastEntryIndex: number = -1;
 
@@ -76,9 +93,10 @@ export class ModularStrategy implements Strategy {
     this.rsi = {
       enabled: config?.rsi?.enabled ?? false,
       period: config?.rsi?.period ?? 14,
-      oversold: config?.rsi?.oversold ?? 30,
-      overbought: config?.rsi?.overbought ?? 70,
-      tolerance: config?.rsi?.tolerance ?? 5,
+      buyMin: config?.rsi?.buyMin ?? 25,
+      buyMax: config?.rsi?.buyMax ?? 35,
+      sellMin: config?.rsi?.sellMin ?? 65,
+      sellMax: config?.rsi?.sellMax ?? 75,
     };
 
     this.macd = {
@@ -88,8 +106,9 @@ export class ModularStrategy implements Strategy {
       signalPeriod: config?.macd?.signalPeriod ?? 9,
     };
 
-    this.confirmationWindow = Math.max(1, config?.confirmationWindow ?? 5);
-    this.takeProfitPercent = Math.max(0.1, config?.takeProfitPercent ?? 10);
+    this.confirmationWindow = Math.max(1, config?.confirmationWindow ?? 3);
+    // Bug #5 fix: takeProfitPercent is undefined by default (disabled).
+    this.takeProfitPercent = config?.takeProfitPercent;
 
     if (!this.ma.enabled && !this.rsi.enabled && !this.macd.enabled) {
       throw new Error('At least one indicator must be enabled in ModularStrategy');
@@ -110,9 +129,19 @@ export class ModularStrategy implements Strategy {
       if (this.rsi.period <= 0) {
         throw new Error('RSI period must be a positive integer');
       }
-      if (this.rsi.oversold >= this.rsi.overbought) {
+      if (this.rsi.buyMin >= this.rsi.buyMax) {
         throw new Error(
-          `RSI oversold (${this.rsi.oversold}) must be strictly less than overbought (${this.rsi.overbought})`
+          `RSI buyMin (${this.rsi.buyMin}) must be strictly less than buyMax (${this.rsi.buyMax})`
+        );
+      }
+      if (this.rsi.sellMin >= this.rsi.sellMax) {
+        throw new Error(
+          `RSI sellMin (${this.rsi.sellMin}) must be strictly less than sellMax (${this.rsi.sellMax})`
+        );
+      }
+      if (this.rsi.buyMax >= this.rsi.sellMin) {
+        throw new Error(
+          `RSI buyMax (${this.rsi.buyMax}) must be strictly less than sellMin (${this.rsi.sellMin})`
         );
       }
     }
@@ -212,15 +241,18 @@ export class ModularStrategy implements Strategy {
 
     const currPrice = candle.close;
     const currRSIVal = this.rsi.enabled ? this.cachedRSI[currentIndex] : undefined;
-    const winStart = Math.max(1, currentIndex - this.confirmationWindow);
+
+    // Bug #7 fix: window of N scans exactly N candles [currentIndex - N + 1, currentIndex].
+    // The earliest candle in the window is currentIndex - confirmationWindow + 1.
+    // Crosses require k-1, so the earliest k we scan is currentIndex - confirmationWindow + 1,
+    // but we must ensure k >= 1 so we can read k-1.
+    const winStart = Math.max(1, currentIndex - this.confirmationWindow + 1);
 
     // -------------------------------------------------------------
-    // 1. Position Exit & Take Profit (if currently in an open position)
+    // 0. Take Profit (only if explicitly configured)
     // -------------------------------------------------------------
-    if (this.lastEntryPrice !== null) {
+    if (this.lastEntryPrice !== null && this.takeProfitPercent != null) {
       const pnlPercent = ((currPrice - this.lastEntryPrice) / this.lastEntryPrice) * 100;
-
-      // 1A. Take Profit (+10% target or configurable)
       if (currPrice >= this.lastEntryPrice * (1 + this.takeProfitPercent / 100)) {
         this.lastEntryPrice = null;
         this.lastEntryIndex = -1;
@@ -239,67 +271,17 @@ export class ModularStrategy implements Strategy {
           },
         };
       }
-
-      // 1B. Full Strategy 1 Bearish Confluence Exit (opposite of entry)
-      if (this.ma.enabled && this.rsi.enabled && this.macd.enabled && this.cachedMACD) {
-        let emaCrossDownRecent = false;
-        for (let k = winStart; k <= currentIndex; k++) {
-          if (this.cachedFastMA[k - 1] >= this.cachedSlowMA[k - 1] && this.cachedFastMA[k] < this.cachedSlowMA[k]) {
-            emaCrossDownRecent = true;
-            break;
-          }
-        }
-        let macdCrossDownRecent = false;
-        for (let k = winStart; k <= currentIndex; k++) {
-          if (this.cachedMACD.macd[k - 1] >= this.cachedMACD.signal[k - 1] && this.cachedMACD.macd[k] < this.cachedMACD.signal[k]) {
-            macdCrossDownRecent = true;
-            break;
-          }
-        }
-
-        const rsiOverboughtMin = this.rsi.overbought - this.rsi.tolerance;
-        let rsiOverboughtMet = false;
-        for (let k = winStart; k <= currentIndex; k++) {
-          const r = this.cachedRSI[k];
-          if (Number.isFinite(r) && (r >= rsiOverboughtMin || r >= this.rsi.overbought)) {
-            rsiOverboughtMet = true;
-            break;
-          }
-        }
-
-        const emaBearishNow = this.cachedFastMA[currentIndex] < this.cachedSlowMA[currentIndex];
-        const macdBearishNow = this.cachedMACD.macd[currentIndex] < this.cachedMACD.signal[currentIndex];
-
-        if (emaCrossDownRecent && macdCrossDownRecent && rsiOverboughtMet && emaBearishNow && macdBearishNow) {
-          this.lastEntryPrice = null;
-          this.lastEntryIndex = -1;
-          return {
-            action: 'SELL',
-            timestamp: candle.timestamp,
-            price: currPrice,
-            reason: `Triple Confluence Bearish Exit (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%): RSI in ~${this.rsi.overbought} zone with Bearish EMA & MACD Crossovers`,
-            metadata: {
-              pnlPercent,
-              fastMA: this.cachedFastMA[currentIndex],
-              slowMA: this.cachedSlowMA[currentIndex],
-              rsi: currRSIVal,
-              macd: this.cachedMACD?.macd[currentIndex],
-              macdSignal: this.cachedMACD?.signal[currentIndex],
-            },
-          };
-        }
-      }
     }
 
     // -------------------------------------------------------------
-    // 2. Indicator Crossover & Zone Detection
+    // 1. Detect crossovers within the confirmation window
     // -------------------------------------------------------------
 
-    // 2A. MA Crossover & State
-    let maBuyNow = false;
-    let maSellNow = false;
+    // 1A. EMA/SMA Crossovers
     let maCrossUpRecent = false;
-    let maCrossUpIndex = -1;
+    let maCrossDownRecent = false;
+    let maCrossUpOnCurrent = false;
+    let maCrossDownOnCurrent = false;
 
     if (this.ma.enabled) {
       for (let k = winStart; k <= currentIndex; k++) {
@@ -307,54 +289,24 @@ export class ModularStrategy implements Strategy {
         const cF = this.cachedFastMA[k];
         const pS = this.cachedSlowMA[k - 1];
         const cS = this.cachedSlowMA[k];
-        if (Number.isFinite(pF) && Number.isFinite(cF) && Number.isFinite(pS) && Number.isFinite(cS)) {
-          if (pF <= pS && cF > cS) {
-            maCrossUpRecent = true;
-            maCrossUpIndex = k;
-            if (k === currentIndex) maBuyNow = true;
-          }
-          if (pF >= pS && cF < cS && k === currentIndex) {
-            maSellNow = true;
-          }
+        if (!Number.isFinite(pF) || !Number.isFinite(cF) || !Number.isFinite(pS) || !Number.isFinite(cS)) continue;
+
+        if (pF <= pS && cF > cS) {
+          maCrossUpRecent = true;
+          if (k === currentIndex) maCrossUpOnCurrent = true;
+        }
+        if (pF >= pS && cF < cS) {
+          maCrossDownRecent = true;
+          if (k === currentIndex) maCrossDownOnCurrent = true;
         }
       }
     }
-    const maBullishCurrent = this.ma.enabled ? this.cachedFastMA[currentIndex] > this.cachedSlowMA[currentIndex] : false;
 
-    // 2B. RSI Zone & Recovery
-    let rsiOversoldZoneMet = false;
-    let rsiObservedVal = currRSIVal ?? 50;
-    let rsiOversoldBounce = false;
-    let rsiOverboughtNow = false;
-
-    if (this.rsi.enabled) {
-      const rsiMin = this.rsi.oversold - this.rsi.tolerance;
-      const rsiMax = this.rsi.oversold + this.rsi.tolerance;
-
-      for (let k = winStart; k <= currentIndex; k++) {
-        const r = this.cachedRSI[k];
-        if (Number.isFinite(r)) {
-          if ((r >= rsiMin && r <= rsiMax) || r <= this.rsi.oversold) {
-            rsiOversoldZoneMet = true;
-            rsiObservedVal = r;
-            break;
-          }
-        }
-      }
-
-      const currR = this.cachedRSI[currentIndex];
-      const prevR = this.cachedRSI[currentIndex - 1];
-      if (Number.isFinite(currR) && Number.isFinite(prevR)) {
-        rsiOversoldBounce = prevR <= this.rsi.oversold && currR > this.rsi.oversold;
-        rsiOverboughtNow = currR >= this.rsi.overbought;
-      }
-    }
-
-    // 2C. MACD Crossover & State
-    let macdBuyNow = false;
-    let macdSellNow = false;
+    // 1B. MACD Crossovers
     let macdCrossUpRecent = false;
-    let macdCrossUpIndex = -1;
+    let macdCrossDownRecent = false;
+    let macdCrossUpOnCurrent = false;
+    let macdCrossDownOnCurrent = false;
 
     if (this.macd.enabled && this.cachedMACD) {
       for (let k = winStart; k <= currentIndex; k++) {
@@ -362,133 +314,100 @@ export class ModularStrategy implements Strategy {
         const cM = this.cachedMACD.macd[k];
         const pS = this.cachedMACD.signal[k - 1];
         const cS = this.cachedMACD.signal[k];
-        if (Number.isFinite(pM) && Number.isFinite(cM) && Number.isFinite(pS) && Number.isFinite(cS)) {
-          if (pM <= pS && cM > cS) {
-            macdCrossUpRecent = true;
-            macdCrossUpIndex = k;
-            if (k === currentIndex) macdBuyNow = true;
-          }
-          if (pM >= pS && cM < cS && k === currentIndex) {
-            macdSellNow = true;
-          }
+        if (!Number.isFinite(pM) || !Number.isFinite(cM) || !Number.isFinite(pS) || !Number.isFinite(cS)) continue;
+
+        if (pM <= pS && cM > cS) {
+          macdCrossUpRecent = true;
+          if (k === currentIndex) macdCrossUpOnCurrent = true;
+        }
+        if (pM >= pS && cM < cS) {
+          macdCrossDownRecent = true;
+          if (k === currentIndex) macdCrossDownOnCurrent = true;
         }
       }
     }
-    const macdBullishCurrent = (this.macd.enabled && this.cachedMACD)
-      ? this.cachedMACD.macd[currentIndex] > this.cachedMACD.signal[currentIndex]
-      : false;
+
+    // 1C. Current state
+    const maBullishNow = this.ma.enabled
+      && Number.isFinite(this.cachedFastMA[currentIndex])
+      && Number.isFinite(this.cachedSlowMA[currentIndex])
+      && this.cachedFastMA[currentIndex] > this.cachedSlowMA[currentIndex];
+
+    const maBearishNow = this.ma.enabled
+      && Number.isFinite(this.cachedFastMA[currentIndex])
+      && Number.isFinite(this.cachedSlowMA[currentIndex])
+      && this.cachedFastMA[currentIndex] < this.cachedSlowMA[currentIndex];
+
+    const macdBullishNow = this.macd.enabled && this.cachedMACD
+      && Number.isFinite(this.cachedMACD.macd[currentIndex])
+      && Number.isFinite(this.cachedMACD.signal[currentIndex])
+      && this.cachedMACD.macd[currentIndex] > this.cachedMACD.signal[currentIndex];
+
+    const macdBearishNow = this.macd.enabled && this.cachedMACD
+      && Number.isFinite(this.cachedMACD.macd[currentIndex])
+      && Number.isFinite(this.cachedMACD.signal[currentIndex])
+      && this.cachedMACD.macd[currentIndex] < this.cachedMACD.signal[currentIndex];
+
+    // 1D. RSI zone on CURRENT candle (Bug #6 fix: NOT scanned across the window)
+    let rsiBuyZoneNow = false;
+    let rsiSellZoneNow = false;
+
+    if (this.rsi.enabled && Number.isFinite(currRSIVal)) {
+      rsiBuyZoneNow = currRSIVal! >= this.rsi.buyMin && currRSIVal! <= this.rsi.buyMax;
+      rsiSellZoneNow = currRSIVal! >= this.rsi.sellMin && currRSIVal! <= this.rsi.sellMax;
+    }
 
     // -------------------------------------------------------------
-    // 3. Signal Decision Logic
+    // 2. Signal Decision Logic
     // -------------------------------------------------------------
     let action: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
     let reason = 'No trigger condition met';
 
-    if (this.ma.enabled && this.rsi.enabled && this.macd.enabled) {
-      // Strategy 1: Triple Confluence (EMA cross + MACD cross in window + RSI in zone 30±tol)
-      const emaValid = maCrossUpRecent && maBullishCurrent;
-      const macdValid = macdCrossUpRecent && macdBullishCurrent;
-      const isFreshTrigger = maBuyNow || macdBuyNow || (currentIndex - Math.max(maCrossUpIndex, macdCrossUpIndex) <= 1);
+    // Build buy/sell conditions based on which indicators are enabled.
+    // For each enabled indicator, its buy condition must be true (AND logic).
+    // At least one fresh cross must be on the current candle.
 
-      if (emaValid && macdValid && rsiOversoldZoneMet && isFreshTrigger && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `Strategy 1 Confluence: RSI in zone (~${this.rsi.oversold}±${this.rsi.tolerance}, val: ${rsiObservedVal.toFixed(1)}) with Bullish EMA & MACD Crossovers`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (maSellNow || macdSellNow || rsiOverboughtNow) {
-        if (this.lastEntryPrice !== null) {
-          action = 'SELL';
-          reason = rsiOverboughtNow
-            ? `RSI Overbought (${currRSIVal?.toFixed(1)}) Exit`
-            : `MA / MACD Bearish Cross Exit`;
-          this.lastEntryPrice = null;
-          this.lastEntryIndex = -1;
-        }
-      }
-    } else if (this.ma.enabled && this.rsi.enabled) {
-      // MA + RSI
-      if (maCrossUpRecent && maBullishCurrent && rsiOversoldZoneMet && (maBuyNow || currentIndex - maCrossUpIndex <= 1) && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `Golden Cross (${this.ma.type.toUpperCase()} ${this.ma.fastPeriod}/${this.ma.slowPeriod}) with RSI in ~${this.rsi.oversold} zone (${rsiObservedVal.toFixed(1)})`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (maSellNow || rsiOverboughtNow) {
-        if (this.lastEntryPrice !== null) {
-          action = 'SELL';
-          reason = rsiOverboughtNow ? `RSI Overbought Exit` : `Death Cross Exit`;
-          this.lastEntryPrice = null;
-          this.lastEntryIndex = -1;
-        }
-      }
-    } else if (this.ma.enabled && this.macd.enabled) {
-      // MA + MACD
-      if (maCrossUpRecent && macdCrossUpRecent && maBullishCurrent && macdBullishCurrent && (maBuyNow || macdBuyNow) && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `MA & MACD Momentum Bullish Crossover`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (maSellNow || macdSellNow) {
-        if (this.lastEntryPrice !== null) {
-          action = 'SELL';
-          reason = `MA / MACD Bearish Cross Exit`;
-          this.lastEntryPrice = null;
-          this.lastEntryIndex = -1;
-        }
-      }
-    } else if (this.rsi.enabled && this.macd.enabled) {
-      // RSI + MACD
-      if (macdCrossUpRecent && macdBullishCurrent && rsiOversoldZoneMet && (macdBuyNow || currentIndex - macdCrossUpIndex <= 1) && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `MACD Bullish Cross with RSI in ~${this.rsi.oversold} zone (${rsiObservedVal.toFixed(1)})`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (macdSellNow || rsiOverboughtNow) {
-        if (this.lastEntryPrice !== null) {
-          action = 'SELL';
-          reason = rsiOverboughtNow ? `RSI Overbought Exit` : `MACD Bearish Cross Exit`;
-          this.lastEntryPrice = null;
-          this.lastEntryIndex = -1;
-        }
-      }
-    } else if (this.ma.enabled) {
-      // MA only
-      if (maBuyNow && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `Golden Cross: Fast ${this.ma.type.toUpperCase()} (${this.ma.fastPeriod}) crossed above Slow ${this.ma.type.toUpperCase()} (${this.ma.slowPeriod})`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (maSellNow && this.lastEntryPrice !== null) {
-        action = 'SELL';
-        reason = `Death Cross: Fast ${this.ma.type.toUpperCase()} (${this.ma.fastPeriod}) crossed below Slow ${this.ma.type.toUpperCase()} (${this.ma.slowPeriod})`;
-        this.lastEntryPrice = null;
-        this.lastEntryIndex = -1;
-      }
-    } else if (this.rsi.enabled) {
-      // RSI only
-      if (rsiOversoldBounce && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `RSI Oversold Recovery (${currRSIVal?.toFixed(1)} crossed above ${this.rsi.oversold})`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (rsiOverboughtNow && this.lastEntryPrice !== null) {
-        action = 'SELL';
-        reason = `RSI Overbought Exit (${currRSIVal?.toFixed(1)} >= ${this.rsi.overbought})`;
-        this.lastEntryPrice = null;
-        this.lastEntryIndex = -1;
-      }
-    } else if (this.macd.enabled) {
-      // MACD only
-      if (macdBuyNow && this.lastEntryPrice === null) {
-        action = 'BUY';
-        reason = `MACD Bullish Cross`;
-        this.lastEntryPrice = currPrice;
-        this.lastEntryIndex = currentIndex;
-      } else if (macdSellNow && this.lastEntryPrice !== null) {
-        action = 'SELL';
-        reason = `MACD Bearish Cross`;
-        this.lastEntryPrice = null;
-        this.lastEntryIndex = -1;
-      }
+    let buyConditionsMet = true;
+    let sellConditionsMet = true;
+    let hasFreshBuyCross = false;
+    let hasFreshSellCross = false;
+
+    if (this.ma.enabled) {
+      // BUY: cross up in window + bullish now
+      if (!(maCrossUpRecent && maBullishNow)) buyConditionsMet = false;
+      if (maCrossUpOnCurrent) hasFreshBuyCross = true;
+      // SELL: cross down in window + bearish now
+      if (!(maCrossDownRecent && maBearishNow)) sellConditionsMet = false;
+      if (maCrossDownOnCurrent) hasFreshSellCross = true;
+    }
+
+    if (this.macd.enabled) {
+      if (!(macdCrossUpRecent && macdBullishNow)) buyConditionsMet = false;
+      if (macdCrossUpOnCurrent) hasFreshBuyCross = true;
+      if (!(macdCrossDownRecent && macdBearishNow)) sellConditionsMet = false;
+      if (macdCrossDownOnCurrent) hasFreshSellCross = true;
+    }
+
+    if (this.rsi.enabled) {
+      if (!rsiBuyZoneNow) buyConditionsMet = false;
+      if (!rsiSellZoneNow) sellConditionsMet = false;
+      // RSI zone is not a "cross" — it doesn't contribute to fresh trigger.
+    }
+
+    // For single-indicator modes without crosses (RSI-only), freshness isn't applicable
+    // in the cross sense. We use RSI's bounce/entry as the trigger.
+    const needsCross = this.ma.enabled || this.macd.enabled;
+
+    if (buyConditionsMet && (!needsCross || hasFreshBuyCross) && this.lastEntryPrice === null) {
+      action = 'BUY';
+      reason = this.buildBuyReason(currRSIVal);
+      this.lastEntryPrice = currPrice;
+      this.lastEntryIndex = currentIndex;
+    } else if (sellConditionsMet && (!needsCross || hasFreshSellCross) && this.lastEntryPrice !== null) {
+      action = 'SELL';
+      reason = this.buildSellReason(currRSIVal);
+      this.lastEntryPrice = null;
+      this.lastEntryIndex = -1;
     }
 
     return {
@@ -506,21 +425,43 @@ export class ModularStrategy implements Strategy {
       },
     };
   }
+
+  private buildBuyReason(rsi: number | undefined): string {
+    const parts: string[] = [];
+    if (this.ma.enabled) parts.push(`${this.ma.type.toUpperCase()} ${this.ma.fastPeriod}/${this.ma.slowPeriod} Bullish Cross`);
+    if (this.macd.enabled) parts.push('MACD Bullish Cross');
+    if (this.rsi.enabled) parts.push(`RSI in buy zone [${this.rsi.buyMin}-${this.rsi.buyMax}] (${rsi?.toFixed(1) ?? '?'})`);
+    if (this.ma.enabled && this.rsi.enabled && this.macd.enabled) {
+      return `Strategy 1 Confluence: ${parts.join(' + ')}`;
+    }
+    return parts.join(' + ') || 'BUY';
+  }
+
+  private buildSellReason(rsi: number | undefined): string {
+    const parts: string[] = [];
+    if (this.ma.enabled) parts.push(`${this.ma.type.toUpperCase()} Bearish Cross`);
+    if (this.macd.enabled) parts.push('MACD Bearish Cross');
+    if (this.rsi.enabled) parts.push(`RSI in sell zone [${this.rsi.sellMin}-${this.rsi.sellMax}] (${rsi?.toFixed(1) ?? '?'})`);
+    if (this.ma.enabled && this.rsi.enabled && this.macd.enabled) {
+      return `Strategy 1 Bearish Confluence: ${parts.join(' + ')}`;
+    }
+    return parts.join(' + ') || 'SELL';
+  }
 }
 
 /**
- * Strategy 1 (Triple Confluence: EMA Crossover + MACD Crossover + RSI 30±tol Zone).
+ * Strategy 1 (Triple Confluence: EMA Crossover + MACD Crossover + RSI zone).
+ * All three indicators enabled with sensible defaults.
  */
 export class StrategyOne extends ModularStrategy {
   constructor(config?: ModularStrategyConfig) {
     super({
       ...config,
       ma: { enabled: true, type: 'ema', fastPeriod: 10, slowPeriod: 30, ...config?.ma },
-      rsi: { enabled: true, period: 14, oversold: 30, overbought: 70, tolerance: 5, ...config?.rsi },
+      rsi: { enabled: true, period: 14, buyMin: 25, buyMax: 35, sellMin: 65, sellMax: 75, ...config?.rsi },
       macd: { enabled: true, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, ...config?.macd },
-      confirmationWindow: config?.confirmationWindow ?? 5,
-      takeProfitPercent: config?.takeProfitPercent ?? 10,
+      confirmationWindow: config?.confirmationWindow ?? 3,
+      takeProfitPercent: config?.takeProfitPercent,
     });
   }
 }
-

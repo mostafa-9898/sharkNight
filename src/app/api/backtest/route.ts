@@ -3,7 +3,6 @@ import { BinancePublicProvider } from '@/data/providers/binance-public';
 import { KucoinPublicProvider } from '@/data/providers/kucoin-public';
 import { JsonStorage } from '@/data/storage/json-storage';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import { SMACrossoverStrategy } from '@/strategies/sma-crossover';
 import { BacktestEngine } from '@/backtest/engine';
 import { calculateSMA } from '@/indicators/sma';
 import { calculateRSI } from '@/indicators/rsi';
@@ -68,17 +67,24 @@ export async function POST(request: Request) {
 
     const rsiEnabled = Boolean(body.rsiEnabled);
     const rsiPeriod = Math.max(2, Number(body.rsiPeriod ?? 14));
-    const rsiOversold = Math.max(1, Math.min(99, Number(body.rsiOversold ?? 30)));
-    const rsiOverbought = Math.max(rsiOversold + 1, Math.min(99, Number(body.rsiOverbought ?? 70)));
-    const rsiTolerance = Math.max(0, Math.min(25, Number(body.rsiTolerance ?? 5)));
+    const rsiBuyMin = Math.max(1, Number(body.rsiBuyMin ?? 25));
+    const rsiBuyMax = Math.max(rsiBuyMin + 1, Number(body.rsiBuyMax ?? 35));
+    const rsiSellMin = Math.max(rsiBuyMax + 1, Number(body.rsiSellMin ?? 65));
+    const rsiSellMax = Math.max(rsiSellMin + 1, Math.min(99, Number(body.rsiSellMax ?? 75)));
 
     const macdEnabled = Boolean(body.macdEnabled);
     const macdFastPeriod = Math.max(2, Number(body.macdFastPeriod ?? 12));
     const macdSlowPeriod = Math.max(macdFastPeriod + 1, Number(body.macdSlowPeriod ?? 26));
     const macdSignalPeriod = Math.max(2, Number(body.macdSignalPeriod ?? 9));
 
-    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 5)));
-    const takeProfitPercent = Math.max(0.5, Number(body.takeProfitPercent ?? 10));
+    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 3)));
+    const takeProfitPercent =
+      body.takeProfitPercent !== undefined &&
+      body.takeProfitPercent !== null &&
+      body.takeProfitPercent !== '' &&
+      Number(body.takeProfitPercent) > 0
+        ? Number(body.takeProfitPercent)
+        : undefined;
 
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
     const tradeFeePercent = Math.max(0, Number(body.tradeFeePercent ?? 0.1));
@@ -137,9 +143,10 @@ export async function POST(request: Request) {
       rsi: {
         enabled: rsiEnabled,
         period: rsiPeriod,
-        oversold: rsiOversold,
-        overbought: rsiOverbought,
-        tolerance: rsiTolerance,
+        buyMin: rsiBuyMin,
+        buyMax: rsiBuyMax,
+        sellMin: rsiSellMin,
+        sellMax: rsiSellMax,
       },
       macd: {
         enabled: macdEnabled,
@@ -190,7 +197,10 @@ export async function POST(request: Request) {
         smaSlow: slowValues,
         rsiEnabled,
         rsiPeriod,
-        rsiTolerance,
+        rsiBuyMin,
+        rsiBuyMax,
+        rsiSellMin,
+        rsiSellMax,
         rsi: rsiValues,
         macdEnabled,
         macd: macdValues,
