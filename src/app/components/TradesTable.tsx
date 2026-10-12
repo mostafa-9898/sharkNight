@@ -9,6 +9,8 @@ interface TradesTableProps {
 
 type SortField =
   | 'id'
+  | 'side'
+  | 'exitReason'
   | 'entryTime'
   | 'entryPrice'
   | 'exitTime'
@@ -28,6 +30,8 @@ interface ColumnConfig {
 
 const COLUMNS: ColumnConfig[] = [
   { key: 'id', label: '#', align: 'center' },
+  { key: 'side', label: 'Side', align: 'center' },
+  { key: 'exitReason', label: 'Exit Reason', align: 'center' },
   { key: 'entryTime', label: 'Entry Time', align: 'left' },
   { key: 'entryPrice', label: 'Entry Price', align: 'right' },
   { key: 'exitTime', label: 'Exit Time', align: 'left' },
@@ -74,13 +78,21 @@ export default function TradesTable({ trades }: TradesTableProps) {
     }));
 
     return list.sort((a, b) => {
-      let valA: number;
-      let valB: number;
+      let valA: number | string;
+      let valB: number | string;
 
       switch (sortField) {
         case 'id':
           valA = a.originalIndex;
           valB = b.originalIndex;
+          break;
+        case 'side':
+          valA = a.side ?? 'long';
+          valB = b.side ?? 'long';
+          break;
+        case 'exitReason':
+          valA = a.exitReason ?? 'signal';
+          valB = b.exitReason ?? 'signal';
           break;
         case 'entryTime':
           valA = a.entryTime ?? 0;
@@ -159,6 +171,22 @@ export default function TradesTable({ trades }: TradesTableProps) {
     const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
     if (hours > 0) return `${hours}h ${mins}m`;
     return `${mins}m`;
+  };
+
+  const getExitReasonBadge = (reason?: string) => {
+    switch (reason) {
+      case 'takeProfit':
+        return { label: 'Take Profit', bg: 'rgba(46, 160, 67, 0.15)', color: '#3fb950', border: '#2ea043' };
+      case 'stopLoss':
+        return { label: 'Stop Loss', bg: 'rgba(248, 81, 73, 0.15)', color: '#f85149', border: '#f85149' };
+      case 'reverse':
+        return { label: 'Reversal', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '#a855f7' };
+      case 'end':
+        return { label: 'End of Data', bg: 'rgba(139, 148, 158, 0.15)', color: '#8b949e', border: '#30363d' };
+      case 'signal':
+      default:
+        return { label: 'Signal', bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '#38bdf8' };
+    }
   };
 
   return (
@@ -300,6 +328,9 @@ export default function TradesTable({ trades }: TradesTableProps) {
           <tbody>
             {sortedTrades.map((trade, idx) => {
               const isProfit = trade.pnl >= 0;
+              const isLong = trade.side === 'long';
+              const exitBadge = getExitReasonBadge(trade.exitReason);
+
               return (
                 <tr
                   key={idx}
@@ -326,6 +357,42 @@ export default function TradesTable({ trades }: TradesTableProps) {
                     }}
                   >
                     {trade.originalIndex}
+                  </td>
+
+                  {/* Side */}
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                        backgroundColor: isLong ? 'rgba(46, 160, 67, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                        border: `1px solid ${isLong ? '#2ea043' : '#eab308'}`,
+                        color: isLong ? '#3fb950' : '#facc15',
+                      }}
+                    >
+                      {trade.side ?? 'long'}
+                    </span>
+                  </td>
+
+                  {/* Exit Reason */}
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: exitBadge.bg,
+                        border: `1px solid ${exitBadge.border}`,
+                        color: exitBadge.color,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {exitBadge.label}
+                    </span>
                   </td>
 
                   {/* Entry Time */}

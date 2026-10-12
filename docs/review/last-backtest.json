@@ -1,0 +1,920 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-12T08:54:12.703Z",
+    "gitCommit": "0006e8b",
+    "nodeVersion": "v22.19.0",
+    "platform": "win32"
+  },
+  "backtests": {
+    "BTCUSDT_1h": {
+      "config": {
+        "symbol": "BTCUSDT",
+        "interval": "1h",
+        "initialBalance": 10000,
+        "tradeFeePercent": 0.1,
+        "tradeMode": "long-short",
+        "strategy": "IchimokuRsiStrategy",
+        "params": {
+          "tenkan": 9,
+          "kijun": 26,
+          "senkouB": 52,
+          "displacement": 26,
+          "rsiPeriod": 14,
+          "rsiBuyMin": 20,
+          "rsiBuyMax": 40,
+          "rsiSellMin": 60,
+          "rsiSellMax": 80,
+          "rsiLookback": 10
+        }
+      },
+      "metrics": {
+        "totalTrades": 183,
+        "winningTrades": 78,
+        "losingTrades": 105,
+        "winRate": 0.4262,
+        "totalPnl": -8320.74,
+        "totalPnlPercent": -83.21,
+        "maxDrawdown": 0.8558,
+        "maxDrawdownPercent": 85.58,
+        "sharpeRatio": -0.18,
+        "averageTradeReturn": -0.85,
+        "bestTrade": 13.44,
+        "worstTrade": -30.62,
+        "finalBalance": 1679.26,
+        "long": {
+          "totalTrades": 92,
+          "winningTrades": 44,
+          "losingTrades": 48,
+          "winRate": 0.4783,
+          "totalPnl": -1988.66,
+          "totalPnlPercent": -19.89
+        },
+        "short": {
+          "totalTrades": 91,
+          "winningTrades": 34,
+          "losingTrades": 57,
+          "winRate": 0.3736,
+          "totalPnl": -6332.09,
+          "totalPnlPercent": -63.32
+        }
+      },
+      "tradeCount": 183,
+      "first5Trades": [
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1728867600000,
+            "price": 62630.8,
+            "reason": "Ichimoku TK cross up + RSI 39.8 in [20-40]",
+            "metadata": {
+              "tenkan": 62720.2,
+              "kijun": 62671.350000000006,
+              "rsi": 46.93716683231626,
+              "rsiHitIndex": 46,
+              "rsiHitValue": 39.84310078728291
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1728990000000,
+            "price": 65400,
+            "reason": "Ichimoku TK cross down + RSI 61.9 in [60-80]",
+            "metadata": {
+              "tenkan": 65537.25,
+              "kijun": 65595.9,
+              "rsi": 51.39664695187881,
+              "rsiHitIndex": 78,
+              "rsiHitValue": 61.92515661738068
+            }
+          },
+          "entryPrice": 62630.8,
+          "exitPrice": 65400,
+          "quantity": 0.1595061854550796,
+          "pnl": 421.2728242334433,
+          "pnlPercent": 4.212728242334434,
+          "fee": 20.431704528762204,
+          "entryTime": 1728867600000,
+          "exitTime": 1728990000000,
+          "duration": 122400000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1728990000000,
+            "price": 65400,
+            "reason": "Ichimoku TK cross down + RSI 61.9 in [60-80]",
+            "metadata": {
+              "tenkan": 65537.25,
+              "kijun": 65595.9,
+              "rsi": 51.39664695187881,
+              "rsiHitIndex": 78,
+              "rsiHitValue": 61.92515661738068
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1729634400000,
+            "price": 67719.2,
+            "reason": "Ichimoku TK cross up + RSI 38.4 in [20-40]",
+            "metadata": {
+              "tenkan": 67330.75,
+              "kijun": 67248.85,
+              "rsi": 55.43970359794368,
+              "rsiHitIndex": 257,
+              "rsiHitValue": 38.427252377537236
+            }
+          },
+          "entryPrice": 65400,
+          "exitPrice": 67719.2,
+          "quantity": 0.1591873325903549,
+          "pnl": -379.9673005567034,
+          "pnlPercent": -3.646073823853207,
+          "fee": 21.201311637386205,
+          "entryTime": 1728990000000,
+          "exitTime": 1729634400000,
+          "duration": 644400000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1729634400000,
+            "price": 67719.2,
+            "reason": "Ichimoku TK cross up + RSI 38.4 in [20-40]",
+            "metadata": {
+              "tenkan": 67330.75,
+              "kijun": 67248.85,
+              "rsi": 55.43970359794368,
+              "rsiHitIndex": 257,
+              "rsiHitValue": 38.427252377537236
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1729839600000,
+            "price": 67522.9,
+            "reason": "Ichimoku TK cross down + RSI 63.8 in [60-80]",
+            "metadata": {
+              "tenkan": 67760.8,
+              "kijun": 67784.95,
+              "rsi": 46.03135942417212,
+              "rsiHitIndex": 315,
+              "rsiHitValue": 63.830802087237046
+            }
+          },
+          "entryPrice": 67719.2,
+          "exitPrice": 67522.9,
+          "quantity": 0.1481302823741725,
+          "pnl": -49.12146619744999,
+          "pnlPercent": -0.48919402045505733,
+          "fee": 20.04349176739975,
+          "entryTime": 1729634400000,
+          "exitTime": 1729839600000,
+          "duration": 205200000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1729839600000,
+            "price": 67522.9,
+            "reason": "Ichimoku TK cross down + RSI 63.8 in [60-80]",
+            "metadata": {
+              "tenkan": 67760.8,
+              "kijun": 67784.95,
+              "rsi": 46.03135942417212,
+              "rsiHitIndex": 315,
+              "rsiHitValue": 63.830802087237046
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1730473200000,
+            "price": 69389,
+            "reason": "Ichimoku TK cross up + RSI 36.5 in [20-40]",
+            "metadata": {
+              "tenkan": 70332.95,
+              "kijun": 70238.45,
+              "rsi": 40.305990650804645,
+              "rsiHitIndex": 493,
+              "rsiHitValue": 36.47564708466923
+            }
+          },
+          "entryPrice": 67522.9,
+          "exitPrice": 69389,
+          "quantity": 0.14783416993970655,
+          "pnl": -286.13140974243356,
+          "pnlPercent": -2.863552233390459,
+          "fee": 20.25024927542559,
+          "entryTime": 1729839600000,
+          "exitTime": 1730473200000,
+          "duration": 633600000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1730473200000,
+            "price": 69389,
+            "reason": "Ichimoku TK cross up + RSI 36.5 in [20-40]",
+            "metadata": {
+              "tenkan": 70332.95,
+              "kijun": 70238.45,
+              "rsi": 40.305990650804645,
+              "rsiHitIndex": 493,
+              "rsiHitValue": 36.47564708466923
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1730502000000,
+            "price": 69495.2,
+            "reason": "Ichimoku TK cross down + RSI 62.3 in [60-80]",
+            "metadata": {
+              "tenkan": 70086.7,
+              "kijun": 70225.2,
+              "rsi": 44.35825052339312,
+              "rsiHitIndex": 498,
+              "rsiHitValue": 62.286868888132744
+            }
+          },
+          "entryPrice": 69389,
+          "exitPrice": 69495.2,
+          "quantity": 0.13973895855379267,
+          "pnl": -4.576962121811448,
+          "pnlPercent": -0.04715575206444661,
+          "fee": 19.417239520224392,
+          "entryTime": 1730473200000,
+          "exitTime": 1730502000000,
+          "duration": 28800000
+        }
+      ],
+      "last5Trades": [
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1789329600000,
+            "price": 77339.4,
+            "reason": "Ichimoku TK cross up + RSI 39.5 in [20-40]",
+            "metadata": {
+              "tenkan": 76980.55,
+              "kijun": 76948.65,
+              "rsi": 57.025129793157845,
+              "rsiHitIndex": 16841,
+              "rsiHitValue": 39.5058839216446
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1789448400000,
+            "price": 77637.5,
+            "reason": "Ichimoku TK cross down + RSI 62.3 in [60-80]",
+            "metadata": {
+              "tenkan": 78206.4,
+              "kijun": 78446.15,
+              "rsi": 41.50821598086697,
+              "rsiHitIndex": 16873,
+              "rsiHitValue": 62.30739815344719
+            }
+          },
+          "entryPrice": 77339.4,
+          "exitPrice": 77637.5,
+          "quantity": 0.022987973578405638,
+          "pnl": 3.288330385520112,
+          "pnlPercent": 0.18477339816446073,
+          "fee": 3.564384538202722,
+          "entryTime": 1789329600000,
+          "exitTime": 1789448400000,
+          "duration": 118800000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1789448400000,
+            "price": 77637.5,
+            "reason": "Ichimoku TK cross down + RSI 62.3 in [60-80]",
+            "metadata": {
+              "tenkan": 78206.4,
+              "kijun": 78446.15,
+              "rsi": 41.50821598086697,
+              "rsiHitIndex": 16873,
+              "rsiHitValue": 62.30739815344719
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1790272800000,
+            "price": 84466.5,
+            "reason": "Ichimoku TK cross up + RSI 38.7 in [20-40]",
+            "metadata": {
+              "tenkan": 84039.5,
+              "kijun": 83895.5,
+              "rsi": 51.91295411285813,
+              "rsiHitIndex": 17104,
+              "rsiHitValue": 38.71870459073363
+            }
+          },
+          "entryPrice": 77637.5,
+          "exitPrice": 84466.5,
+          "quantity": 0.022942020619222406,
+          "pnl": -158.60889099330336,
+          "pnlPercent": -8.895898288198358,
+          "fee": 3.7207762545283236,
+          "entryTime": 1789448400000,
+          "exitTime": 1790272800000,
+          "duration": 824400000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1790272800000,
+            "price": 84466.5,
+            "reason": "Ichimoku TK cross up + RSI 38.7 in [20-40]",
+            "metadata": {
+              "tenkan": 84039.5,
+              "kijun": 83895.5,
+              "rsi": 51.91295411285813,
+              "rsiHitIndex": 17104,
+              "rsiHitValue": 38.71870459073363
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1790546400000,
+            "price": 84198.6,
+            "reason": "Ichimoku TK cross down + RSI 69.6 in [60-80]",
+            "metadata": {
+              "tenkan": 84593.35,
+              "kijun": 84593.54999999999,
+              "rsi": 42.037895481883076,
+              "rsiHitIndex": 17177,
+              "rsiHitValue": 69.58733482405485
+            }
+          },
+          "entryPrice": 84466.5,
+          "exitPrice": 84198.6,
+          "quantity": 0.019211294936129348,
+          "pnl": -8.388605230099529,
+          "pnlPercent": -0.5164331437907228,
+          "fee": 3.2418993167106516,
+          "entryTime": 1790272800000,
+          "exitTime": 1790546400000,
+          "duration": 273600000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1790546400000,
+            "price": 84198.6,
+            "reason": "Ichimoku TK cross down + RSI 69.6 in [60-80]",
+            "metadata": {
+              "tenkan": 84593.35,
+              "kijun": 84593.54999999999,
+              "rsi": 42.037895481883076,
+              "rsiHitIndex": 17177,
+              "rsiHitValue": 69.58733482405485
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1791514800000,
+            "price": 82423.8,
+            "reason": "Ichimoku TK cross up + RSI 36.9 in [20-40]",
+            "metadata": {
+              "tenkan": 81929.75,
+              "kijun": 81845.05,
+              "rsi": 52.24463830315209,
+              "rsiHitIndex": 17446,
+              "rsiHitValue": 36.93748333986987
+            }
+          },
+          "entryPrice": 84198.6,
+          "exitPrice": 82423.8,
+          "quantity": 0.019172891557552026,
+          "pnl": 32.447745357182036,
+          "pnlPercent": 2.0079714197148206,
+          "fee": 3.196249152832728,
+          "entryTime": 1790546400000,
+          "exitTime": 1791514800000,
+          "duration": 968400000
+        },
+        {
+          "side": "long",
+          "exitReason": "end",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1791514800000,
+            "price": 82423.8,
+            "reason": "Ichimoku TK cross up + RSI 36.9 in [20-40]",
+            "metadata": {
+              "tenkan": 81929.75,
+              "kijun": 81845.05,
+              "rsi": 52.24463830315209,
+              "rsiHitIndex": 17446,
+              "rsiHitValue": 36.93748333986987
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1791788400000,
+            "price": 84135.3,
+            "reason": "Backtest conclusion: closed remaining open position"
+          },
+          "entryPrice": 82423.8,
+          "exitPrice": 84135.3,
+          "quantity": 0.019979010003294252,
+          "pnl": 30.864741301279537,
+          "pnlPercent": 1.8724125013649056,
+          "fee": 3.3293343193587166,
+          "entryTime": 1791514800000,
+          "exitTime": 1791788400000,
+          "duration": 273600000
+        }
+      ],
+      "diagnostics": {
+        "symbol": "BTCUSDT",
+        "interval": "1h",
+        "lookback": 10,
+        "totalCandles": 17532,
+        "rsiBuyZoneCount": 3143,
+        "rsiSellZoneCount": 3536,
+        "tkCrossUpCount": 451,
+        "tkCrossDownCount": 454,
+        "buySetupsCount": 153,
+        "sellSetupsCount": 162,
+        "longTrades": 92,
+        "shortTrades": 91
+      }
+    },
+    "ETHUSDT_1h": {
+      "config": {
+        "symbol": "ETHUSDT",
+        "interval": "1h",
+        "initialBalance": 10000,
+        "tradeFeePercent": 0.1,
+        "tradeMode": "long-short",
+        "strategy": "IchimokuRsiStrategy",
+        "params": {
+          "tenkan": 9,
+          "kijun": 26,
+          "senkouB": 52,
+          "displacement": 26,
+          "rsiPeriod": 14,
+          "rsiBuyMin": 20,
+          "rsiBuyMax": 40,
+          "rsiSellMin": 60,
+          "rsiSellMax": 80,
+          "rsiLookback": 10
+        }
+      },
+      "metrics": {
+        "totalTrades": 192,
+        "winningTrades": 94,
+        "losingTrades": 98,
+        "winRate": 0.4896,
+        "totalPnl": -908.44,
+        "totalPnlPercent": -9.08,
+        "maxDrawdown": 0.6712,
+        "maxDrawdownPercent": 67.12,
+        "sharpeRatio": 0.04,
+        "averageTradeReturn": 0.3,
+        "bestTrade": 29.89,
+        "worstTrade": -57.78,
+        "finalBalance": 9091.56,
+        "long": {
+          "totalTrades": 96,
+          "winningTrades": 44,
+          "losingTrades": 52,
+          "winRate": 0.4583,
+          "totalPnl": 3890.18,
+          "totalPnlPercent": 38.9
+        },
+        "short": {
+          "totalTrades": 96,
+          "winningTrades": 50,
+          "losingTrades": 46,
+          "winRate": 0.5208,
+          "totalPnl": -4798.62,
+          "totalPnlPercent": -47.99
+        }
+      },
+      "tradeCount": 192,
+      "first5Trades": [
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1729515600000,
+            "price": 2672.25,
+            "reason": "Ichimoku TK cross down + RSI 62.9 in [60-80]",
+            "metadata": {
+              "tenkan": 2703.555,
+              "kijun": 2705.355,
+              "rsi": 34.47006159068758,
+              "rsiHitIndex": 226,
+              "rsiHitValue": 62.85300427510995
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1729756800000,
+            "price": 2519.05,
+            "reason": "Ichimoku TK cross up + RSI 38.4 in [20-40]",
+            "metadata": {
+              "tenkan": 2535.505,
+              "kijun": 2532.34,
+              "rsi": 38.394934322154654,
+              "rsiHitIndex": 300,
+              "rsiHitValue": 38.394934322154654
+            }
+          },
+          "entryPrice": 2672.25,
+          "exitPrice": 2519.05,
+          "quantity": 3.738422677518945,
+          "pnl": 563.3090805500975,
+          "pnlPercent": 5.633090805500975,
+          "fee": 19.417273645804098,
+          "entryTime": 1729515600000,
+          "exitTime": 1729756800000,
+          "duration": 241200000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1729756800000,
+            "price": 2519.05,
+            "reason": "Ichimoku TK cross up + RSI 38.4 in [20-40]",
+            "metadata": {
+              "tenkan": 2535.505,
+              "kijun": 2532.34,
+              "rsi": 38.394934322154654,
+              "rsiHitIndex": 300,
+              "rsiHitValue": 38.394934322154654
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1731294000000,
+            "price": 3195.15,
+            "reason": "Ichimoku TK cross down + RSI 72.5 in [60-80]",
+            "metadata": {
+              "tenkan": 3151.21,
+              "kijun": 3158.875,
+              "rsi": 57.35791196811186,
+              "rsiHitIndex": 718,
+              "rsiHitValue": 72.5136490940212
+            }
+          },
+          "entryPrice": 2519.05,
+          "exitPrice": 3195.15,
+          "quantity": 4.189176781512693,
+          "pnl": 2808.354064706733,
+          "pnlPercent": 26.58593101169093,
+          "fee": 23.94835727400038,
+          "entryTime": 1729756800000,
+          "exitTime": 1731294000000,
+          "duration": 1537200000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1731294000000,
+            "price": 3195.15,
+            "reason": "Ichimoku TK cross down + RSI 72.5 in [60-80]",
+            "metadata": {
+              "tenkan": 3151.21,
+              "kijun": 3158.875,
+              "rsi": 57.35791196811186,
+              "rsiHitIndex": 718,
+              "rsiHitValue": 72.5136490940212
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1731510000000,
+            "price": 3309.73,
+            "reason": "Ichimoku TK cross up + RSI 39.1 in [20-40]",
+            "metadata": {
+              "tenkan": 3226.94,
+              "kijun": 3222.375,
+              "rsi": 61.95353234395708,
+              "rsiHitIndex": 784,
+              "rsiHitValue": 39.07828581587589
+            }
+          },
+          "entryPrice": 3195.15,
+          "exitPrice": 3309.73,
+          "quantity": 4.1808026171264485,
+          "pnl": -492.8736917163301,
+          "pnlPercent": -3.685956536312846,
+          "fee": 27.20899099123875,
+          "entryTime": 1731294000000,
+          "exitTime": 1731510000000,
+          "duration": 216000000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1731510000000,
+            "price": 3309.73,
+            "reason": "Ichimoku TK cross up + RSI 39.1 in [20-40]",
+            "metadata": {
+              "tenkan": 3226.94,
+              "kijun": 3222.375,
+              "rsi": 61.95353234395708,
+              "rsiHitIndex": 784,
+              "rsiHitValue": 39.07828581587589
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1731805200000,
+            "price": 3084.6,
+            "reason": "Ichimoku TK cross down + RSI 61.0 in [60-80]",
+            "metadata": {
+              "tenkan": 3128.7,
+              "kijun": 3145.98,
+              "rsi": 39.94891867493957,
+              "rsiHitIndex": 862,
+              "rsiHitValue": 61.002644426623526
+            }
+          },
+          "entryPrice": 3309.73,
+          "exitPrice": 3084.6,
+          "quantity": 3.8872991646106967,
+          "pnl": -900.0172133855049,
+          "pnlPercent": -6.988368096491255,
+          "fee": 24.869552456698656,
+          "entryTime": 1731510000000,
+          "exitTime": 1731805200000,
+          "duration": 295200000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1731805200000,
+            "price": 3084.6,
+            "reason": "Ichimoku TK cross down + RSI 61.0 in [60-80]",
+            "metadata": {
+              "tenkan": 3128.7,
+              "kijun": 3145.98,
+              "rsi": 39.94891867493957,
+              "rsiHitIndex": 862,
+              "rsiHitValue": 61.002644426623526
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1732186800000,
+            "price": 3147.99,
+            "reason": "Ichimoku TK cross up + RSI 39.7 in [20-40]",
+            "metadata": {
+              "tenkan": 3104.2799999999997,
+              "kijun": 3094.44,
+              "rsi": 60.72975162663886,
+              "rsiHitIndex": 966,
+              "rsiHitValue": 39.650739419968644
+            }
+          },
+          "entryPrice": 3084.6,
+          "exitPrice": 3147.99,
+          "quantity": 3.8795284535806402,
+          "pnl": -258.1360254490636,
+          "pnlPercent": -2.1549456010503754,
+          "fee": 24.191489016742317,
+          "entryTime": 1731805200000,
+          "exitTime": 1732186800000,
+          "duration": 381600000
+        }
+      ],
+      "last5Trades": [
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1790485200000,
+            "price": 2704.79,
+            "reason": "Ichimoku TK cross up + RSI 39.2 in [20-40]",
+            "metadata": {
+              "tenkan": 2693.455,
+              "kijun": 2687.835,
+              "rsi": 60.31396196964316,
+              "rsiHitIndex": 17160,
+              "rsiHitValue": 39.19826299055562
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1790719200000,
+            "price": 2681.67,
+            "reason": "Ichimoku TK cross down + RSI 62.8 in [60-80]",
+            "metadata": {
+              "tenkan": 2700.145,
+              "kijun": 2700.455,
+              "rsi": 46.46289354644994,
+              "rsiHitIndex": 17225,
+              "rsiHitValue": 62.82391921480924
+            }
+          },
+          "entryPrice": 2704.79,
+          "exitPrice": 2681.67,
+          "quantity": 3.1057237184525164,
+          "pnl": -88.54159769031139,
+          "pnlPercent": -1.0529711485919169,
+          "fee": 16.73726531969137,
+          "entryTime": 1790485200000,
+          "exitTime": 1790719200000,
+          "duration": 234000000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1790719200000,
+            "price": 2681.67,
+            "reason": "Ichimoku TK cross down + RSI 62.8 in [60-80]",
+            "metadata": {
+              "tenkan": 2700.145,
+              "kijun": 2700.455,
+              "rsi": 46.46289354644994,
+              "rsiHitIndex": 17225,
+              "rsiHitValue": 62.82391921480924
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1790780400000,
+            "price": 2683.4,
+            "reason": "Ichimoku TK cross up + RSI 39.5 in [20-40]",
+            "metadata": {
+              "tenkan": 2699.215,
+              "kijun": 2698.045,
+              "rsi": 48.633422275758846,
+              "rsiHitIndex": 17242,
+              "rsiHitValue": 39.528667480956834
+            }
+          },
+          "entryPrice": 2681.67,
+          "exitPrice": 2683.4,
+          "quantity": 3.09951537673933,
+          "pnl": -13.679401163701417,
+          "pnlPercent": -0.16441197462775128,
+          "fee": 16.637437159880818,
+          "entryTime": 1790719200000,
+          "exitTime": 1790780400000,
+          "duration": 61200000
+        },
+        {
+          "side": "long",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1790780400000,
+            "price": 2683.4,
+            "reason": "Ichimoku TK cross up + RSI 39.5 in [20-40]",
+            "metadata": {
+              "tenkan": 2699.215,
+              "kijun": 2698.045,
+              "rsi": 48.633422275758846,
+              "rsiHitIndex": 17242,
+              "rsiHitValue": 39.528667480956834
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1790841600000,
+            "price": 2687.23,
+            "reason": "Ichimoku TK cross down + RSI 61.3 in [60-80]",
+            "metadata": {
+              "tenkan": 2697.75,
+              "kijun": 2699.215,
+              "rsi": 48.63891090212484,
+              "rsiHitIndex": 17266,
+              "rsiHitValue": 61.34028861309891
+            }
+          },
+          "entryPrice": 2683.4,
+          "exitPrice": 2687.23,
+          "quantity": 3.0924244162547603,
+          "pnl": -4.772588346611883,
+          "pnlPercent": -0.05745594283372489,
+          "fee": 16.616573860867078,
+          "entryTime": 1790780400000,
+          "exitTime": 1790841600000,
+          "duration": 61200000
+        },
+        {
+          "side": "short",
+          "exitReason": "reverse",
+          "entrySignal": {
+            "action": "SELL",
+            "timestamp": 1790841600000,
+            "price": 2687.23,
+            "reason": "Ichimoku TK cross down + RSI 61.3 in [60-80]",
+            "metadata": {
+              "tenkan": 2697.75,
+              "kijun": 2699.215,
+              "rsi": 48.63891090212484,
+              "rsiHitIndex": 17266,
+              "rsiHitValue": 61.34028861309891
+            }
+          },
+          "exitSignal": {
+            "action": "BUY",
+            "timestamp": 1791536400000,
+            "price": 2502.29,
+            "reason": "Ichimoku TK cross up + RSI 38.6 in [20-40]",
+            "metadata": {
+              "tenkan": 2489.7349999999997,
+              "kijun": 2488.83,
+              "rsi": 48.98105916897067,
+              "rsiHitIndex": 17452,
+              "rsiHitValue": 38.6087427046428
+            }
+          },
+          "entryPrice": 2687.23,
+          "exitPrice": 2502.29,
+          "quantity": 3.086242659846666,
+          "pnl": 563.0470433667349,
+          "pnlPercent": 6.782272908906198,
+          "fee": 16.0244197537359,
+          "entryTime": 1790841600000,
+          "exitTime": 1791536400000,
+          "duration": 694800000
+        },
+        {
+          "side": "long",
+          "exitReason": "end",
+          "entrySignal": {
+            "action": "BUY",
+            "timestamp": 1791536400000,
+            "price": 2502.29,
+            "reason": "Ichimoku TK cross up + RSI 38.6 in [20-40]",
+            "metadata": {
+              "tenkan": 2489.7349999999997,
+              "kijun": 2488.83,
+              "rsi": 48.98105916897067,
+              "rsiHitIndex": 17452,
+              "rsiHitValue": 38.6087427046428
+            }
+          },
+          "exitSignal": {
+            "action": "SELL",
+            "timestamp": 1791788400000,
+            "price": 2571.44,
+            "reason": "Backtest conclusion: closed remaining open position"
+          },
+          "entryPrice": 2502.29,
+          "exitPrice": 2571.44,
+          "quantity": 3.539129301217335,
+          "pnl": 226.7653398770617,
+          "pnlPercent": 2.5580444888482172,
+          "fee": 17.965451302117224,
+          "entryTime": 1791536400000,
+          "exitTime": 1791788400000,
+          "duration": 252000000
+        }
+      ],
+      "diagnostics": {
+        "symbol": "ETHUSDT",
+        "interval": "1h",
+        "lookback": 10,
+        "totalCandles": 17532,
+        "rsiBuyZoneCount": 3177,
+        "rsiSellZoneCount": 3492,
+        "tkCrossUpCount": 480,
+        "tkCrossDownCount": 473,
+        "buySetupsCount": 150,
+        "sellSetupsCount": 195,
+        "longTrades": 96,
+        "shortTrades": 96
+      }
+    }
+  }
+}

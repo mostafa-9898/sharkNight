@@ -7,6 +7,7 @@
     "dev": "next dev",
     "download": "tsx src/scripts/download-history.ts",
     "optimize": "tsx src/scripts/optimize.ts",
+    "review-notes": "tsx src/scripts/review-notes.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",

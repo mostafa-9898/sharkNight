@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import type {
   IChartApi,
   ISeriesApi,
@@ -8,68 +8,184 @@ import type {
   Time,
   SeriesMarker,
   ISeriesMarkersPluginApi,
+  ISeriesPrimitive,
+  SeriesAttachedParameter,
 } from 'lightweight-charts';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import type { Trade } from '@/backtest/types';
-import type { MACDResult } from '@/indicators/macd';
+import { calculateIchimoku } from '@/indicators/ichimoku';
+import { calculateRSI } from '@/indicators/rsi';
 import RsiSubChart from './RsiSubChart';
-import MacdSubChart from './MacdSubChart';
 
 interface CandleChartProps {
   candles: Candle[];
   symbol?: string;
-  smaFast?: number[];
-  smaSlow?: number[];
-  maType?: 'ema' | 'sma';
-  fastPeriod?: number;
-  slowPeriod?: number;
-  rsiValues?: number[];
-  rsiPeriod?: number;
-  macdValues?: MACDResult | null;
-  macdFast?: number;
-  macdSlow?: number;
-  macdSignal?: number;
-  trades?: Trade[];
   currentInterval?: CandleInterval;
   onIntervalChange?: (interval: CandleInterval) => void;
   loading?: boolean;
+  // Ichimoku params (from dashboard)
+  ichimokuTenkan?: number;
+  ichimokuKijun?: number;
+  ichimokuSenkouB?: number;
+  ichimokuDisplacement?: number;
+  // RSI params (from dashboard)
+  rsiPeriod?: number;
+  rsiBuyMin?: number;
+  rsiBuyMax?: number;
+  rsiSellMin?: number;
+  rsiSellMax?: number;
+  // Backtest executed trades
+  trades?: Trade[];
 }
 
 const TIMEFRAME_OPTIONS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
+function getIntervalSec(interval: CandleInterval): number {
+  switch (interval) {
+    case '1m':
+      return 60;
+    case '5m':
+      return 300;
+    case '15m':
+      return 900;
+    case '30m':
+      return 1800;
+    case '1h':
+      return 3600;
+    case '4h':
+      return 14400;
+    case '1d':
+      return 86400;
+    default:
+      return 3600;
+  }
+}
+
+/**
+ * Custom Series Primitive to draw the Ichimoku Cloud fill between Senkou Span A and Senkou Span B.
+ * Green when Senkou A > Senkou B, Red when Senkou B > Senkou A.
+ */
+class IchimokuCloudPrimitive implements ISeriesPrimitive<Time> {
+  private _chart: IChartApi | null = null;
+  private _series: ISeriesApi<'Candlestick', Time> | null = null;
+  private _points: { time: UTCTimestamp; a: number; b: number }[] = [];
+  private _requestUpdate?: () => void;
+
+  setData(points: { time: UTCTimestamp; a: number; b: number }[]) {
+    this._points = points;
+    if (this._requestUpdate) {
+      this._requestUpdate();
+    }
+  }
+
+  attached(param: SeriesAttachedParameter<Time>) {
+    this._chart = param.chart;
+    this._series = param.series as ISeriesApi<'Candlestick', Time>;
+    this._requestUpdate = param.requestUpdate;
+  }
+
+  detached() {
+    this._chart = null;
+    this._series = null;
+    this._requestUpdate = undefined;
+  }
+
+  updateAllViews() {}
+
+  paneViews() {
+    return [
+      {
+        renderer: () => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          draw: (target: any) => {
+            if (!this._chart || !this._series || this._points.length < 2) return;
+            try {
+              target.useMediaCoordinateSpace((scope: { context: CanvasRenderingContext2D }) => {
+                const ctx = scope.context;
+                const timeScale = this._chart!.timeScale();
+
+                for (let i = 0; i < this._points.length - 1; i++) {
+                  const p1 = this._points[i];
+                  const p2 = this._points[i + 1];
+
+                  const x1 = timeScale.timeToCoordinate(p1.time);
+                  const x2 = timeScale.timeToCoordinate(p2.time);
+                  const yA1 = this._series!.priceToCoordinate(p1.a);
+                  const yA2 = this._series!.priceToCoordinate(p2.a);
+                  const yB1 = this._series!.priceToCoordinate(p1.b);
+                  const yB2 = this._series!.priceToCoordinate(p2.b);
+
+                  if (
+                    x1 === null ||
+                    x2 === null ||
+                    yA1 === null ||
+                    yA2 === null ||
+                    yB1 === null ||
+                    yB2 === null
+                  ) {
+                    continue;
+                  }
+
+                  ctx.beginPath();
+                  ctx.moveTo(x1, yA1);
+                  ctx.lineTo(x2, yA2);
+                  ctx.lineTo(x2, yB2);
+                  ctx.lineTo(x1, yB1);
+                  ctx.closePath();
+
+                  const isBullish = (p1.a + p2.a) / 2 >= (p1.b + p2.b) / 2;
+                  ctx.fillStyle = isBullish
+                    ? 'rgba(34, 197, 94, 0.22)'
+                    : 'rgba(239, 68, 68, 0.22)';
+                  ctx.fill();
+                }
+              });
+            } catch {
+              // Graceful fallback if primitive canvas access is unsupported
+            }
+          },
+        }),
+      },
+    ];
+  }
+}
+
 export default function CandleChart({
   candles,
   symbol = 'BTCUSDT',
-  smaFast,
-  smaSlow,
-  maType = 'ema',
-  fastPeriod = 10,
-  slowPeriod = 30,
-  rsiValues,
-  rsiPeriod = 14,
-  macdValues,
-  macdFast = 12,
-  macdSlow = 26,
-  macdSignal = 9,
-  trades = [],
   currentInterval = '15m',
   onIntervalChange,
   loading = false,
+  ichimokuTenkan = 9,
+  ichimokuKijun = 26,
+  ichimokuSenkouB = 52,
+  ichimokuDisplacement = 26,
+  rsiPeriod = 14,
+  rsiBuyMin = 20,
+  rsiBuyMax = 40,
+  rsiSellMin = 60,
+  rsiSellMax = 80,
+  trades = [],
 }: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const fastLineRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const slowLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+
+  // Ichimoku Line Series
+  const tenkanLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const kijunLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const chikouLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const senkouALineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const senkouBLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const cloudPrimitiveRef = useRef<IchimokuCloudPrimitive | null>(null);
+
   const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
   const [isChartReady, setIsChartReady] = useState(false);
 
   // Indicators: OFF by default on initial load!
-  const [showFastSMA, setShowFastSMA] = useState(false);
-  const [showSlowSMA, setShowSlowSMA] = useState(false);
+  const [showIchimoku, setShowIchimoku] = useState(false);
   const [showRSI, setShowRSI] = useState(false);
-  const [showMACD, setShowMACD] = useState(false);
   const [showSignals, setShowSignals] = useState(false);
 
   // Indicators Dropdown menu state
@@ -91,6 +207,31 @@ export default function CandleChart({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [indicatorsOpen]);
+
+  // Client-side Indicator Calculations from loaded chart candles
+  const ichimokuData = useMemo(() => {
+    if (candles.length === 0) return null;
+    try {
+      return calculateIchimoku(candles, {
+        tenkan: ichimokuTenkan,
+        kijun: ichimokuKijun,
+        senkouB: ichimokuSenkouB,
+        displacement: ichimokuDisplacement,
+      });
+    } catch {
+      return null;
+    }
+  }, [candles, ichimokuTenkan, ichimokuKijun, ichimokuSenkouB, ichimokuDisplacement]);
+
+  const rsiValues = useMemo(() => {
+    if (candles.length === 0) return [];
+    try {
+      const closes = candles.map((c) => c.close);
+      return calculateRSI(closes, rsiPeriod);
+    } catch {
+      return [];
+    }
+  }, [candles, rsiPeriod]);
 
   // 1. Initialize chart canvas ONCE on mount
   useEffect(() => {
@@ -139,21 +280,53 @@ export default function CandleChart({
         });
         candleSeriesRef.current = candleSeries;
 
-        const fastLine = chart.addSeries(LineSeries, {
+        // Attach Ichimoku Cloud Primitive for custom canvas fill
+        const cloudPrimitive = new IchimokuCloudPrimitive();
+        cloudPrimitiveRef.current = cloudPrimitive;
+        try {
+          candleSeries.attachPrimitive(cloudPrimitive);
+        } catch {
+          // ignore
+        }
+
+        // Senkou Span A & B lines (thin lines + boundary)
+        senkouALineRef.current = chart.addSeries(LineSeries, {
+          color: '#22c55e',
+          lineWidth: 1,
+          title: 'Senkou A',
+          visible: showIchimoku,
+        });
+
+        senkouBLineRef.current = chart.addSeries(LineSeries, {
+          color: '#ef4444',
+          lineWidth: 1,
+          title: 'Senkou B',
+          visible: showIchimoku,
+        });
+
+        // Tenkan-sen (Conversion Line, Blue)
+        tenkanLineRef.current = chart.addSeries(LineSeries, {
           color: '#38bdf8',
           lineWidth: 2,
-          title: `${maType.toUpperCase()} ${fastPeriod}`,
-          visible: showFastSMA,
+          title: `Tenkan (${ichimokuTenkan})`,
+          visible: showIchimoku,
         });
-        fastLineRef.current = fastLine;
 
-        const slowLine = chart.addSeries(LineSeries, {
-          color: '#fbbf24',
+        // Kijun-sen (Base Line, Red/Orange)
+        kijunLineRef.current = chart.addSeries(LineSeries, {
+          color: '#f97316',
           lineWidth: 2,
-          title: `${maType.toUpperCase()} ${slowPeriod}`,
-          visible: showSlowSMA,
+          title: `Kijun (${ichimokuKijun})`,
+          visible: showIchimoku,
         });
-        slowLineRef.current = slowLine;
+
+        // Chikou Span (Lagging Span, Muted Purple)
+        chikouLineRef.current = chart.addSeries(LineSeries, {
+          color: '#c084fc',
+          lineWidth: 1,
+          title: 'Chikou',
+          visible: showIchimoku,
+        });
 
         handleResize = () => {
           if (containerRef.current && chartRef.current) {
@@ -186,20 +359,26 @@ export default function CandleChart({
         chartRef.current.remove();
         chartRef.current = null;
         candleSeriesRef.current = null;
-        fastLineRef.current = null;
-        slowLineRef.current = null;
+        tenkanLineRef.current = null;
+        kijunLineRef.current = null;
+        chikouLineRef.current = null;
+        senkouALineRef.current = null;
+        senkouBLineRef.current = null;
+        cloudPrimitiveRef.current = null;
       }
     };
-  }, []); // Run ONCE on mount!
+  }, []); // Run ONCE on mount
 
-  // 2. Coordinated update when `candles` dataset itself changes (e.g. timeframe change)
+  // 2. Coordinated update when `candles` dataset changes (timeframe or symbol switch)
   useEffect(() => {
     if (!isChartReady || !candleSeriesRef.current || !chartRef.current || candles.length === 0) {
       return;
     }
 
     const formattedCandles: { time: UTCTimestamp; open: number; high: number; low: number; close: number }[] = [];
+    const candleTimes: UTCTimestamp[] = [];
     let lastTime: number | null = null;
+
     for (const c of candles) {
       if (typeof c.timestamp !== 'number' || !Number.isFinite(c.timestamp)) continue;
       const t = Math.floor(c.timestamp / 1000) as UTCTimestamp;
@@ -211,25 +390,12 @@ export default function CandleChart({
           low: c.low,
           close: c.close,
         });
+        candleTimes.push(t);
         lastTime = t;
       }
     }
 
-    // 1. Reset secondary line series and markers first to flush stale points from previous timeframe
-    if (fastLineRef.current) {
-      try {
-        fastLineRef.current.setData([]);
-      } catch {
-        // ignore
-      }
-    }
-    if (slowLineRef.current) {
-      try {
-        slowLineRef.current.setData([]);
-      } catch {
-        // ignore
-      }
-    }
+    // Reset markers and secondary series before loading new timeframe
     if (markersPluginRef.current) {
       try {
         markersPluginRef.current.setMarkers([]);
@@ -238,144 +404,99 @@ export default function CandleChart({
       }
     }
 
-    // 2. Set new candle data cleanly
+    // Set candle data
     try {
       candleSeriesRef.current.setData(formattedCandles);
     } catch (err) {
       console.warn('Failed to set candle data on chart:', err);
     }
 
-    // 3. Set matching fast MA data if available
-    if (fastLineRef.current && smaFast && smaFast.length === candles.length && candles.length > 0) {
-      const rawFastData = candles
-        .map((c, i) => ({
-          time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-          value: smaFast[i],
-        }))
-        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
-
-      const uniqueFastData: { time: UTCTimestamp; value: number }[] = [];
-      let lastFastTime: number | null = null;
-      for (const d of rawFastData) {
-        if (lastFastTime === null || d.time > lastFastTime) {
-          uniqueFastData.push(d);
-          lastFastTime = d.time;
-        }
-      }
-      try {
-        fastLineRef.current.setData(uniqueFastData);
-      } catch (err) {
-        console.warn('Failed to set fast MA data:', err);
-      }
+    // Calculate future timestamps for Ichimoku Senkou forward displacement
+    const intervalSec = getIntervalSec(currentInterval);
+    const lastSec = candleTimes[candleTimes.length - 1] ?? 0;
+    const allTimes: UTCTimestamp[] = [...candleTimes];
+    for (let k = 1; k <= ichimokuDisplacement; k++) {
+      allTimes.push((lastSec + k * intervalSec) as UTCTimestamp);
     }
 
-    // 4. Set matching slow MA data if available
-    if (slowLineRef.current && smaSlow && smaSlow.length === candles.length && candles.length > 0) {
-      const rawSlowData = candles
-        .map((c, i) => ({
-          time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-          value: smaSlow[i],
-        }))
-        .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
+    // Update Ichimoku lines if data is available
+    if (ichimokuData) {
+      const tenkanPts = candleTimes
+        .map((t, i) => ({ time: t, value: ichimokuData.tenkan[i] }))
+        .filter((p) => Number.isFinite(p.value));
+      tenkanLineRef.current?.setData(tenkanPts);
 
-      const uniqueSlowData: { time: UTCTimestamp; value: number }[] = [];
-      let lastSlowTime: number | null = null;
-      for (const d of rawSlowData) {
-        if (lastSlowTime === null || d.time > lastSlowTime) {
-          uniqueSlowData.push(d);
-          lastSlowTime = d.time;
+      const kijunPts = candleTimes
+        .map((t, i) => ({ time: t, value: ichimokuData.kijun[i] }))
+        .filter((p) => Number.isFinite(p.value));
+      kijunLineRef.current?.setData(kijunPts);
+
+      const chikouPts = candleTimes
+        .map((t, i) => ({ time: t, value: ichimokuData.chikou[i] }))
+        .filter((p) => Number.isFinite(p.value));
+      chikouLineRef.current?.setData(chikouPts);
+
+      const senkouAPts = allTimes
+        .map((t, i) => ({ time: t, value: ichimokuData.senkouA[i] }))
+        .filter((p) => Number.isFinite(p.value));
+      senkouALineRef.current?.setData(senkouAPts);
+
+      const senkouBPts = allTimes
+        .map((t, i) => ({ time: t, value: ichimokuData.senkouB[i] }))
+        .filter((p) => Number.isFinite(p.value));
+      senkouBLineRef.current?.setData(senkouBPts);
+
+      // Cloud primitive data
+      const cloudPts: { time: UTCTimestamp; a: number; b: number }[] = [];
+      for (let i = 0; i < allTimes.length; i++) {
+        const valA = ichimokuData.senkouA[i];
+        const valB = ichimokuData.senkouB[i];
+        if (Number.isFinite(valA) && Number.isFinite(valB)) {
+          cloudPts.push({ time: allTimes[i], a: valA, b: valB });
         }
       }
-      try {
-        slowLineRef.current.setData(uniqueSlowData);
-      } catch (err) {
-        console.warn('Failed to set slow MA data:', err);
-      }
+      cloudPrimitiveRef.current?.setData(cloudPts);
     }
 
-    // 5. Fit content only after all series on the chart are synchronized to the new dataset!
+    // Fit content only when changing dataset/timeframe
     try {
       chartRef.current.timeScale().fitContent();
     } catch (err) {
       console.warn('Failed to fit content:', err);
     }
-  }, [candles, isChartReady]);
+  }, [candles, isChartReady, currentInterval, ichimokuData, ichimokuDisplacement]);
 
-  // 3. Fast MA data update (does NOT fitContent, preserving zoom)
+  // 3. Ichimoku Visibility Toggle (instant, zero zoom change)
   useEffect(() => {
-    if (!isChartReady || !fastLineRef.current) return;
-    try {
-      fastLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${fastPeriod}` });
-      if (smaFast && smaFast.length === candles.length && candles.length > 0) {
-        const rawFastData = candles
-          .map((c, i) => ({
-            time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-            value: smaFast[i],
-          }))
-          .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
+    tenkanLineRef.current?.applyOptions({ visible: showIchimoku });
+    kijunLineRef.current?.applyOptions({ visible: showIchimoku });
+    chikouLineRef.current?.applyOptions({ visible: showIchimoku });
+    senkouALineRef.current?.applyOptions({ visible: showIchimoku });
+    senkouBLineRef.current?.applyOptions({ visible: showIchimoku });
 
-        const uniqueFastData: { time: UTCTimestamp; value: number }[] = [];
-        let lastTime: number | null = null;
-        for (const d of rawFastData) {
-          if (lastTime === null || d.time > lastTime) {
-            uniqueFastData.push(d);
-            lastTime = d.time;
-          }
-        }
-        fastLineRef.current.setData(uniqueFastData);
-      } else {
-        fastLineRef.current.setData([]);
+    if (!showIchimoku) {
+      cloudPrimitiveRef.current?.setData([]);
+    } else if (ichimokuData && candles.length > 0) {
+      const intervalSec = getIntervalSec(currentInterval);
+      const candleTimes = candles.map((c) => Math.floor(c.timestamp / 1000) as UTCTimestamp);
+      const lastSec = candleTimes[candleTimes.length - 1] ?? 0;
+      const allTimes: UTCTimestamp[] = [...candleTimes];
+      for (let k = 1; k <= ichimokuDisplacement; k++) {
+        allTimes.push((lastSec + k * intervalSec) as UTCTimestamp);
       }
-    } catch (err) {
-      console.warn('Failed to set fast MA data:', err);
-    }
-  }, [smaFast, fastPeriod, maType, candles, isChartReady]);
-
-  // 4. Slow MA data update (does NOT fitContent, preserving zoom)
-  useEffect(() => {
-    if (!isChartReady || !slowLineRef.current) return;
-    try {
-      slowLineRef.current.applyOptions({ title: `${maType.toUpperCase()} ${slowPeriod}` });
-      if (smaSlow && smaSlow.length === candles.length && candles.length > 0) {
-        const rawSlowData = candles
-          .map((c, i) => ({
-            time: Math.floor(c.timestamp / 1000) as UTCTimestamp,
-            value: smaSlow[i],
-          }))
-          .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value) && Number.isFinite(d.time));
-
-        const uniqueSlowData: { time: UTCTimestamp; value: number }[] = [];
-        let lastTime: number | null = null;
-        for (const d of rawSlowData) {
-          if (lastTime === null || d.time > lastTime) {
-            uniqueSlowData.push(d);
-            lastTime = d.time;
-          }
+      const cloudPts: { time: UTCTimestamp; a: number; b: number }[] = [];
+      for (let i = 0; i < allTimes.length; i++) {
+        const valA = ichimokuData.senkouA[i];
+        const valB = ichimokuData.senkouB[i];
+        if (Number.isFinite(valA) && Number.isFinite(valB)) {
+          cloudPts.push({ time: allTimes[i], a: valA, b: valB });
         }
-        slowLineRef.current.setData(uniqueSlowData);
-      } else {
-        slowLineRef.current.setData([]);
       }
-    } catch (err) {
-      console.warn('Failed to set slow MA data:', err);
+      cloudPrimitiveRef.current?.setData(cloudPts);
     }
-  }, [smaSlow, slowPeriod, maType, candles, isChartReady]);
+  }, [showIchimoku, ichimokuData, candles, currentInterval, ichimokuDisplacement]);
 
-  // 5. Fast SMA Toggle (instant visibility, zero zoom change)
-  useEffect(() => {
-    if (fastLineRef.current) {
-      fastLineRef.current.applyOptions({ visible: showFastSMA });
-    }
-  }, [showFastSMA]);
-
-  // 6. Slow SMA Toggle (instant visibility, zero zoom change)
-  useEffect(() => {
-    if (slowLineRef.current) {
-      slowLineRef.current.applyOptions({ visible: showSlowSMA });
-    }
-  }, [showSlowSMA]);
-
-  // 7. Trade Signals Toggle (instant markers update via setMarkers, zero zoom change)
+  // 4. Trade Signals Markers Toggle (side-aware markers, zero zoom change)
   useEffect(() => {
     if (!isChartReady || !candleSeriesRef.current) return;
 
@@ -409,34 +530,69 @@ export default function CandleChart({
       }
 
       const markers: SeriesMarker<Time>[] = [];
+
       for (const trade of trades) {
+        const isLong = trade.side === 'long';
+
+        // Entry Marker
         if (trade.entryTime) {
           const entrySec = Math.floor(trade.entryTime / 1000) as UTCTimestamp;
           if (candleTimeSet.has(entrySec)) {
-            markers.push({
-              time: entrySec,
-              position: 'belowBar',
-              color: '#2ea043',
-              shape: 'arrowUp',
-              text: `BUY @ $${trade.entryPrice.toLocaleString()}`,
-            });
+            if (isLong) {
+              // Long entry = BUY arrow up below the bar
+              markers.push({
+                time: entrySec,
+                position: 'belowBar',
+                color: '#2ea043',
+                shape: 'arrowUp',
+                text: `BUY (LONG) @ $${trade.entryPrice.toLocaleString()}`,
+              });
+            } else {
+              // Short entry = SELL arrow down above the bar
+              markers.push({
+                time: entrySec,
+                position: 'aboveBar',
+                color: '#eab308',
+                shape: 'arrowDown',
+                text: `SELL (SHORT) @ $${trade.entryPrice.toLocaleString()}`,
+              });
+            }
           }
         }
+
+        // Exit Marker
         if (trade.exitTime) {
           const exitSec = Math.floor(trade.exitTime / 1000) as UTCTimestamp;
           if (candleTimeSet.has(exitSec)) {
             const isWin = trade.pnl > 0;
-            markers.push({
-              time: exitSec,
-              position: 'aboveBar',
-              color: isWin ? '#38bdf8' : '#f85149',
-              shape: 'arrowDown',
-              text: `SELL (${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%)`,
-            });
+            const pnlStr = `${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%`;
+
+            if (isLong) {
+              // Long exit = arrow down above the bar with PnL%
+              markers.push({
+                time: exitSec,
+                position: 'aboveBar',
+                color: isWin ? '#38bdf8' : '#f85149',
+                shape: 'arrowDown',
+                text: `EXIT LONG (${pnlStr}) [${trade.exitReason}]`,
+              });
+            } else {
+              // Short exit = arrow up below the bar with PnL%
+              markers.push({
+                time: exitSec,
+                position: 'belowBar',
+                color: isWin ? '#38bdf8' : '#f85149',
+                shape: 'arrowUp',
+                text: `EXIT SHORT (${pnlStr}) [${trade.exitReason}]`,
+              });
+            }
           }
         }
       }
+
+      // Sort markers chronologically; if duplicate timestamps occur (reversals), both remain in array
       markers.sort((a, b) => Number(a.time) - Number(b.time));
+
       try {
         markersPluginRef.current.setMarkers(markers);
       } catch (err) {
@@ -452,20 +608,12 @@ export default function CandleChart({
   // Clear all indicators handler
   const handleClearAll = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowFastSMA(false);
-    setShowSlowSMA(false);
+    setShowIchimoku(false);
     setShowRSI(false);
-    setShowMACD(false);
     setShowSignals(false);
   };
 
-  const activeIndicatorsCount = [
-    showFastSMA,
-    showSlowSMA,
-    showRSI,
-    showMACD,
-    showSignals,
-  ].filter(Boolean).length;
+  const activeIndicatorsCount = [showIchimoku, showRSI, showSignals].filter(Boolean).length;
 
   return (
     <div
@@ -477,7 +625,7 @@ export default function CandleChart({
         position: 'relative',
       }}
     >
-      {/* Clean Minimalist Chart Header */}
+      {/* Chart Header */}
       <div
         style={{
           padding: '10px 16px',
@@ -493,11 +641,12 @@ export default function CandleChart({
       >
         {/* Left Side: Symbol & Timeframe Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontWeight: 700, color: '#f0f6fc', fontSize: '15px', letterSpacing: '0.5px' }}>
+          <span
+            style={{ fontWeight: 700, color: '#f0f6fc', fontSize: '15px', letterSpacing: '0.5px' }}
+          >
             {symbol}
           </span>
 
-          {/* Timeframe Dropdown */}
           <select
             value={currentInterval}
             onChange={(e) => onIntervalChange?.(e.target.value as CandleInterval)}
@@ -521,9 +670,9 @@ export default function CandleChart({
           </select>
         </div>
 
-        {/* Right Side: Trade Signals Button & Indicators Dropdown & Info */}
+        {/* Right Side: Trade Signals & Indicators Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
-          {/* Quick Toggle: Trade Signals (Executed Backtest Trades) */}
+          {/* Quick Toggle: Trade Signals */}
           <button
             onClick={() => setShowSignals((prev) => !prev)}
             style={{
@@ -548,22 +697,16 @@ export default function CandleChart({
               style={{
                 fontSize: '10px',
                 padding: '1px 6px',
-                borderRadius: '8px',
-                backgroundColor: showSignals ? '#2ea043' : '#30363d',
-                color: showSignals ? '#ffffff' : '#8b949e',
-                fontWeight: 700,
+                borderRadius: '10px',
+                backgroundColor: showSignals ? 'rgba(46, 160, 67, 0.3)' : '#30363d',
+                color: showSignals ? '#3fb950' : '#8b949e',
               }}
             >
-              {showSignals ? 'ON' : 'OFF'}
+              {trades.length}
             </span>
-            {trades.length > 0 && (
-              <span style={{ fontSize: '10px', color: '#8b949e' }}>
-                ({trades.length})
-              </span>
-            )}
           </button>
 
-          {/* Indicators Dropdown Toggle */}
+          {/* Indicators Dropdown Menu */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setIndicatorsOpen((prev) => !prev)}
@@ -571,371 +714,219 @@ export default function CandleChart({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 14px',
+                padding: '6px 12px',
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
-                backgroundColor: indicatorsOpen || activeIndicatorsCount > 0 ? '#21262d' : '#161b22',
+                backgroundColor: activeIndicatorsCount > 0 ? 'rgba(56, 189, 248, 0.15)' : '#21262d',
                 border: `1px solid ${activeIndicatorsCount > 0 ? '#38bdf8' : '#30363d'}`,
                 color: activeIndicatorsCount > 0 ? '#38bdf8' : '#c9d1d9',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>📊</span>
+              <span>📈</span>
               <span>Indicators</span>
               {activeIndicatorsCount > 0 && (
                 <span
                   style={{
                     backgroundColor: '#38bdf8',
                     color: '#0d1117',
-                    borderRadius: '10px',
-                    padding: '1px 6px',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
                     fontSize: '10px',
-                    fontWeight: 700,
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
                   {activeIndicatorsCount}
                 </span>
               )}
-              <span style={{ fontSize: '10px', opacity: 0.7 }}>{indicatorsOpen ? '▲' : '▼'}</span>
+              <span style={{ fontSize: '10px' }}>{indicatorsOpen ? '▲' : '▼'}</span>
             </button>
 
-            {/* Dropdown Menu (does NOT close on item clicks, closes on outside click) */}
+            {/* Dropdown Menu Popup */}
             {indicatorsOpen && (
               <div
-                onClick={(e) => e.stopPropagation()}
                 style={{
                   position: 'absolute',
                   top: '100%',
                   right: 0,
-                  marginTop: '8px',
+                  marginTop: '6px',
                   backgroundColor: '#161b22',
                   border: '1px solid #30363d',
                   borderRadius: '8px',
-                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
-                  width: '260px',
-                  padding: '8px',
+                  padding: '12px',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                  zIndex: 100,
+                  minWidth: '280px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '4px',
-                  zIndex: 100,
+                  gap: '10px',
                 }}
               >
-                {/* 1. Clear All Option */}
-                <button
-                  onClick={handleClearAll}
-                  disabled={activeIndicatorsCount === 0}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid #30363d',
+                    paddingBottom: '8px',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#f0f6fc' }}>
+                    Chart Indicators
+                  </span>
+                  {activeIndicatorsCount > 0 && (
+                    <button
+                      onClick={handleClearAll}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f85149',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Option 1: Ichimoku Cloud (9/26/52) */}
+                <label
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    backgroundColor: activeIndicatorsCount > 0 ? 'rgba(248, 81, 73, 0.1)' : '#21262d',
-                    border: `1px solid ${activeIndicatorsCount > 0 ? 'rgba(248, 81, 73, 0.3)' : '#30363d'}`,
-                    color: activeIndicatorsCount > 0 ? '#f85149' : '#6e7681',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: activeIndicatorsCount > 0 ? 'pointer' : 'default',
-                    transition: 'all 0.15s ease',
-                    marginBottom: '4px',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>🗑️</span>
-                    <span>Clear All</span>
-                  </span>
-                  {activeIndicatorsCount > 0 && (
-                    <span style={{ fontSize: '11px', opacity: 0.85 }}>({activeIndicatorsCount} active)</span>
-                  )}
-                </button>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: '#8b949e',
-                    padding: '4px 8px 6px',
-                    borderBottom: '1px solid #21262d',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Overlay Moving Averages:
-                </div>
-
-                {/* Fast MA Item */}
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
                     cursor: 'pointer',
-                    userSelect: 'none',
-                    backgroundColor: showFastSMA ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: showIchimoku ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={showFastSMA}
-                    onChange={(e) => setShowFastSMA(e.target.checked)}
-                    style={{ accentColor: '#38bdf8', width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: '#38bdf8',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    Fast {maType.toUpperCase()} ({fastPeriod})
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={showIchimoku}
+                      onChange={(e) => setShowIchimoku(e.target.checked)}
+                      style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
+                      ☁️ Ichimoku Cloud ({ichimokuTenkan}/{ichimokuKijun}/{ichimokuSenkouB})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#8b949e' }}>TK/Cloud</span>
                 </label>
 
-                {/* Slow MA Item */}
+                {/* Option 2: RSI */}
                 <label
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    justifyContent: 'space-between',
                     cursor: 'pointer',
-                    userSelect: 'none',
-                    backgroundColor: showSlowSMA ? 'rgba(251, 191, 36, 0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={showSlowSMA}
-                    onChange={(e) => setShowSlowSMA(e.target.checked)}
-                    style={{ accentColor: '#fbbf24', width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: '#fbbf24',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    Slow {maType.toUpperCase()} ({slowPeriod})
-                  </span>
-                </label>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: '#8b949e',
-                    padding: '8px 8px 4px',
-                    borderTop: '1px solid #21262d',
-                    marginTop: '4px',
-                  }}
-                >
-                  Oscillators & Sub-Panels:
-                </div>
-
-                {/* RSI Item */}
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
+                    padding: '6px 8px',
                     borderRadius: '6px',
-                    cursor: 'pointer',
-                    userSelect: 'none',
                     backgroundColor: showRSI ? 'rgba(168, 85, 247, 0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={showRSI}
-                    onChange={(e) => setShowRSI(e.target.checked)}
-                    style={{ accentColor: '#a855f7', width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: '#a855f7',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    RSI ({rsiPeriod})
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={showRSI}
+                      onChange={(e) => setShowRSI(e.target.checked)}
+                      style={{ accentColor: '#a855f7', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
+                      🟣 Relative Strength Index (RSI {rsiPeriod})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#8b949e' }}>Sub-chart</span>
                 </label>
 
-                {/* MACD Item */}
+                {/* Option 3: Trade Signals */}
                 <label
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    justifyContent: 'space-between',
                     cursor: 'pointer',
-                    userSelect: 'none',
-                    backgroundColor: showMACD ? 'rgba(234, 179, 8, 0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={showMACD}
-                    onChange={(e) => setShowMACD(e.target.checked)}
-                    style={{ accentColor: '#eab308', width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: '#eab308',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    MACD ({macdFast}/{macdSlow}/{macdSignal})
-                  </span>
-                </label>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: '#8b949e',
-                    padding: '8px 8px 4px',
-                    borderTop: '1px solid #21262d',
-                    marginTop: '4px',
-                  }}
-                >
-                  Signals & Executions:
-                </div>
-
-                {/* Signals Item */}
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
+                    padding: '6px 8px',
                     borderRadius: '6px',
-                    cursor: 'pointer',
-                    userSelect: 'none',
                     backgroundColor: showSignals ? 'rgba(46, 160, 67, 0.08)' : 'transparent',
-                    transition: 'background-color 0.15s ease',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={showSignals}
-                    onChange={(e) => setShowSignals(e.target.checked)}
-                    style={{ accentColor: '#2ea043', width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: '13px', flexShrink: 0 }}>🎯</span>
-                  <span style={{ fontSize: '13px', color: '#f0f6fc', fontWeight: 500, flexGrow: 1 }}>
-                    Trade Signals (Buy/Sell)
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      backgroundColor: '#21262d',
-                      color: '#8b949e',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                    }}
-                  >
-                    {trades.length}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={showSignals}
+                      onChange={(e) => setShowSignals(e.target.checked)}
+                      style={{ accentColor: '#2ea043', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
+                      🎯 Trade Signals
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#8b949e' }}>Markers</span>
                 </label>
               </div>
             )}
           </div>
-
-          <span style={{ color: '#8b949e', fontSize: '12px' }}>
-            {candles.length.toLocaleString()} candles
-          </span>
         </div>
       </div>
 
-      {/* Loading Overlay */}
-      {loading && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '49px',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(22, 27, 34, 0.75)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '12px',
-            zIndex: 10,
-          }}
-        >
+      {/* Main Candlestick Chart Canvas */}
+      <div style={{ position: 'relative', width: '100%', height: '480px' }}>
+        <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+
+        {/* Loading Spinner Overlay */}
+        {loading && (
           <div
             style={{
-              width: '32px',
-              height: '32px',
-              border: '3px solid #30363d',
-              borderTopColor: '#38bdf8',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(22, 27, 34, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
             }}
-          />
-          <span style={{ fontSize: '13px', color: '#e6edf3' }}>Updating Chart Data...</span>
-        </div>
-      )}
+          >
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '3px solid #30363d',
+                borderTopColor: '#38bdf8',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Container */}
-      <div ref={containerRef} style={{ width: '100%', height: '480px' }} />
-
-      {/* RSI Sub-Chart Panel */}
+      {/* RSI Sub-Chart (Synchronized time-axis) */}
       {showRSI && (
         <RsiSubChart
           candles={candles}
           rsiValues={rsiValues}
-          period={rsiPeriod}
-          onClose={() => setShowRSI(false)}
-          mainChartRef={chartRef}
+          rsiPeriod={rsiPeriod}
+          rsiBuyMin={rsiBuyMin}
+          rsiBuyMax={rsiBuyMax}
+          rsiSellMin={rsiSellMin}
+          rsiSellMax={rsiSellMax}
         />
       )}
-
-      {/* MACD Sub-Chart Panel */}
-      {showMACD && (
-        <MacdSubChart
-          candles={candles}
-          macdValues={macdValues}
-          fastPeriod={macdFast}
-          slowPeriod={macdSlow}
-          signalPeriod={macdSignal}
-          onClose={() => setShowMACD(false)}
-          mainChartRef={chartRef}
-        />
-      )}
-
-      <style jsx global>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }

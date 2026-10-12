@@ -6,37 +6,67 @@ import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import type { BacktestMetrics, Trade } from '@/backtest/types';
+import type { BacktestMetrics, Trade, TradeMode } from '@/backtest/types';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
+interface BacktestDiagnostics {
+  rsiBuyZoneCandles: number;
+  rsiSellZoneCandles: number;
+  tkCrossUpEvents: number;
+  tkCrossDownEvents: number;
+  buySetups: number;
+  sellSetups: number;
+  executedTradesLong: number;
+  executedTradesShort: number;
+  executedTradesTotal: number;
+}
+
 interface BacktestResultData {
   symbol: string;
   interval: CandleInterval;
-  maEnabled: boolean;
-  maType: 'ema' | 'sma';
-  fastPeriod: number;
-  slowPeriod: number;
-  rsiEnabled: boolean;
-  macdEnabled: boolean;
+  ichimokuTenkan: number;
+  ichimokuKijun: number;
+  ichimokuSenkouB: number;
+  ichimokuDisplacement: number;
+  rsiPeriod: number;
+  rsiBuyMin: number;
+  rsiBuyMax: number;
+  rsiSellMin: number;
+  rsiSellMax: number;
+  rsiLookback: number;
+  tradeMode: TradeMode;
   initialBalance: number;
   metrics: BacktestMetrics;
   trades: Trade[];
   equity: number[];
   dataSource?: 'binance' | 'kucoin' | 'cache' | 'synthetic';
+  diagnostics?: BacktestDiagnostics;
   indicators: {
-    smaFast: number[];
-    smaSlow: number[];
-    rsi?: number[];
-    rsiBuyMin?: number;
-    rsiBuyMax?: number;
-    rsiSellMin?: number;
-    rsiSellMax?: number;
-    macd?: { macd: number[]; signal: number[]; histogram: number[] };
-    confirmationWindow?: number;
+    ichimoku?: {
+      tenkan: number[];
+      kijun: number[];
+      senkouA: number[];
+      senkouB: number[];
+      chikou: number[];
+      params: {
+        tenkan: number;
+        kijun: number;
+        senkouB: number;
+        displacement: number;
+      };
+    };
+    rsi?: {
+      values: number[];
+      period: number;
+      buyMin: number;
+      buyMax: number;
+      sellMin: number;
+      sellMax: number;
+    };
     rsiLookback?: number;
-    exitMode?: 'mirror' | 'emaCross' | 'macdCross';
+    tradeMode?: TradeMode;
     takeProfitPercent?: number;
     stopLossPercent?: number;
   };
@@ -54,33 +84,26 @@ export default function DashboardPage() {
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
   const [btTradeFeePercent, setBtTradeFeePercent] = useState(0.1);
 
-  // Indicators State (Strategy 1 defaults: EMA + RSI + MACD)
-  const [maEnabled, setMaEnabled] = useState(true);
-  const [maType, setMaType] = useState<'ema' | 'sma'>('ema');
-  const [btFastPeriod, setBtFastPeriod] = useState(10);
-  const [btSlowPeriod, setBtSlowPeriod] = useState(30);
+  // Ichimoku Parameters
+  const [ichimokuTenkan, setIchimokuTenkan] = useState(9);
+  const [ichimokuKijun, setIchimokuKijun] = useState(26);
+  const [ichimokuSenkouB, setIchimokuSenkouB] = useState(52);
+  const [ichimokuDisplacement, setIchimokuDisplacement] = useState(26);
 
-  const [rsiEnabled, setRsiEnabled] = useState(true);
+  // RSI Parameters
   const [rsiPeriod, setRsiPeriod] = useState(14);
-  const [rsiBuyMin, setRsiBuyMin] = useState(25);
-  const [rsiBuyMax, setRsiBuyMax] = useState(35);
-  const [rsiSellMin, setRsiSellMin] = useState(65);
-  const [rsiSellMax, setRsiSellMax] = useState(75);
+  const [rsiBuyMin, setRsiBuyMin] = useState(20);
+  const [rsiBuyMax, setRsiBuyMax] = useState(40);
+  const [rsiSellMin, setRsiSellMin] = useState(60);
+  const [rsiSellMax, setRsiSellMax] = useState(80);
   const [rsiLookback, setRsiLookback] = useState(10);
 
-  const [macdEnabled, setMacdEnabled] = useState(true);
-  const [macdFastPeriod, setMacdFastPeriod] = useState(12);
-  const [macdSlowPeriod, setMacdSlowPeriod] = useState(26);
-  const [macdSignalPeriod, setMacdSignalPeriod] = useState(9);
-
-  const [confirmationWindow, setConfirmationWindow] = useState(6);
-  const [exitMode, setExitMode] = useState<'mirror' | 'emaCross' | 'macdCross'>('mirror');
+  // Trade Mode & Risk Management
+  const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
   const [stopLossEnabled, setStopLossEnabled] = useState(false);
   const [stopLossPercent, setStopLossPercent] = useState(5);
-
-  const hasAtLeastOneIndicator = maEnabled || rsiEnabled || macdEnabled;
 
   const [btLoading, setBtLoading] = useState(false);
   const [btError, setBtError] = useState<string | null>(null);
@@ -125,23 +148,18 @@ export default function DashboardPage() {
     []
   );
 
-  // Initial load: Only load candles so user can view the chart right away. NO backtest is triggered!
+  // Initial load: Only load candles so user can view the chart right away.
   useEffect(() => {
     loadChartCandles('BTCUSDT', '15m');
   }, [loadChartCandles]);
 
-  // When timeframe is changed on the chart, ONLY update the chart candles!
+  // When timeframe is changed on the chart, update chart candles
   const handleChartIntervalChange = (newInterval: CandleInterval) => {
     loadChartCandles(chartSymbol, newInterval);
   };
 
   // Run Backtest exclusively when user clicks the "Run Backtest ⚡" button
   const runBacktest = useCallback(async () => {
-    if (!hasAtLeastOneIndicator) {
-      setBtError('Please enable at least one indicator to execute backtest.');
-      return;
-    }
-
     setBtLoading(true);
     setBtError(null);
 
@@ -155,25 +173,19 @@ export default function DashboardPage() {
           limit: btLimit === 'all' ? undefined : Number(btLimit),
           initialBalance: btInitialBalance,
           tradeFeePercent: btTradeFeePercent,
-          maEnabled,
-          maType,
-          fastPeriod: btFastPeriod,
-          slowPeriod: btSlowPeriod,
-          rsiEnabled,
+          ichimokuTenkan,
+          ichimokuKijun,
+          ichimokuSenkouB,
+          ichimokuDisplacement,
           rsiPeriod,
           rsiBuyMin,
           rsiBuyMax,
           rsiSellMin,
           rsiSellMax,
           rsiLookback,
-          macdEnabled,
-          macdFastPeriod,
-          macdSlowPeriod,
-          macdSignalPeriod,
-          exitMode,
+          tradeMode,
           takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
           stopLossPercent: stopLossEnabled ? stopLossPercent : undefined,
-          confirmationWindow,
         }),
       });
 
@@ -187,31 +199,23 @@ export default function DashboardPage() {
         symbol: btSymbol,
         interval: btInterval,
         dataSource: data.dataSource,
-        maEnabled,
-        maType,
-        fastPeriod: btFastPeriod,
-        slowPeriod: btSlowPeriod,
-        rsiEnabled,
-        macdEnabled,
+        ichimokuTenkan,
+        ichimokuKijun,
+        ichimokuSenkouB,
+        ichimokuDisplacement,
+        rsiPeriod,
+        rsiBuyMin,
+        rsiBuyMax,
+        rsiSellMin,
+        rsiSellMax,
+        rsiLookback,
+        tradeMode,
         initialBalance: btInitialBalance,
         metrics: data.backtest?.metrics,
         trades: data.backtest?.trades ?? [],
         equity: data.backtest?.equity ?? [],
-        indicators: {
-          smaFast: data.indicators?.smaFast ?? [],
-          smaSlow: data.indicators?.smaSlow ?? [],
-          rsi: data.indicators?.rsi ?? [],
-          rsiBuyMin: data.indicators?.rsiBuyMin ?? rsiBuyMin,
-          rsiBuyMax: data.indicators?.rsiBuyMax ?? rsiBuyMax,
-          rsiSellMin: data.indicators?.rsiSellMin ?? rsiSellMin,
-          rsiSellMax: data.indicators?.rsiSellMax ?? rsiSellMax,
-          rsiLookback: data.indicators?.rsiLookback ?? rsiLookback,
-          macd: data.indicators?.macd ?? null,
-          confirmationWindow: data.indicators?.confirmationWindow ?? confirmationWindow,
-          exitMode: data.indicators?.exitMode ?? exitMode,
-          takeProfitPercent: data.indicators?.takeProfitPercent,
-          stopLossPercent: data.indicators?.stopLossPercent,
-        },
+        diagnostics: data.diagnostics,
+        indicators: data.indicators,
         candles,
         totalCandles: data.totalCandles ?? candles.length,
         startTime: data.startTime ?? null,
@@ -238,28 +242,21 @@ export default function DashboardPage() {
     btLimit,
     btInitialBalance,
     btTradeFeePercent,
-    maEnabled,
-    maType,
-    btFastPeriod,
-    btSlowPeriod,
-    rsiEnabled,
+    ichimokuTenkan,
+    ichimokuKijun,
+    ichimokuSenkouB,
+    ichimokuDisplacement,
     rsiPeriod,
     rsiBuyMin,
     rsiBuyMax,
     rsiSellMin,
     rsiSellMax,
     rsiLookback,
-    macdEnabled,
-    macdFastPeriod,
-    macdSlowPeriod,
-    macdSignalPeriod,
-    exitMode,
+    tradeMode,
     takeProfitEnabled,
     takeProfitPercent,
     stopLossEnabled,
     stopLossPercent,
-    confirmationWindow,
-    hasAtLeastOneIndicator,
   ]);
 
   const isBacktestMatchingChart =
@@ -304,6 +301,9 @@ export default function DashboardPage() {
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#f0f6fc', margin: 0 }}>
               TradeBot — Algorithmic Crypto Terminal
             </h1>
+            <span style={{ fontSize: '13px', color: '#8b949e' }}>
+              Ichimoku Cloud (TK Cross) + RSI Zone Confluence Engine
+            </span>
           </div>
         </div>
 
@@ -358,7 +358,16 @@ export default function DashboardPage() {
             alignItems: 'center',
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#f0f6fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              fontSize: '14px',
+              fontWeight: 700,
+              color: '#f0f6fc',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <span>⚙️</span>
             <span>Backtest Configuration</span>
           </div>
@@ -435,10 +444,11 @@ export default function DashboardPage() {
                 fontSize: '13px',
               }}
             >
-              <option value="all">Full 1-Year</option>
+              <option value="all">Full Cached History</option>
+              <option value="5000">5,000 Candles</option>
+              <option value="2000">2,000 Candles</option>
               <option value="1000">1,000 Candles</option>
               <option value="500">500 Candles</option>
-              <option value="300">300 Candles</option>
             </select>
           </div>
 
@@ -482,13 +492,34 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* Trade Mode */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Trade Mode</label>
+            <select
+              value={tradeMode}
+              onChange={(e) => setTradeMode(e.target.value as TradeMode)}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#38bdf8',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              <option value="long-short">Long & Short (Default)</option>
+              <option value="long-only">Long Only</option>
+            </select>
+          </div>
+
           {/* Run Button */}
           <div style={{ marginLeft: 'auto' }}>
             <button
               onClick={() => runBacktest()}
-              disabled={btLoading || !hasAtLeastOneIndicator}
+              disabled={btLoading}
               style={{
-                backgroundColor: btLoading || !hasAtLeastOneIndicator ? '#21262d' : '#238636',
+                backgroundColor: btLoading ? '#21262d' : '#238636',
                 color: '#ffffff',
                 fontWeight: 700,
                 padding: '8px 24px',
@@ -498,11 +529,9 @@ export default function DashboardPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                cursor: btLoading || !hasAtLeastOneIndicator ? 'not-allowed' : 'pointer',
-                boxShadow: hasAtLeastOneIndicator ? '0 0 10px rgba(35, 134, 54, 0.3)' : 'none',
-                opacity: !hasAtLeastOneIndicator ? 0.6 : 1,
+                cursor: btLoading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 0 10px rgba(35, 134, 54, 0.3)',
               }}
-              title={!hasAtLeastOneIndicator ? 'Please enable at least one indicator below to run backtest' : ''}
             >
               {btLoading && (
                 <span
@@ -522,7 +551,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Section 2: Strategy Indicators (Each Indicator on its own Line) */}
+        {/* Section 2: Strategy Settings (Ichimoku & RSI boxes) */}
         <div
           style={{
             borderTop: '1px solid #30363d',
@@ -534,188 +563,147 @@ export default function DashboardPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b949e', letterSpacing: '0.6px' }}>
-              STRATEGY INDICATORS (TOGGLE ON/OFF)
+              ICHIMOKU + RSI STRATEGY SETTINGS
             </span>
-            {!hasAtLeastOneIndicator && (
-              <span style={{ fontSize: '12px', color: '#f85149', fontWeight: 600 }}>
-                ⚠️ At least one indicator must be enabled
-              </span>
-            )}
           </div>
 
-          {/* Line 1: Moving Average Crossover (EMA / SMA) */}
+          {/* Line 1: Ichimoku Settings Box */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '16px',
-              backgroundColor: maEnabled ? 'rgba(56, 189, 248, 0.05)' : '#0d1117',
-              border: `1px solid ${maEnabled ? 'rgba(56, 189, 248, 0.35)' : '#21262d'}`,
+              backgroundColor: 'rgba(56, 189, 248, 0.05)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
               borderRadius: '6px',
               padding: '10px 14px',
-              transition: 'all 0.15s ease',
             }}
           >
-            {/* Checkbox & Name */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-                userSelect: 'none',
-                minWidth: '220px',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={maEnabled}
-                onChange={(e) => setMaEnabled(e.target.checked)}
-                style={{ accentColor: '#38bdf8', width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <span style={{ fontSize: '13px', fontWeight: 700, color: maEnabled ? '#f0f6fc' : '#8b949e' }}>
-                Moving Average Crossover
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '240px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc' }}>
+                ☁️ Ichimoku Kinko Hyo
               </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  backgroundColor: maEnabled ? 'rgba(56, 189, 248, 0.2)' : '#21262d',
-                  color: maEnabled ? '#38bdf8' : '#6e7681',
-                }}
-              >
-                {maEnabled ? 'ON' : 'OFF'}
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                (TK cross: Tenkan vs Kijun)
               </span>
-            </label>
-
-            {/* MA Type */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Type:</label>
-              <select
-                value={maType}
-                disabled={!maEnabled}
-                onChange={(e) => setMaType(e.target.value as 'ema' | 'sma')}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  cursor: maEnabled ? 'pointer' : 'not-allowed',
-                }}
-              >
-                <option value="ema">EMA (Exponential)</option>
-                <option value="sma">SMA (Simple)</option>
-              </select>
             </div>
 
-            {/* Fast Period */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast Period:</label>
+            {/* Tenkan */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Tenkan:</label>
               <input
                 type="number"
                 min={2}
-                max={100}
-                disabled={!maEnabled}
-                value={btFastPeriod}
-                onChange={(e) => setBtFastPeriod(Number(e.target.value))}
+                max={50}
+                value={ichimokuTenkan}
+                onChange={(e) => setIchimokuTenkan(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#38bdf8',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 10px',
                   fontSize: '12px',
-                  width: '75px',
-                  cursor: maEnabled ? 'text' : 'not-allowed',
+                  width: '65px',
                 }}
               />
             </div>
 
-            {/* Slow Period */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: maEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow Period:</label>
+            {/* Kijun */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Kijun:</label>
               <input
                 type="number"
                 min={3}
-                max={300}
-                disabled={!maEnabled}
-                value={btSlowPeriod}
-                onChange={(e) => setBtSlowPeriod(Number(e.target.value))}
+                max={100}
+                value={ichimokuKijun}
+                onChange={(e) => setIchimokuKijun(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#f97316',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 10px',
                   fontSize: '12px',
-                  width: '75px',
-                  cursor: maEnabled ? 'text' : 'not-allowed',
+                  width: '65px',
+                }}
+              />
+            </div>
+
+            {/* Senkou B */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Senkou B:</label>
+              <input
+                type="number"
+                min={5}
+                max={200}
+                value={ichimokuSenkouB}
+                onChange={(e) => setIchimokuSenkouB(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#ef4444',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
+                }}
+              />
+            </div>
+
+            {/* Displacement */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Displacement:</label>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={ichimokuDisplacement}
+                onChange={(e) => setIchimokuDisplacement(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#c084fc',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  width: '65px',
                 }}
               />
             </div>
           </div>
 
-          {/* Line 2: Relative Strength Index (RSI) */}
+          {/* Line 2: Relative Strength Index (RSI) Box */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '16px',
-              backgroundColor: rsiEnabled ? 'rgba(168, 85, 247, 0.05)' : '#0d1117',
-              border: `1px solid ${rsiEnabled ? 'rgba(168, 85, 247, 0.35)' : '#21262d'}`,
+              backgroundColor: 'rgba(168, 85, 247, 0.05)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
               borderRadius: '6px',
               padding: '10px 14px',
-              transition: 'all 0.15s ease',
             }}
           >
-            {/* Checkbox & Name */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-                userSelect: 'none',
-                minWidth: '220px',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={rsiEnabled}
-                onChange={(e) => setRsiEnabled(e.target.checked)}
-                style={{ accentColor: '#a855f7', width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <span style={{ fontSize: '13px', fontWeight: 700, color: rsiEnabled ? '#f0f6fc' : '#8b949e' }}>
-                Relative Strength Index (RSI)
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '240px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc' }}>
+                🟣 Relative Strength Index (RSI)
               </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  backgroundColor: rsiEnabled ? 'rgba(168, 85, 247, 0.2)' : '#21262d',
-                  color: rsiEnabled ? '#c084fc' : '#6e7681',
-                }}
-              >
-                {rsiEnabled ? 'ON' : 'OFF'}
-              </span>
-            </label>
+            </div>
 
             {/* RSI Period */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: rsiEnabled ? 1 : 0.4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Period:</label>
               <input
                 type="number"
                 min={2}
                 max={50}
-                disabled={!rsiEnabled}
                 value={rsiPeriod}
                 onChange={(e) => setRsiPeriod(Number(e.target.value))}
                 style={{
@@ -726,30 +714,28 @@ export default function DashboardPage() {
                   padding: '5px 10px',
                   fontSize: '12px',
                   width: '65px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
             </div>
 
             {/* Buy Zone */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Buy Zone:</label>
               <input
                 type="number"
                 min={1}
                 max={99}
-                disabled={!rsiEnabled}
                 value={rsiBuyMin}
                 onChange={(e) => setRsiBuyMin(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#3fb950',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
               <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
@@ -757,41 +743,39 @@ export default function DashboardPage() {
                 type="number"
                 min={1}
                 max={99}
-                disabled={!rsiEnabled}
                 value={rsiBuyMax}
                 onChange={(e) => setRsiBuyMax(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#3fb950',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
             </div>
 
             {/* Sell Zone */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Sell Zone:</label>
               <input
                 type="number"
                 min={1}
                 max={99}
-                disabled={!rsiEnabled}
                 value={rsiSellMin}
                 onChange={(e) => setRsiSellMin(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#f85149',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
               <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
@@ -799,166 +783,46 @@ export default function DashboardPage() {
                 type="number"
                 min={1}
                 max={99}
-                disabled={!rsiEnabled}
                 value={rsiSellMax}
                 onChange={(e) => setRsiSellMax(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#f85149',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
             </div>
 
-            {/* Lookback (L) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: rsiEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Lookback (L):</label>
+            {/* Lookback */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>RSI Lookback:</label>
               <input
                 type="number"
                 min={1}
                 max={50}
-                disabled={!rsiEnabled}
                 value={rsiLookback}
                 onChange={(e) => setRsiLookback(Number(e.target.value))}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#e6edf3',
+                  color: '#c084fc',
+                  fontWeight: 600,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
-                  cursor: rsiEnabled ? 'text' : 'not-allowed',
                 }}
               />
               <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
             </div>
           </div>
 
-          {/* Line 3: MACD */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '16px',
-              backgroundColor: macdEnabled ? 'rgba(234, 179, 8, 0.05)' : '#0d1117',
-              border: `1px solid ${macdEnabled ? 'rgba(234, 179, 8, 0.35)' : '#21262d'}`,
-              borderRadius: '6px',
-              padding: '10px 14px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {/* Checkbox & Name */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-                userSelect: 'none',
-                minWidth: '220px',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={macdEnabled}
-                onChange={(e) => setMacdEnabled(e.target.checked)}
-                style={{ accentColor: '#eab308', width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <span style={{ fontSize: '13px', fontWeight: 700, color: macdEnabled ? '#f0f6fc' : '#8b949e' }}>
-                MACD (Convergence / Divergence)
-              </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  backgroundColor: macdEnabled ? 'rgba(234, 179, 8, 0.2)' : '#21262d',
-                  color: macdEnabled ? '#facc15' : '#6e7681',
-                }}
-              >
-                {macdEnabled ? 'ON' : 'OFF'}
-              </span>
-            </label>
-
-            {/* Fast */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Fast:</label>
-              <input
-                type="number"
-                min={2}
-                max={50}
-                disabled={!macdEnabled}
-                value={macdFastPeriod}
-                onChange={(e) => setMacdFastPeriod(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  width: '65px',
-                  cursor: macdEnabled ? 'text' : 'not-allowed',
-                }}
-              />
-            </div>
-
-            {/* Slow */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Slow:</label>
-              <input
-                type="number"
-                min={3}
-                max={100}
-                disabled={!macdEnabled}
-                value={macdSlowPeriod}
-                onChange={(e) => setMacdSlowPeriod(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  width: '65px',
-                  cursor: macdEnabled ? 'text' : 'not-allowed',
-                }}
-              />
-            </div>
-
-            {/* Signal */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: macdEnabled ? 1 : 0.4 }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Signal:</label>
-              <input
-                type="number"
-                min={2}
-                max={50}
-                disabled={!macdEnabled}
-                value={macdSignalPeriod}
-                onChange={(e) => setMacdSignalPeriod(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  width: '65px',
-                  cursor: macdEnabled ? 'text' : 'not-allowed',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Line 4: Strategy Rules & Take Profit */}
+          {/* Line 3: Risk Management (TP / SL) */}
           <div
             style={{
               display: 'flex',
@@ -971,55 +835,9 @@ export default function DashboardPage() {
               padding: '10px 14px',
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc', minWidth: '220px' }}>
-              🎯 Strategy Rules & Exit
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc', minWidth: '240px' }}>
+              🛡️ Risk Management (Engine-Level Exits)
             </span>
-
-            {/* Exit Mode */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Exit Mode:</label>
-              <select
-                value={exitMode}
-                onChange={(e) => setExitMode(e.target.value as 'mirror' | 'emaCross' | 'macdCross')}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="mirror">Triple Mirror (AND)</option>
-                <option value="emaCross">EMA Cross Down</option>
-                <option value="macdCross">MACD Cross Down</option>
-              </select>
-            </div>
-
-            {/* Crossover Window */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Crossover Window:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={confirmationWindow}
-                  onChange={(e) => setConfirmationWindow(Number(e.target.value))}
-                  style={{
-                    backgroundColor: '#0d1117',
-                    color: '#e6edf3',
-                    border: '1px solid #30363d',
-                    borderRadius: '6px',
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    width: '65px',
-                  }}
-                />
-                <span style={{ fontSize: '12px', color: '#8b949e' }}>candles</span>
-              </div>
-            </div>
 
             {/* Take Profit % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1030,11 +848,24 @@ export default function DashboardPage() {
                   onChange={(e) => setTakeProfitEnabled(e.target.checked)}
                   style={{ accentColor: '#2ea043', width: '14px', height: '14px', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: '12px', color: takeProfitEnabled ? '#e6edf3' : '#8b949e', fontWeight: 600 }}>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: takeProfitEnabled ? '#e6edf3' : '#8b949e',
+                    fontWeight: 600,
+                  }}
+                >
                   Take Profit:
                 </span>
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: takeProfitEnabled ? 1 : 0.4 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: takeProfitEnabled ? 1 : 0.4,
+                }}
+              >
                 <input
                   type="number"
                   min={1}
@@ -1068,11 +899,24 @@ export default function DashboardPage() {
                   onChange={(e) => setStopLossEnabled(e.target.checked)}
                   style={{ accentColor: '#f85149', width: '14px', height: '14px', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: '12px', color: stopLossEnabled ? '#e6edf3' : '#8b949e', fontWeight: 600 }}>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: stopLossEnabled ? '#e6edf3' : '#8b949e',
+                    fontWeight: 600,
+                  }}
+                >
                   Stop Loss:
                 </span>
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: stopLossEnabled ? 1 : 0.4 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: stopLossEnabled ? 1 : 0.4,
+                }}
+              >
                 <input
                   type="number"
                   min={1}
@@ -1139,21 +983,19 @@ export default function DashboardPage() {
           key={`${chartSymbol}_${chartInterval}`}
           candles={chartCandles}
           symbol={chartSymbol}
-          smaFast={isBacktestMatchingChart && backtestResult?.maEnabled ? backtestResult?.indicators.smaFast : []}
-          smaSlow={isBacktestMatchingChart && backtestResult?.maEnabled ? backtestResult?.indicators.smaSlow : []}
-          maType={backtestResult?.maType ?? maType}
-          fastPeriod={backtestResult?.fastPeriod ?? btFastPeriod}
-          slowPeriod={backtestResult?.slowPeriod ?? btSlowPeriod}
-          rsiValues={isBacktestMatchingChart ? backtestResult?.indicators.rsi : undefined}
-          rsiPeriod={rsiPeriod}
-          macdValues={isBacktestMatchingChart ? backtestResult?.indicators.macd : undefined}
-          macdFast={macdFastPeriod}
-          macdSlow={macdSlowPeriod}
-          macdSignal={macdSignalPeriod}
-          trades={isBacktestMatchingChart ? backtestResult?.trades : []}
           currentInterval={chartInterval}
           onIntervalChange={handleChartIntervalChange}
           loading={chartLoading}
+          ichimokuTenkan={ichimokuTenkan}
+          ichimokuKijun={ichimokuKijun}
+          ichimokuSenkouB={ichimokuSenkouB}
+          ichimokuDisplacement={ichimokuDisplacement}
+          rsiPeriod={rsiPeriod}
+          rsiBuyMin={rsiBuyMin}
+          rsiBuyMax={rsiBuyMax}
+          rsiSellMin={rsiSellMin}
+          rsiSellMax={rsiSellMax}
+          trades={isBacktestMatchingChart ? backtestResult?.trades : []}
         />
       </section>
 
@@ -1180,18 +1022,29 @@ export default function DashboardPage() {
                 <strong style={{ color: '#f0f6fc', fontWeight: 600 }}>Backtest Results:</strong>{' '}
                 <strong style={{ color: '#38bdf8' }}>{backtestResult.symbol}</strong> •{' '}
                 <strong style={{ color: '#fbbf24' }}>{backtestResult.interval}</strong> •{' '}
-                <strong style={{ color: '#38bdf8' }}>{backtestResult.totalCandles.toLocaleString()}</strong> candles
+                <strong style={{ color: '#38bdf8' }}>
+                  {backtestResult.totalCandles.toLocaleString()}
+                </strong>{' '}
+                candles
                 {backtestResult.startTime && backtestResult.endTime && (
                   <span style={{ color: '#8b949e', marginLeft: '6px' }}>
                     ({formatDate(backtestResult.startTime)} – {formatDate(backtestResult.endTime)})
                   </span>
                 )}
                 <span style={{ color: '#8b949e', marginLeft: '10px' }}>
-                  Indicators: {[
-                    backtestResult.maEnabled ? `${backtestResult.maType.toUpperCase()} (${backtestResult.fastPeriod}/${backtestResult.slowPeriod})` : null,
-                    backtestResult.rsiEnabled ? 'RSI' : null,
-                    backtestResult.macdEnabled ? 'MACD' : null,
-                  ].filter(Boolean).join(', ')}
+                  Strategy:{' '}
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>
+                    Ichimoku ({backtestResult.ichimokuTenkan}/{backtestResult.ichimokuKijun}/
+                    {backtestResult.ichimokuSenkouB})
+                  </span>{' '}
+                  +{' '}
+                  <span style={{ color: '#c084fc', fontWeight: 600 }}>
+                    RSI ({backtestResult.rsiPeriod})
+                  </span>{' '}
+                  • Mode:{' '}
+                  <span style={{ color: '#f0f6fc', fontWeight: 600 }}>
+                    {backtestResult.tradeMode}
+                  </span>
                 </span>
               </span>
             </div>
@@ -1246,8 +1099,173 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Metrics Cards */}
-          <MetricsCards metrics={backtestResult.metrics} initialBalance={backtestResult.initialBalance} />
+          {/* Metrics Cards (includes Long/Short breakdown) */}
+          <MetricsCards
+            metrics={backtestResult.metrics}
+            initialBalance={backtestResult.initialBalance}
+          />
+
+          {/* Signal Funnel (Diagnostics) Card - Always visible after a run */}
+          {backtestResult.diagnostics && (
+            <div
+              style={{
+                backgroundColor: '#161b22',
+                border: '1px solid #30363d',
+                borderRadius: '8px',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: '#f0f6fc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span>🎯</span>
+                  <span>Signal Funnel Diagnostics</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                  Filter funnel explaining trade triggers across the dataset
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: '10px',
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    RSI Buy Zone [{backtestResult.rsiBuyMin}-{backtestResult.rsiBuyMax}]
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#38bdf8', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.rsiBuyZoneCandles}{' '}
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    RSI Sell Zone [{backtestResult.rsiSellMin}-{backtestResult.rsiSellMax}]
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f85149', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.rsiSellZoneCandles}{' '}
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    TK Cross UP
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#2ea043', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.tkCrossUpEvents}{' '}
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>events</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    TK Cross DOWN
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#d29922', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.tkCrossDownEvents}{' '}
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>events</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    BUY Setups
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#2ea043', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.buySetups}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    SELL Setups
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f85149', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.sellSetups}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#0d1117',
+                    border: '1px solid #21262d',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
+                    Executed Trades
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f0f6fc', marginTop: '4px' }}>
+                    {backtestResult.diagnostics.executedTradesTotal}{' '}
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                      ({backtestResult.diagnostics.executedTradesLong} Long /{' '}
+                      {backtestResult.diagnostics.executedTradesShort} Short)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Equity Curve Chart */}
           {backtestResult.equity.length > 0 && (
@@ -1281,8 +1299,19 @@ export default function DashboardPage() {
           <div style={{ fontSize: '15px', fontWeight: 600, color: '#f0f6fc' }}>
             No Backtest Executed Yet
           </div>
-          <p style={{ fontSize: '13px', color: '#8b949e', maxWidth: '520px', margin: 0, lineHeight: 1.5 }}>
-            The chart above is active for technical inspection. Adjust your strategy parameters in the configuration panel and click <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> to simulate historical performance.
+          <p
+            style={{
+              fontSize: '13px',
+              color: '#8b949e',
+              maxWidth: '520px',
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            The chart above is active for technical inspection. Adjust your strategy parameters in
+            the configuration panel and click{' '}
+            <strong style={{ color: '#2ea043' }}>Run Backtest ⚡</strong> to simulate historical
+            performance.
           </p>
         </section>
       )}

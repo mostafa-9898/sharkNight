@@ -1,6 +1,9 @@
 # Parameter Optimization Report: BTCUSDT
 
-- **Date:** 2026-10-12
+> [!WARNING]
+> **DEPRECATED / HISTORICAL ARCHIVE:** This report evaluated the deprecated Strategy 1 (EMA + MACD + RSI confluence: `ModularStrategy`).
+> Strategy 1 has been replaced by the new Ichimoku (TK cross) + RSI strategy (`IchimokuRsiStrategy`).
+> Please refer to the updated report: [OPTIMIZATION_ICHIMOKU_BTCUSDT_2026-10-12.md](file:///c:/Pmine/TradeBot/docs/strategies/OPTIMIZATION_ICHIMOKU_BTCUSDT_2026-10-12.md).
 - **Symbol:** BTCUSDT
 - **Engine:** BacktestEngine (Fee: 0.1%, Position: 100%, Initial Balance: $10,000)
 - **Validation:** Chronological split (70% Train, 30% Test, no shuffle)

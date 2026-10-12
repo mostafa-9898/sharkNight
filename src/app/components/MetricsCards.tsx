@@ -29,11 +29,20 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
     letterSpacing: '0.5px',
   };
 
+  const breakdownStyle: React.CSSProperties = {
+    fontSize: '11px',
+    color: '#8b949e',
+    marginTop: '4px',
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  };
+
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '12px',
       }}
     >
@@ -44,6 +53,19 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
           {isNetProfit ? '+' : ''}${metrics.totalPnl.toLocaleString()}
           <span style={{ fontSize: '13px', marginLeft: '6px', opacity: 0.85 }}>
             ({isNetProfit ? '+' : ''}{metrics.totalPnlPercent}%)
+          </span>
+        </div>
+        <div style={breakdownStyle}>
+          <span>
+            Long: <strong style={{ color: metrics.long.totalPnl >= 0 ? '#3fb950' : '#f85149' }}>
+              {metrics.long.totalPnl >= 0 ? '+' : ''}${metrics.long.totalPnl.toLocaleString()}
+            </strong>
+          </span>
+          <span>•</span>
+          <span>
+            Short: <strong style={{ color: metrics.short.totalPnl >= 0 ? '#3fb950' : '#f85149' }}>
+              {metrics.short.totalPnl >= 0 ? '+' : ''}${metrics.short.totalPnl.toLocaleString()}
+            </strong>
           </span>
         </div>
       </div>
@@ -57,6 +79,15 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
             ({metrics.winningTrades}W / {metrics.losingTrades}L)
           </span>
         </div>
+        <div style={breakdownStyle}>
+          <span>
+            Long: <strong style={{ color: '#e6edf3' }}>{(metrics.long.winRate * 100).toFixed(1)}%</strong> ({metrics.long.winningTrades}W/{metrics.long.losingTrades}L)
+          </span>
+          <span>•</span>
+          <span>
+            Short: <strong style={{ color: '#e6edf3' }}>{(metrics.short.winRate * 100).toFixed(1)}%</strong> ({metrics.short.winningTrades}W/{metrics.short.losingTrades}L)
+          </span>
+        </div>
       </div>
 
       {/* Max Drawdown */}
@@ -65,6 +96,9 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
         <div style={{ fontSize: '20px', fontWeight: 700, color: '#f85149' }}>
           -{metrics.maxDrawdownPercent.toFixed(1)}%
         </div>
+        <div style={breakdownStyle}>
+          <span>Drawdown ratio: {(metrics.maxDrawdown * 100).toFixed(2)}%</span>
+        </div>
       </div>
 
       {/* Sharpe Ratio */}
@@ -72,6 +106,9 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
         <span style={labelStyle}>Sharpe Ratio</span>
         <div style={{ fontSize: '20px', fontWeight: 700, color: metrics.sharpeRatio >= 1 ? '#3fb950' : '#e6edf3' }}>
           {metrics.sharpeRatio.toFixed(2)}
+        </div>
+        <div style={breakdownStyle}>
+          <span>Risk-adjusted performance</span>
         </div>
       </div>
 
@@ -82,6 +119,15 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
           {metrics.totalTrades}
           <span style={{ fontSize: '12px', color: '#8b949e', marginLeft: '6px' }}>
             Avg: {metrics.averageTradeReturn > 0 ? '+' : ''}{metrics.averageTradeReturn}%
+          </span>
+        </div>
+        <div style={breakdownStyle}>
+          <span>
+            Long: <strong style={{ color: '#38bdf8' }}>{metrics.long.totalTrades}</strong>
+          </span>
+          <span>•</span>
+          <span>
+            Short: <strong style={{ color: '#facc15' }}>{metrics.short.totalTrades}</strong>
           </span>
         </div>
       </div>
@@ -95,8 +141,10 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
             Start: ${initialBalance.toLocaleString()}
           </span>
         </div>
+        <div style={breakdownStyle}>
+          <span>Net Return: {isNetProfit ? '+' : ''}{metrics.totalPnlPercent}%</span>
+        </div>
       </div>
     </div>
   );
 }
-

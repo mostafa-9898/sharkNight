@@ -9,7 +9,9 @@ describe('Backtest Metrics Calculator', () => {
     price: 100,
   });
 
-  const createTrade = (pnl: number, pnlPercent: number): Trade => ({
+  const createTrade = (pnl: number, pnlPercent: number, side: 'long' | 'short' = 'long'): Trade => ({
+    side,
+    exitReason: 'signal',
     entrySignal: dummySignal('BUY'),
     exitSignal: dummySignal('SELL'),
     entryPrice: 100,
@@ -32,13 +34,15 @@ describe('Backtest Metrics Calculator', () => {
     expect(metrics.maxDrawdown).toBe(0);
     expect(metrics.sharpeRatio).toBe(0);
     expect(metrics.finalBalance).toBe(10000);
+    expect(metrics.long.totalTrades).toBe(0);
+    expect(metrics.short.totalTrades).toBe(0);
   });
 
-  it('should calculate win rate and trade statistics accurately', () => {
+  it('should calculate win rate and trade statistics accurately including long/short breakdown', () => {
     const trades: Trade[] = [
-      createTrade(100, 10),
-      createTrade(-50, -5),
-      createTrade(200, 20),
+      createTrade(100, 10, 'long'),
+      createTrade(-50, -5, 'long'),
+      createTrade(200, 20, 'short'),
     ];
 
     const equityCurve = [1000, 1100, 1050, 1250];
@@ -54,6 +58,20 @@ describe('Backtest Metrics Calculator', () => {
     expect(metrics.totalPnl).toBe(250);
     expect(metrics.totalPnlPercent).toBe(25);
     expect(metrics.finalBalance).toBe(1250);
+
+    // Long breakdown
+    expect(metrics.long.totalTrades).toBe(2);
+    expect(metrics.long.winningTrades).toBe(1);
+    expect(metrics.long.losingTrades).toBe(1);
+    expect(metrics.long.winRate).toBe(0.5);
+    expect(metrics.long.totalPnl).toBe(50);
+
+    // Short breakdown
+    expect(metrics.short.totalTrades).toBe(1);
+    expect(metrics.short.winningTrades).toBe(1);
+    expect(metrics.short.losingTrades).toBe(0);
+    expect(metrics.short.winRate).toBe(1);
+    expect(metrics.short.totalPnl).toBe(200);
   });
 
   it('should calculate maximum drawdown correctly from peak to trough', () => {
@@ -78,4 +96,3 @@ describe('Backtest Metrics Calculator', () => {
     expect(metrics.sharpeRatio).toBeGreaterThan(0);
   });
 });
-

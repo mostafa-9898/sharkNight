@@ -9,6 +9,11 @@ interface RsiSubChartProps {
   candles: Candle[];
   rsiValues?: number[];
   period?: number;
+  rsiPeriod?: number;
+  rsiBuyMin?: number;
+  rsiBuyMax?: number;
+  rsiSellMin?: number;
+  rsiSellMax?: number;
   onClose?: () => void;
   mainChartRef?: React.MutableRefObject<IChartApi | null>;
 }
@@ -17,11 +22,17 @@ export default function RsiSubChart({
   candles,
   rsiValues,
   period = 14,
+  rsiPeriod,
+  rsiBuyMin = 20,
+  rsiBuyMax = 40,
+  rsiSellMin = 60,
+  rsiSellMax = 80,
   onClose,
   mainChartRef,
 }: RsiSubChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const effectivePeriod = rsiPeriod ?? period;
 
   const calculatedRsi = React.useMemo(() => {
     if (rsiValues && rsiValues.length === candles.length) {
@@ -30,9 +41,9 @@ export default function RsiSubChart({
     if (candles.length === 0) return [];
     return calculateRSI(
       candles.map((c) => c.close),
-      period
+      effectivePeriod
     );
-  }, [candles, rsiValues, period]);
+  }, [candles, rsiValues, effectivePeriod]);
 
   const lastRsiValue = React.useMemo(() => {
     for (let i = calculatedRsi.length - 1; i >= 0; i--) {
@@ -94,24 +105,40 @@ export default function RsiSubChart({
           },
         });
 
-        // 70 Overbought level
+        // Strategy Sell Zone [rsiSellMin, rsiSellMax]
         rsiSeries.createPriceLine({
-          price: 70,
-          color: 'rgba(248, 81, 73, 0.45)',
+          price: rsiSellMax,
+          color: 'rgba(239, 68, 68, 0.45)',
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
-          title: '70 (OB)',
+          title: `Sell Max (${rsiSellMax})`,
+        });
+        rsiSeries.createPriceLine({
+          price: rsiSellMin,
+          color: 'rgba(239, 68, 68, 0.3)',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: `Sell Min (${rsiSellMin})`,
         });
 
-        // 30 Oversold level
+        // Strategy Buy Zone [rsiBuyMin, rsiBuyMax]
         rsiSeries.createPriceLine({
-          price: 30,
-          color: 'rgba(46, 160, 67, 0.45)',
+          price: rsiBuyMax,
+          color: 'rgba(34, 197, 94, 0.3)',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: `Buy Max (${rsiBuyMax})`,
+        });
+        rsiSeries.createPriceLine({
+          price: rsiBuyMin,
+          color: 'rgba(34, 197, 94, 0.45)',
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
-          title: '30 (OS)',
+          title: `Buy Min (${rsiBuyMin})`,
         });
 
         // Set RSI data

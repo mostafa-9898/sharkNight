@@ -1,5 +1,5 @@
 import type { TradeSignal } from '../data/models';
-import type { Trade } from './types';
+import type { Trade, TradeSide, ExitReason } from './types';
 
 export interface PortfolioOptions {
   initialBalance: number;
@@ -8,6 +8,7 @@ export interface PortfolioOptions {
 }
 
 export interface OpenPosition {
+  side: TradeSide;
   quantity: number;
   entryPrice: number;
   entrySignal: TradeSignal;
@@ -16,6 +17,22 @@ export interface OpenPosition {
   entryTime: number;
 }
 
+/**
+ * Virtual portfolio managing cash balance, active positions, and completed trade logs.
+ *
+ * Short Accounting Model & Assumptions / Limitations:
+ * - 1x unleveraged short selling model: allocates positionSizePercent of available cash as collateral.
+ * - Entry fee: allocatedAmount * feeRate.
+ * - Quantity shorted: (allocatedAmount - entryFee) / entryPrice.
+ * - On position close, PnL = quantity * (entryPrice - exitPrice) - exitFee.
+ * - Cash returned on short close = entryCost + PnL.
+ * - Mark-to-market equity during open short = cash + entryCost + [quantity * (entryPrice - currentPrice) - exitFee].
+ * - Limitations:
+ *   1. No leverage: margin multiplier is strictly 1x.
+ *   2. No funding / borrow fees: positions incur no overnight or perpetual funding rate cost.
+ *   3. No liquidation / margin calls: positions are not liquidated intrabar if price increases,
+ *      relying on engine-level stop loss or strategy signals to close.
+ */
 export class VirtualPortfolio {
   readonly initialBalance: number;
   readonly tradeFeePercent: number;
@@ -65,9 +82,14 @@ export class VirtualPortfolio {
   }
 
   /**
-   * Opens a new position if no position is currently open and cash is available.
+   * Opens a new long or short position if no position is currently open and cash is available.
    */
-  openPosition(signal: TradeSignal, currentPrice: number, timestamp: number): boolean {
+  openPosition(
+    side: TradeSide,
+    signal: TradeSignal,
+    currentPrice: number,
+    timestamp: number
+  ): boolean {
     if (currentPrice <= 0) {
       throw new Error(`Invalid price for opening position: ${currentPrice}`);
     }
@@ -84,6 +106,7 @@ export class VirtualPortfolio {
 
     this.cash -= allocatedAmount;
     this.currentPosition = {
+      side,
       quantity,
       entryPrice: currentPrice,
       entrySignal: signal,
@@ -98,7 +121,12 @@ export class VirtualPortfolio {
   /**
    * Closes the active position, realizes PnL, deducts exit fees, and credits cash.
    */
-  closePosition(signal: TradeSignal, currentPrice: number, timestamp: number): Trade | null {
+  closePosition(
+    signal: TradeSignal,
+    currentPrice: number,
+    timestamp: number,
+    exitReason: ExitReason = 'signal'
+  ): Trade | null {
     if (currentPrice <= 0) {
       throw new Error(`Invalid price for closing position: ${currentPrice}`);
     }
@@ -108,18 +136,29 @@ export class VirtualPortfolio {
     }
 
     const pos = this.currentPosition;
-    const grossExitValue = pos.quantity * currentPrice;
     const feeRate = this.tradeFeePercent / 100;
+    const grossExitValue = pos.quantity * currentPrice;
     const exitFee = grossExitValue * feeRate;
-    const netExitValue = grossExitValue - exitFee;
-
     const totalFee = pos.entryFee + exitFee;
-    const pnl = netExitValue - pos.entryCost;
-    const pnlPercent = (pnl / pos.entryCost) * 100;
 
+    let pnl: number;
+    let netExitValue: number;
+
+    if (pos.side === 'long') {
+      netExitValue = grossExitValue - exitFee;
+      pnl = netExitValue - pos.entryCost;
+    } else {
+      // Short: PnL = quantity * (entryPrice - exitPrice) - exitFee
+      pnl = pos.quantity * (pos.entryPrice - currentPrice) - exitFee;
+      netExitValue = pos.entryCost + pnl;
+    }
+
+    const pnlPercent = (pnl / pos.entryCost) * 100;
     this.cash += netExitValue;
 
     const trade: Trade = {
+      side: pos.side,
+      exitReason,
       entrySignal: pos.entrySignal,
       exitSignal: signal,
       entryPrice: pos.entryPrice,
@@ -147,9 +186,16 @@ export class VirtualPortfolio {
       return this.cash;
     }
 
+    const feeRate = this.tradeFeePercent / 100;
     const grossExitValue = this.currentPosition.quantity * currentPrice;
-    const exitFee = grossExitValue * (this.tradeFeePercent / 100);
-    return this.cash + grossExitValue - exitFee;
+    const exitFee = grossExitValue * feeRate;
+
+    if (this.currentPosition.side === 'long') {
+      return this.cash + grossExitValue - exitFee;
+    } else {
+      const unrealizedPnl =
+        this.currentPosition.quantity * (this.currentPosition.entryPrice - currentPrice) - exitFee;
+      return this.cash + this.currentPosition.entryCost + unrealizedPnl;
+    }
   }
 }
-

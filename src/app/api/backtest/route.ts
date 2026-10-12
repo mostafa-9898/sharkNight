@@ -5,12 +5,10 @@ import { JsonStorage } from '@/data/storage/json-storage';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import { performCandleSanityCheck } from '@/data/models/candle';
 import { BacktestEngine } from '@/backtest/engine';
-import { calculateSMA } from '@/indicators/sma';
+import type { TradeMode } from '@/backtest/types';
+import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
-
-import { calculateEMA } from '@/indicators/ema';
-import { calculateMACD } from '@/indicators/macd';
-import { ModularStrategy, type ExitMode } from '@/strategies/modular-strategy';
+import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 
 /**
  * Fallback generator for realistic market candles in case external exchanges are completely blocked.
@@ -60,27 +58,22 @@ export async function POST(request: Request) {
       rawLimit === null;
     const limit = isAll ? 150000 : Math.min(150000, Math.max(50, Number(rawLimit)));
 
-    // Indicator parameters
-    const maEnabled = body.maEnabled !== undefined ? Boolean(body.maEnabled) : true;
-    const maType = (body.maType === 'sma' ? 'sma' : 'ema') as 'ema' | 'sma';
-    const fastPeriod = Math.max(2, Number(body.fastPeriod ?? 10));
-    const slowPeriod = Math.max(fastPeriod + 1, Number(body.slowPeriod ?? 30));
+    // Ichimoku Parameters
+    const ichimokuTenkan = Math.max(2, Number(body.ichimokuTenkan ?? 9));
+    const ichimokuKijun = Math.max(ichimokuTenkan + 1, Number(body.ichimokuKijun ?? 26));
+    const ichimokuSenkouB = Math.max(ichimokuKijun + 1, Number(body.ichimokuSenkouB ?? 52));
+    const ichimokuDisplacement = Math.max(1, Math.min(100, Number(body.ichimokuDisplacement ?? 26)));
 
-    const rsiEnabled = Boolean(body.rsiEnabled);
+    // RSI Parameters
     const rsiPeriod = Math.max(2, Number(body.rsiPeriod ?? 14));
-    const rsiBuyMin = Math.max(1, Number(body.rsiBuyMin ?? 25));
-    const rsiBuyMax = Math.max(rsiBuyMin + 1, Number(body.rsiBuyMax ?? 35));
-    const rsiSellMin = Math.max(rsiBuyMax + 1, Number(body.rsiSellMin ?? 65));
-    const rsiSellMax = Math.max(rsiSellMin + 1, Math.min(99, Number(body.rsiSellMax ?? 75)));
-
-    const macdEnabled = Boolean(body.macdEnabled);
-    const macdFastPeriod = Math.max(2, Number(body.macdFastPeriod ?? 12));
-    const macdSlowPeriod = Math.max(macdFastPeriod + 1, Number(body.macdSlowPeriod ?? 26));
-    const macdSignalPeriod = Math.max(2, Number(body.macdSignalPeriod ?? 9));
-
-    const confirmationWindow = Math.max(1, Math.min(20, Number(body.confirmationWindow ?? 6)));
+    const rsiBuyMin = Math.max(1, Number(body.rsiBuyMin ?? 20));
+    const rsiBuyMax = Math.max(rsiBuyMin + 1, Number(body.rsiBuyMax ?? 40));
+    const rsiSellMin = Math.max(rsiBuyMax + 1, Number(body.rsiSellMin ?? 60));
+    const rsiSellMax = Math.max(rsiSellMin + 1, Math.min(99, Number(body.rsiSellMax ?? 80)));
     const rsiLookback = Math.max(1, Math.min(50, Number(body.rsiLookback ?? 10)));
-    const exitMode = (body.exitMode === 'emaCross' || body.exitMode === 'macdCross' ? body.exitMode : 'mirror') as ExitMode;
+
+    // Trade Mode & Risk Management
+    const tradeMode: TradeMode = body.tradeMode === 'long-only' ? 'long-only' : 'long-short';
     const takeProfitPercent =
       body.takeProfitPercent !== undefined &&
       body.takeProfitPercent !== null &&
@@ -97,16 +90,8 @@ export async function POST(request: Request) {
         : undefined;
 
     const allowSynthetic = Boolean(body.allowSynthetic);
-
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
     const tradeFeePercent = Math.max(0, Number(body.tradeFeePercent ?? 0.1));
-
-    if (!maEnabled && !rsiEnabled && !macdEnabled) {
-      return NextResponse.json(
-        { success: false, error: 'At least one indicator must be enabled to run backtest.' },
-        { status: 400 }
-      );
-    }
 
     const storage = new JsonStorage();
     let candles: Candle[] | null = await storage.loadCandles(symbol, interval);
@@ -166,33 +151,18 @@ export async function POST(request: Request) {
       candles = candles.slice(-limit);
     }
 
-    // Run Strategy Backtest using ModularStrategy (Strategy 1)
-    const strategy = new ModularStrategy({
-      ma: {
-        enabled: maEnabled,
-        type: maType,
-        fastPeriod,
-        slowPeriod,
-      },
-      rsi: {
-        enabled: rsiEnabled,
-        period: rsiPeriod,
-        buyMin: rsiBuyMin,
-        buyMax: rsiBuyMax,
-        sellMin: rsiSellMin,
-        sellMax: rsiSellMax,
-      },
-      macd: {
-        enabled: macdEnabled,
-        fastPeriod: macdFastPeriod,
-        slowPeriod: macdSlowPeriod,
-        signalPeriod: macdSignalPeriod,
-      },
-      confirmationWindow,
+    // Run Strategy Backtest using IchimokuRsiStrategy
+    const strategy = new IchimokuRsiStrategy({
+      tenkan: ichimokuTenkan,
+      kijun: ichimokuKijun,
+      senkouB: ichimokuSenkouB,
+      displacement: ichimokuDisplacement,
+      rsiPeriod,
+      rsiBuyMin,
+      rsiBuyMax,
+      rsiSellMin,
+      rsiSellMax,
       rsiLookback,
-      exitMode,
-      takeProfitPercent,
-      stopLossPercent,
     });
 
     const engine = new BacktestEngine();
@@ -201,17 +171,104 @@ export async function POST(request: Request) {
       candles,
       initialBalance,
       tradeFeePercent,
+      tradeMode,
+      takeProfitPercent,
+      stopLossPercent,
     });
 
-    const closePrices = candles.map((c) => c.close);
-    const fastValues = maType === 'ema' ? calculateEMA(closePrices, fastPeriod) : calculateSMA(closePrices, fastPeriod);
-    const slowValues = maType === 'ema' ? calculateEMA(closePrices, slowPeriod) : calculateSMA(closePrices, slowPeriod);
-    const rsiValues = calculateRSI(closePrices, rsiPeriod);
-    const macdValues = calculateMACD(closePrices, {
-      fastPeriod: macdFastPeriod,
-      slowPeriod: macdSlowPeriod,
-      signalPeriod: macdSignalPeriod,
+    // Compute indicator series for response
+    const ichimokuData = calculateIchimoku(candles, {
+      tenkan: ichimokuTenkan,
+      kijun: ichimokuKijun,
+      senkouB: ichimokuSenkouB,
+      displacement: ichimokuDisplacement,
     });
+    const closePrices = candles.map((c) => c.close);
+    const rsiValues = calculateRSI(closePrices, rsiPeriod);
+
+    // Diagnostics calculation over entire candle series
+    let rsiBuyZoneCount = 0;
+    let rsiSellZoneCount = 0;
+    let tkCrossUpCount = 0;
+    let tkCrossDownCount = 0;
+    let buySetupsCount = 0;
+    let sellSetupsCount = 0;
+
+    for (let i = 0; i < candles.length; i++) {
+      const rsiVal = rsiValues[i];
+      if (Number.isFinite(rsiVal)) {
+        if (rsiVal >= rsiBuyMin && rsiVal <= rsiBuyMax) {
+          rsiBuyZoneCount++;
+        }
+        if (rsiVal >= rsiSellMin && rsiVal <= rsiSellMax) {
+          rsiSellZoneCount++;
+        }
+      }
+
+      if (i >= 1) {
+        const curT = ichimokuData.tenkan[i];
+        const curK = ichimokuData.kijun[i];
+        const prevT = ichimokuData.tenkan[i - 1];
+        const prevK = ichimokuData.kijun[i - 1];
+
+        if (
+          Number.isFinite(curT) &&
+          Number.isFinite(curK) &&
+          Number.isFinite(prevT) &&
+          Number.isFinite(prevK)
+        ) {
+          const isCrossUp = prevT <= prevK && curT > curK;
+          const isCrossDown = prevT >= prevK && curT < curK;
+
+          if (isCrossUp) {
+            tkCrossUpCount++;
+            const lookbackStart = Math.max(0, i - rsiLookback + 1);
+            let hasRsiInZone = false;
+            for (let k = i; k >= lookbackStart; k--) {
+              const v = rsiValues[k];
+              if (Number.isFinite(v) && v >= rsiBuyMin && v <= rsiBuyMax) {
+                hasRsiInZone = true;
+                break;
+              }
+            }
+            if (hasRsiInZone) {
+              buySetupsCount++;
+            }
+          }
+
+          if (isCrossDown) {
+            tkCrossDownCount++;
+            const lookbackStart = Math.max(0, i - rsiLookback + 1);
+            let hasRsiInZone = false;
+            for (let k = i; k >= lookbackStart; k--) {
+              const v = rsiValues[k];
+              if (Number.isFinite(v) && v >= rsiSellMin && v <= rsiSellMax) {
+                hasRsiInZone = true;
+                break;
+              }
+            }
+            if (hasRsiInZone) {
+              sellSetupsCount++;
+            }
+          }
+        }
+      }
+    }
+
+    const executedTradesLong = backtestResult.trades.filter((t) => t.side === 'long').length;
+    const executedTradesShort = backtestResult.trades.filter((t) => t.side === 'short').length;
+
+    const diagnostics = {
+      rsiBuyZoneCandles: rsiBuyZoneCount,
+      rsiSellZoneCandles: rsiSellZoneCount,
+      tkCrossUpEvents: tkCrossUpCount,
+      tkCrossDownEvents: tkCrossDownCount,
+      buySetups: buySetupsCount,
+      sellSetups: sellSetupsCount,
+      executedTradesLong,
+      executedTradesShort,
+      executedTradesTotal: backtestResult.trades.length,
+    };
 
     const firstCandle = candles[0];
     const lastCandle = candles[candles.length - 1];
@@ -229,27 +286,33 @@ export async function POST(request: Request) {
       sanityCheck,
       candles,
       indicators: {
-        maEnabled,
-        maType,
-        fastPeriod,
-        slowPeriod,
-        smaFast: fastValues,
-        smaSlow: slowValues,
-        rsiEnabled,
-        rsiPeriod,
-        rsiBuyMin,
-        rsiBuyMax,
-        rsiSellMin,
-        rsiSellMax,
-        rsi: rsiValues,
-        macdEnabled,
-        macd: macdValues,
-        confirmationWindow,
+        ichimoku: {
+          tenkan: ichimokuData.tenkan,
+          kijun: ichimokuData.kijun,
+          senkouA: ichimokuData.senkouA,
+          senkouB: ichimokuData.senkouB,
+          chikou: ichimokuData.chikou,
+          params: {
+            tenkan: ichimokuTenkan,
+            kijun: ichimokuKijun,
+            senkouB: ichimokuSenkouB,
+            displacement: ichimokuDisplacement,
+          },
+        },
+        rsi: {
+          values: rsiValues,
+          period: rsiPeriod,
+          buyMin: rsiBuyMin,
+          buyMax: rsiBuyMax,
+          sellMin: rsiSellMin,
+          sellMax: rsiSellMax,
+        },
         rsiLookback,
-        exitMode,
+        tradeMode,
         takeProfitPercent,
         stopLossPercent,
       },
+      diagnostics,
       backtest: {
         metrics: backtestResult.metrics,
         trades: backtestResult.trades,
