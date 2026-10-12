@@ -1,4 +1,4 @@
-import { mean, standardDeviation, roundTo, percentChange } from '@/utils/math';
+import { mean, standardDeviation, roundTo, percentChange, percentile } from '@/utils/math';
 
 describe('Math Utilities', () => {
   describe('mean', () => {
@@ -44,6 +44,32 @@ describe('Math Utilities', () => {
 
     it('should return 0 when initial value is 0', () => {
       expect(percentChange(0, 100)).toBe(0);
+    });
+  });
+
+  describe('percentile', () => {
+    it('should return 0 for empty array', () => {
+      expect(percentile([], 50)).toBe(0);
+    });
+
+    it('should return the element for single element array', () => {
+      expect(percentile([10], 50)).toBe(10);
+      expect(percentile([10], 90)).toBe(10);
+    });
+
+    it('should calculate median (p50), p75, p90 accurately', () => {
+      const vals = [10, 20, 30, 40, 50];
+      expect(percentile(vals, 0)).toBe(10);
+      expect(percentile(vals, 50)).toBe(30);
+      expect(percentile(vals, 100)).toBe(50);
+      expect(percentile(vals, 25)).toBe(20);
+      expect(percentile(vals, 75)).toBe(40);
+    });
+
+    it('should interpolate linearly between ranks', () => {
+      const vals = [10, 20];
+      expect(percentile(vals, 50)).toBe(15);
+      expect(percentile(vals, 75)).toBe(17.5);
     });
   });
 });

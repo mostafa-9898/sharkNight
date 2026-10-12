@@ -287,12 +287,12 @@ describe('BacktestEngine', () => {
     expect(shortSlResult.trades[0].exitPrice).toBe(104);
   });
 
-  it('should not reverse position after a TP or SL exit on the same candle', () => {
+  it('should process opposite signal and open opposite position after a stop-out on the same candle (A4)', () => {
     const engine = new BacktestEngine();
     // Candle 0: BUY at 100 (opens long)
-    // Candle 1: price rises to 110 (hits 5% TP), and strategy emits SELL
-    // TP closes the long, but SELL should NOT open a short on this candle
-    const candles = generateCandles([100, 110, 112]);
+    // Candle 1: price drops to 95 (hits 3% SL), and strategy emits SELL (opposite signal)
+    // SL closes the long, then SELL opens a short on this candle
+    const candles = generateCandles([100, 95, 94]);
     const strategy = new MockActionStrategy({
       0: 'BUY',
       1: 'SELL',
@@ -302,14 +302,45 @@ describe('BacktestEngine', () => {
       strategy,
       candles,
       initialBalance: 1000,
-      takeProfitPercent: 5,
+      stopLossPercent: 3,
       tradeMode: 'long-short',
     });
 
-    // Exactly 1 trade: the long closed by takeProfit
+    // 2 trades: 1 long closed by stopLoss, 1 short opened at candle 1 and closed at end of data
+    expect(result.trades).toHaveLength(2);
+    expect(result.trades[0].side).toBe('long');
+    expect(result.trades[0].exitReason).toBe('stopLoss');
+    expect(result.trades[0].exitPrice).toBe(95);
+
+    expect(result.trades[1].side).toBe('short');
+    expect(result.trades[1].entryPrice).toBe(95);
+    expect(result.trades[1].exitPrice).toBe(94);
+    expect(result.trades[1].exitReason).toBe('end');
+  });
+
+  it('should stay flat after stop-out if no strategy signal is emitted on the same candle (A4)', () => {
+    const engine = new BacktestEngine();
+    // Candle 0: BUY at 100 (opens long)
+    // Candle 1: price drops to 95 (hits 3% SL), no strategy signal (HOLD)
+    // Candle 2: price 94 (flat)
+    const candles = generateCandles([100, 95, 94]);
+    const strategy = new MockActionStrategy({
+      0: 'BUY',
+    });
+
+    const result = engine.run({
+      strategy,
+      candles,
+      initialBalance: 1000,
+      stopLossPercent: 3,
+      tradeMode: 'long-short',
+    });
+
+    // Exactly 1 trade: the long closed by stopLoss, stays flat thereafter
     expect(result.trades).toHaveLength(1);
     expect(result.trades[0].side).toBe('long');
-    expect(result.trades[0].exitReason).toBe('takeProfit');
+    expect(result.trades[0].exitReason).toBe('stopLoss');
+    expect(result.trades[0].exitPrice).toBe(95);
     expect(result.metrics.short.totalTrades).toBe(0);
   });
 
@@ -346,5 +377,305 @@ describe('BacktestEngine', () => {
     const lastTrade = result.trades[result.trades.length - 1];
     expect(lastTrade.exitReason).toBe('end');
     expect(lastTrade.exitPrice).toBe(120);
+  });
+
+  describe('Trailing Stop and Intrabar / Close Stop Execution (Part C)', () => {
+    const createExactCandle = (
+      open: number,
+      high: number,
+      low: number,
+      close: number,
+      idx: number
+    ): Candle => ({
+      timestamp: 1000000 + idx * 60000,
+      open,
+      high,
+      low,
+      close,
+      volume: 1000,
+    });
+
+    it('should validate trailingStop configuration and reject conflicting stopLossPercent', () => {
+      const engine = new BacktestEngine();
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const candles = generateCandles([100, 105]);
+
+      expect(() =>
+        engine.run({
+          strategy,
+          candles,
+          initialBalance: 1000,
+          stopLossPercent: 5,
+          trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+        })
+      ).toThrow('Cannot set both stopLossPercent and trailingStop');
+
+      expect(() =>
+        engine.run({
+          strategy,
+          candles,
+          initialBalance: 1000,
+          trailingStop: { initialStopPercent: 0, stepPercent: 10, raisePercent: 5 },
+        })
+      ).toThrow('trailingStop.initialStopPercent must be positive');
+
+      expect(() =>
+        engine.run({
+          strategy,
+          candles,
+          initialBalance: 1000,
+          trailingStop: { initialStopPercent: 5, stepPercent: -1, raisePercent: 5 },
+        })
+      ).toThrow('trailingStop.stepPercent must be positive');
+
+      expect(() =>
+        engine.run({
+          strategy,
+          candles,
+          initialBalance: 1000,
+          slippagePercent: -0.5,
+        })
+      ).toThrow('slippagePercent cannot be negative');
+    });
+
+    it('should execute long trailing stop ratchet sequence exactly as specified', () => {
+      const engine = new BacktestEngine();
+      // Entry at 100 on candle 0. Initial stop = 95.
+      // Candle 1: High 110 (+10%) -> stop ratchets to 100 (0%, break-even)
+      // Candle 2: High 120 (+20%) -> stop ratchets to 105 (+5%)
+      // Candle 3: High 130 (+30%) -> stop ratchets to 110 (+10%)
+      // Candle 4: Low dips to 109 (<= 110) -> exits at 110 with 'trailingStop'
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 110, 99, 108, 1),
+        createExactCandle(108, 120, 107, 118, 2),
+        createExactCandle(118, 130, 117, 128, 3),
+        createExactCandle(128, 128, 109, 112, 4),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 1000,
+        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      const trade = result.trades[0];
+      expect(trade.side).toBe('long');
+      expect(trade.entryPrice).toBe(100);
+      expect(trade.exitPrice).toBe(110);
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.ratchetSteps).toBe(3);
+      expect(trade.stopPrice).toBe(110);
+      expect(trade.maxFavorablePercent).toBe(30);
+      expect(trade.maxAdversePercent).toBe(1);
+      expect(trade.pnl).toBeGreaterThan(0);
+    });
+
+    it('should execute short trailing stop ratchet sequence symmetrically', () => {
+      const engine = new BacktestEngine();
+      // Entry short at 100 on candle 0. Initial stop = 105.
+      // Candle 1: Low 90 (+10% favorable drop) -> stop ratchets to 100 (0%, break-even)
+      // Candle 2: Low 80 (+20% favorable drop) -> stop ratchets to 95 (+5% locked in)
+      // Candle 3: Low 70 (+30% favorable drop) -> stop ratchets to 90 (+10% locked in)
+      // Candle 4: High rises to 91 (>= 90) -> exits at 90 with 'trailingStop'
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 101, 90, 92, 1),
+        createExactCandle(92, 93, 80, 82, 2),
+        createExactCandle(82, 83, 70, 72, 3),
+        createExactCandle(72, 91, 71, 88, 4),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'SELL' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 1000,
+        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      const trade = result.trades[0];
+      expect(trade.side).toBe('short');
+      expect(trade.entryPrice).toBe(100);
+      expect(trade.exitPrice).toBe(90);
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.ratchetSteps).toBe(3);
+      expect(trade.stopPrice).toBe(90);
+      expect(trade.maxFavorablePercent).toBe(30);
+      expect(trade.maxAdversePercent).toBe(1);
+      expect(trade.pnl).toBeGreaterThan(0);
+    });
+
+    it('should never move stop backward when price retraces', () => {
+      const engine = new BacktestEngine();
+      // Candle 0: Enter long at 100, stop 95
+      // Candle 1: High 120 (+20%) -> stop ratchets to 105
+      // Candle 2: Retraces (high 112, low 106). Stop MUST stay at 105
+      // Candle 3: Dips to 104 -> exits at 105
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 120, 99, 115, 1),
+        createExactCandle(115, 116, 106, 108, 2),
+        createExactCandle(108, 108, 104, 105, 3),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 1000,
+        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitPrice).toBe(105);
+      expect(result.trades[0].exitReason).toBe('trailingStop');
+    });
+
+    it('should fill at the open price if candle gaps past the stop level', () => {
+      const engine = new BacktestEngine();
+      // Long position: entry 100, initial stop 95. Next candle gaps down to open at 92.
+      const longCandles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(92, 93, 90, 91, 1),
+      ];
+      const longResult = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles: longCandles,
+        initialBalance: 1000,
+        stopLossPercent: 5,
+      });
+      expect(longResult.trades).toHaveLength(1);
+      expect(longResult.trades[0].exitPrice).toBe(92); // filled at open on gap!
+      expect(longResult.trades[0].exitReason).toBe('stopLoss');
+
+      // Short position: entry 100, initial stop 105. Next candle gaps up to open at 108.
+      const shortCandles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(108, 110, 107, 109, 1),
+      ];
+      const shortResult = engine.run({
+        strategy: new MockActionStrategy({ 0: 'SELL' }),
+        candles: shortCandles,
+        initialBalance: 1000,
+        stopLossPercent: 5,
+      });
+      expect(shortResult.trades).toHaveLength(1);
+      expect(shortResult.trades[0].exitPrice).toBe(108); // filled at open on gap!
+      expect(shortResult.trades[0].exitReason).toBe('stopLoss');
+    });
+
+    it('should trigger intrabar stop when wick touches stop level even if close recovered', () => {
+      const engine = new BacktestEngine();
+      // Long entry at 100, stop 95. Next candle: open 100, wick dips to 94 (<= 95), but close recovers to 101.
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 102, 94, 101, 1),
+      ];
+
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        stopLossPercent: 5,
+        stopCheckMode: 'intrabar',
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitPrice).toBe(95);
+      expect(result.trades[0].exitReason).toBe('stopLoss');
+    });
+
+    it('should not look ahead: candle high on current candle cannot save position from same-candle stop trigger', () => {
+      const engine = new BacktestEngine();
+      // Candle 0: enter long at 100, initial stop 95.
+      // Candle 1: open 98, low 94 (hits initial stop 95), high 125 (+25%).
+      // Because check uses stop level from previous candle close, position MUST stop out at 95.
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(98, 125, 94, 120, 1),
+      ];
+
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitPrice).toBe(95);
+      expect(result.trades[0].exitReason).toBe('stopLoss'); // 0 ratchet steps reached
+      expect(result.trades[0].ratchetSteps).toBe(0);
+    });
+
+    it('should conservatively prioritize stop over TP if both are hit within the same candle', () => {
+      const engine = new BacktestEngine();
+      // Long entry at 100, stop 95 (-5%), TP 110 (+10%).
+      // Next candle has low 94 and high 112 (both hit). Conservative rule: stop hit first.
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 112, 94, 102, 1),
+      ];
+
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        stopLossPercent: 5,
+        takeProfitPercent: 10,
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitReason).toBe('stopLoss');
+      expect(result.trades[0].exitPrice).toBe(95);
+    });
+
+    it('should apply slippage adversely on stop and TP exits', () => {
+      const engine = new BacktestEngine();
+      // Long stop at 100 with 1% slippage -> exit at 99
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 101, 95, 96, 1),
+      ];
+
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        stopLossPercent: 5, // stop is 95
+        slippagePercent: 1, // 1% adverse slippage on 95 = 95 * 0.99 = 94.05
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitPrice).toBeCloseTo(94.05, 2);
+    });
+
+    it('should support stopCheckMode: close', () => {
+      const engine = new BacktestEngine();
+      // Candle 1 low dips to 94, but close is 96 (> stop 95) -> should NOT trigger in close mode
+      // Candle 2 close is 93 (<= stop 95) -> triggers at close 93
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 101, 94, 96, 1),
+        createExactCandle(96, 97, 92, 93, 2),
+      ];
+
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        stopLossPercent: 5,
+        stopCheckMode: 'close',
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitPrice).toBe(93);
+      expect(result.trades[0].exitReason).toBe('stopLoss');
+    });
   });
 });

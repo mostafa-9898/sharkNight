@@ -1,5 +1,13 @@
 import type { TradeSignal } from '../data/models';
 import type { Trade, TradeSide, ExitReason } from './types';
+import { roundTo } from '../utils/math';
+
+export interface ExtraTradeInfo {
+  maxFavorablePercent?: number;
+  maxAdversePercent?: number;
+  stopPrice?: number;
+  ratchetSteps?: number;
+}
 
 export interface PortfolioOptions {
   initialBalance: number;
@@ -125,7 +133,8 @@ export class VirtualPortfolio {
     signal: TradeSignal,
     currentPrice: number,
     timestamp: number,
-    exitReason: ExitReason = 'signal'
+    exitReason: ExitReason = 'signal',
+    extra?: ExtraTradeInfo
   ): Trade | null {
     if (currentPrice <= 0) {
       throw new Error(`Invalid price for closing position: ${currentPrice}`);
@@ -148,13 +157,22 @@ export class VirtualPortfolio {
       netExitValue = grossExitValue - exitFee;
       pnl = netExitValue - pos.entryCost;
     } else {
-      // Short: PnL = quantity * (entryPrice - exitPrice) - exitFee
-      pnl = pos.quantity * (pos.entryPrice - currentPrice) - exitFee;
+      // Short: PnL = quantity * (entryPrice - exitPrice) - exitFee - entryFee
+      pnl = pos.quantity * (pos.entryPrice - currentPrice) - exitFee - pos.entryFee;
       netExitValue = pos.entryCost + pnl;
     }
 
     const pnlPercent = (pnl / pos.entryCost) * 100;
     this.cash += netExitValue;
+
+    const defaultMfe =
+      pos.side === 'long'
+        ? Math.max(0, ((currentPrice - pos.entryPrice) / pos.entryPrice) * 100)
+        : Math.max(0, ((pos.entryPrice - currentPrice) / pos.entryPrice) * 100);
+    const defaultMae =
+      pos.side === 'long'
+        ? Math.max(0, ((pos.entryPrice - currentPrice) / pos.entryPrice) * 100)
+        : Math.max(0, ((currentPrice - pos.entryPrice) / pos.entryPrice) * 100);
 
     const trade: Trade = {
       side: pos.side,
@@ -170,6 +188,10 @@ export class VirtualPortfolio {
       entryTime: pos.entryTime,
       exitTime: timestamp,
       duration: Math.max(0, timestamp - pos.entryTime),
+      maxFavorablePercent: roundTo(extra?.maxFavorablePercent ?? defaultMfe, 2),
+      maxAdversePercent: roundTo(extra?.maxAdversePercent ?? defaultMae, 2),
+      stopPrice: extra?.stopPrice !== undefined ? roundTo(extra.stopPrice, 4) : undefined,
+      ratchetSteps: extra?.ratchetSteps,
     };
 
     this.completedTrades.push(trade);
@@ -194,7 +216,9 @@ export class VirtualPortfolio {
       return this.cash + grossExitValue - exitFee;
     } else {
       const unrealizedPnl =
-        this.currentPosition.quantity * (this.currentPosition.entryPrice - currentPrice) - exitFee;
+        this.currentPosition.quantity * (this.currentPosition.entryPrice - currentPrice) -
+        exitFee -
+        this.currentPosition.entryFee;
       return this.cash + this.currentPosition.entryCost + unrealizedPnl;
     }
   }

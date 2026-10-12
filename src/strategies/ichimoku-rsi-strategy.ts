@@ -20,6 +20,7 @@ interface CachedIndicators {
   tenkan: number[];
   kijun: number[];
   rsi: number[];
+  relation: Int8Array;
 }
 
 /**
@@ -120,10 +121,25 @@ export class IchimokuRsiStrategy implements Strategy {
       const closes = candles.map((c) => c.close);
       const rsi = calculateRSI(closes, this.rsiPeriod);
 
+      const len = candles.length;
+      const relation = new Int8Array(len);
+      for (let i = 0; i < len; i++) {
+        const t = ichimoku.tenkan[i];
+        const k = ichimoku.kijun[i];
+        if (Number.isFinite(t) && Number.isFinite(k)) {
+          if (t > k) relation[i] = 1;
+          else if (t < k) relation[i] = -1;
+          else relation[i] = 0;
+        } else {
+          relation[i] = 0;
+        }
+      }
+
       cached = {
         tenkan: ichimoku.tenkan,
         kijun: ichimoku.kijun,
         rsi,
+        relation,
       };
       this.indicatorCache.set(candles, cached);
     }
@@ -145,35 +161,47 @@ export class IchimokuRsiStrategy implements Strategy {
       return defaultSignal;
     }
 
-    const { tenkan, kijun, rsi } = this.getIndicators(candles);
+    const { tenkan, kijun, rsi, relation } = this.getIndicators(candles);
 
+    const currentRelation = relation[currentIndex];
     const currentTenkan = tenkan[currentIndex];
     const currentKijun = kijun[currentIndex];
-    const prevTenkan = tenkan[currentIndex - 1];
-    const prevKijun = kijun[currentIndex - 1];
     const currentRsi = rsi[currentIndex];
 
-    // Ensure all required indicator points are valid finite numbers
+    // Must be a valid non-zero relation on the current candle, and finite numbers
     if (
+      currentRelation === 0 ||
       !Number.isFinite(currentTenkan) ||
       !Number.isFinite(currentKijun) ||
-      !Number.isFinite(prevTenkan) ||
-      !Number.isFinite(prevKijun) ||
       !Number.isFinite(currentRsi)
     ) {
       return defaultSignal;
     }
 
-    const candle = candles[currentIndex];
+    // Find the last non-zero relation before currentIndex (scan backwards)
+    let lastNonZero = 0;
+    for (let k = currentIndex - 1; k >= 0; k--) {
+      const t = tenkan[k];
+      const kj = kijun[k];
+      if (!Number.isFinite(t) || !Number.isFinite(kj)) {
+        break; // Warmup boundary reached
+      }
+      const rel = relation[k];
+      if (rel !== 0) {
+        lastNonZero = rel;
+        break;
+      }
+    }
 
-    // Check for fresh TK crossover on the current candle
-    const crossUp = prevTenkan <= prevKijun && currentTenkan > currentKijun;
-    const crossDown = prevTenkan >= prevKijun && currentTenkan < currentKijun;
+    // Fresh crossover requires current non-zero relation to be opposite of last non-zero relation
+    const crossUp = currentRelation === 1 && lastNonZero === -1;
+    const crossDown = currentRelation === -1 && lastNonZero === 1;
 
     if (!crossUp && !crossDown) {
       return defaultSignal;
     }
 
+    const candle = candles[currentIndex];
     const lookbackStart = Math.max(0, currentIndex - this.rsiLookback + 1);
 
     if (crossUp) {
@@ -238,5 +266,59 @@ export class IchimokuRsiStrategy implements Strategy {
 
     return defaultSignal;
   }
+
+  getDiagnostics(candles: readonly Candle[]): {
+    tkCrossUpCount: number;
+    tkCrossDownCount: number;
+    tkCrossEqualityStartCount: number;
+  } {
+    const { tenkan, kijun, relation } = this.getIndicators(candles);
+    let tkCrossUpCount = 0;
+    let tkCrossDownCount = 0;
+    let tkCrossEqualityStartCount = 0;
+
+    for (let i = this.requiredCandles; i < candles.length; i++) {
+      const currentRelation = relation[i];
+      if (currentRelation === 0) continue;
+      const t = tenkan[i];
+      const k = kijun[i];
+      if (!Number.isFinite(t) || !Number.isFinite(k)) continue;
+
+      let lastNonZero = 0;
+      let prevRelIsZero = false;
+      if (i > 0 && relation[i - 1] === 0) {
+        prevRelIsZero = true;
+      }
+
+      for (let j = i - 1; j >= 0; j--) {
+        const tj = tenkan[j];
+        const kj = kijun[j];
+        if (!Number.isFinite(tj) || !Number.isFinite(kj)) break;
+        const rel = relation[j];
+        if (rel !== 0) {
+          lastNonZero = rel;
+          break;
+        }
+      }
+
+      const crossUp = currentRelation === 1 && lastNonZero === -1;
+      const crossDown = currentRelation === -1 && lastNonZero === 1;
+
+      if (crossUp) {
+        tkCrossUpCount++;
+        if (prevRelIsZero) tkCrossEqualityStartCount++;
+      } else if (crossDown) {
+        tkCrossDownCount++;
+        if (prevRelIsZero) tkCrossEqualityStartCount++;
+      }
+    }
+
+    return {
+      tkCrossUpCount,
+      tkCrossDownCount,
+      tkCrossEqualityStartCount,
+    };
+  }
 }
+
 

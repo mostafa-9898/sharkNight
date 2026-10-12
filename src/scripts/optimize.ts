@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { JsonStorage } from '../data/storage/json-storage';
 import { BacktestEngine } from '../backtest/engine';
-import type { TradeMode } from '../backtest/types';
+import type { TradeMode, TrailingStopConfig } from '../backtest/types';
 import { IchimokuRsiStrategy } from '../strategies/ichimoku-rsi-strategy';
 import {
   getIntervalMs,
@@ -25,6 +25,13 @@ interface RsiZone {
   label: string;
 }
 
+interface TrailingStopParam {
+  initialStopPercent: number;
+  stepPercent: number;
+  raisePercent: number;
+  label: string;
+}
+
 interface GridCombo {
   timeframe: CandleInterval;
   ichimoku: IchimokuCombo;
@@ -32,6 +39,7 @@ interface GridCombo {
   sellZone: RsiZone;
   rsiLookback: number;
   tradeMode: TradeMode;
+  trailingStop: TrailingStopParam | null;
 }
 
 interface ComboMetrics {
@@ -45,14 +53,21 @@ interface ComboMetrics {
   buyAndHoldPercent: number;
   longTrades: number;
   shortTrades: number;
+  totalFees: number;
+  totalFeesPercent: number;
+  avgMfePercent: number;
+  avgMaePercent: number;
 }
 
 interface ComboResult {
   combo: GridCombo;
   key: string;
+  baseKey: string;
   train: ComboMetrics;
   test: ComboMetrics;
   calmarRatio: number;
+  baseTestNetReturnPercent?: number;
+  diffReturnPercent?: number;
   neighborAvgReturn?: number;
   isStable?: boolean;
 }
@@ -70,7 +85,8 @@ function runBacktestSlice(
   strategy: IchimokuRsiStrategy,
   candles: readonly Candle[],
   interval: CandleInterval,
-  tradeMode: TradeMode
+  tradeMode: TradeMode,
+  trailingStop?: TrailingStopConfig
 ): ComboMetrics {
   const engine = new BacktestEngine();
   const result = engine.run({
@@ -80,6 +96,9 @@ function runBacktestSlice(
     tradeFeePercent: 0.1,
     positionSizePercent: 100,
     tradeMode,
+    trailingStop,
+    slippagePercent: 0,
+    stopCheckMode: 'intrabar',
   });
 
   const m = result.metrics;
@@ -107,11 +126,17 @@ function runBacktestSlice(
 
   let grossProfit = 0;
   let grossLoss = 0;
+  let sumMfe = 0;
+  let sumMae = 0;
   for (const t of result.trades) {
     if (t.pnl > 0) grossProfit += t.pnl;
     else if (t.pnl < 0) grossLoss += Math.abs(t.pnl);
+    sumMfe += t.maxFavorablePercent ?? 0;
+    sumMae += t.maxAdversePercent ?? 0;
   }
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 99.9 : 1.0;
+  const avgMfe = result.trades.length > 0 ? sumMfe / result.trades.length : 0;
+  const avgMae = result.trades.length > 0 ? sumMae / result.trades.length : 0;
 
   return {
     trades: m.totalTrades,
@@ -124,6 +149,10 @@ function runBacktestSlice(
     buyAndHoldPercent: Math.round(buyAndHoldPercent * 100) / 100,
     longTrades: m.long.totalTrades,
     shortTrades: m.short.totalTrades,
+    totalFees: Math.round(m.totalFees * 100) / 100,
+    totalFeesPercent: Math.round(m.totalFeesPercent * 100) / 100,
+    avgMfePercent: Math.round(avgMfe * 100) / 100,
+    avgMaePercent: Math.round(avgMae * 100) / 100,
   };
 }
 
@@ -172,6 +201,15 @@ async function runOptimization() {
   // tradeMode in {long-short, long-only}
   const tradeModes: TradeMode[] = ['long-short', 'long-only'];
 
+  // Trailing stop variants in {off, (5,10,5), (3,3,1.5), (5,5,2.5), (4,2,1)}
+  const trailingVariants: Array<TrailingStopParam | null> = [
+    null,
+    { initialStopPercent: 5, stepPercent: 10, raisePercent: 5, label: '5/10/5' },
+    { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, label: '3/3/1.5' },
+    { initialStopPercent: 5, stepPercent: 5, raisePercent: 2.5, label: '5/5/2.5' },
+    { initialStopPercent: 4, stepPercent: 2, raisePercent: 1, label: '4/2/1' },
+  ];
+
   const allResults: ComboResult[] = [];
 
   for (const tf of timeframes) {
@@ -215,7 +253,12 @@ async function runOptimization() {
       `  Train set: ${trainCandles.length.toLocaleString()} candles | Test set: ${testCandles.length.toLocaleString()} candles`
     );
     const totalCombosTf =
-      ichimokuCombos.length * buyZones.length * sellZones.length * lookbacks.length * tradeModes.length;
+      ichimokuCombos.length *
+      buyZones.length *
+      sellZones.length *
+      lookbacks.length *
+      tradeModes.length *
+      trailingVariants.length;
     console.log(`  Grid size: ${totalCombosTf} combinations...`);
 
     const tfResults: ComboResult[] = [];
@@ -232,62 +275,79 @@ async function runOptimization() {
           const sellZ = sellZones[sIdx];
           for (let lIdx = 0; lIdx < lookbacks.length; lIdx++) {
             const L = lookbacks[lIdx];
+
+            // Instantiate strategies once per indicator combination (leverages WeakMap candle caching)
+            const strategyTrain = new IchimokuRsiStrategy({
+              tenkan: ich.tenkan,
+              kijun: ich.kijun,
+              senkouB: ich.senkouB,
+              displacement: ich.displacement,
+              rsiPeriod: 14,
+              rsiBuyMin: buyZ.min,
+              rsiBuyMax: buyZ.max,
+              rsiSellMin: sellZ.min,
+              rsiSellMax: sellZ.max,
+              rsiLookback: L,
+            });
+
+            const strategyTest = new IchimokuRsiStrategy({
+              tenkan: ich.tenkan,
+              kijun: ich.kijun,
+              senkouB: ich.senkouB,
+              displacement: ich.displacement,
+              rsiPeriod: 14,
+              rsiBuyMin: buyZ.min,
+              rsiBuyMax: buyZ.max,
+              rsiSellMin: sellZ.min,
+              rsiSellMax: sellZ.max,
+              rsiLookback: L,
+            });
+
             for (let mIdx = 0; mIdx < tradeModes.length; mIdx++) {
               const tm = tradeModes[mIdx];
-              count++;
+              for (let trIdx = 0; trIdx < trailingVariants.length; trIdx++) {
+                const tr = trailingVariants[trIdx];
+                count++;
 
-              const key = `${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}`;
-              const combo: GridCombo = {
-                timeframe: tf,
-                ichimoku: ich,
-                buyZone: buyZ,
-                sellZone: sellZ,
-                rsiLookback: L,
-                tradeMode: tm,
-              };
+                const key = `${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`;
+                const baseKey = `${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}_TR0`;
 
-              const strategyTrain = new IchimokuRsiStrategy({
-                tenkan: ich.tenkan,
-                kijun: ich.kijun,
-                senkouB: ich.senkouB,
-                displacement: ich.displacement,
-                rsiPeriod: 14,
-                rsiBuyMin: buyZ.min,
-                rsiBuyMax: buyZ.max,
-                rsiSellMin: sellZ.min,
-                rsiSellMax: sellZ.max,
-                rsiLookback: L,
-              });
+                const combo: GridCombo = {
+                  timeframe: tf,
+                  ichimoku: ich,
+                  buyZone: buyZ,
+                  sellZone: sellZ,
+                  rsiLookback: L,
+                  tradeMode: tm,
+                  trailingStop: tr,
+                };
 
-              const strategyTest = new IchimokuRsiStrategy({
-                tenkan: ich.tenkan,
-                kijun: ich.kijun,
-                senkouB: ich.senkouB,
-                displacement: ich.displacement,
-                rsiPeriod: 14,
-                rsiBuyMin: buyZ.min,
-                rsiBuyMax: buyZ.max,
-                rsiSellMin: sellZ.min,
-                rsiSellMax: sellZ.max,
-                rsiLookback: L,
-              });
+                const trailingConfig = tr
+                  ? {
+                      initialStopPercent: tr.initialStopPercent,
+                      stepPercent: tr.stepPercent,
+                      raisePercent: tr.raisePercent,
+                    }
+                  : undefined;
 
-              const trainMetrics = runBacktestSlice(strategyTrain, trainCandles, tf, tm);
-              const testMetrics = runBacktestSlice(strategyTest, testCandles, tf, tm);
+                const trainMetrics = runBacktestSlice(strategyTrain, trainCandles, tf, tm, trailingConfig);
+                const testMetrics = runBacktestSlice(strategyTest, testCandles, tf, tm, trailingConfig);
 
-              const calmar =
-                testMetrics.netReturnPercent / Math.max(0.01, testMetrics.maxDrawdownPercent);
+                const calmar =
+                  testMetrics.netReturnPercent / Math.max(0.01, testMetrics.maxDrawdownPercent);
 
-              const res: ComboResult = {
-                combo,
-                key,
-                train: trainMetrics,
-                test: testMetrics,
-                calmarRatio: Math.round(calmar * 100) / 100,
-              };
+                const res: ComboResult = {
+                  combo,
+                  key,
+                  baseKey,
+                  train: trainMetrics,
+                  test: testMetrics,
+                  calmarRatio: Math.round(calmar * 100) / 100,
+                };
 
-              tfResults.push(res);
-              resultMap.set(key, res);
+                tfResults.push(res);
+                resultMap.set(key, res);
+              }
             }
           }
         }
@@ -297,47 +357,66 @@ async function runOptimization() {
     const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`  Completed ${count} backtests in ${elapsedSec}s.`);
 
+    // Attach baseline comparison (without trailing stop)
+    for (const res of tfResults) {
+      const baseRes = resultMap.get(res.baseKey);
+      if (baseRes) {
+        res.baseTestNetReturnPercent = baseRes.test.netReturnPercent;
+        res.diffReturnPercent =
+          Math.round((res.test.netReturnPercent - baseRes.test.netReturnPercent) * 100) / 100;
+      } else {
+        res.baseTestNetReturnPercent = res.test.netReturnPercent;
+        res.diffReturnPercent = 0;
+      }
+    }
+
     // Calculate parameter stability across 1-step neighbors (Ichimoku, Buy, Sell, Lookback)
     for (let ichIdx = 0; ichIdx < ichimokuCombos.length; ichIdx++) {
       for (let bIdx = 0; bIdx < buyZones.length; bIdx++) {
         for (let sIdx = 0; sIdx < sellZones.length; sIdx++) {
           for (let lIdx = 0; lIdx < lookbacks.length; lIdx++) {
             for (let mIdx = 0; mIdx < tradeModes.length; mIdx++) {
-              const key = `${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}`;
-              const curr = resultMap.get(key);
-              if (!curr) continue;
+              for (let trIdx = 0; trIdx < trailingVariants.length; trIdx++) {
+                const key = `${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`;
+                const curr = resultMap.get(key);
+                if (!curr) continue;
 
-              const neighborKeys: string[] = [];
-              if (ichIdx > 0) neighborKeys.push(`${tf}_ICH${ichIdx - 1}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}`);
-              if (ichIdx < ichimokuCombos.length - 1)
-                neighborKeys.push(`${tf}_ICH${ichIdx + 1}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}`);
+                const neighborKeys: string[] = [];
+                if (ichIdx > 0)
+                  neighborKeys.push(`${tf}_ICH${ichIdx - 1}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
+                if (ichIdx < ichimokuCombos.length - 1)
+                  neighborKeys.push(`${tf}_ICH${ichIdx + 1}_B${bIdx}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
 
-              if (bIdx > 0) neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx - 1}_S${sIdx}_L${lIdx}_TM${mIdx}`);
-              if (bIdx < buyZones.length - 1)
-                neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx + 1}_S${sIdx}_L${lIdx}_TM${mIdx}`);
+                if (bIdx > 0)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx - 1}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
+                if (bIdx < buyZones.length - 1)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx + 1}_S${sIdx}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
 
-              if (sIdx > 0) neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx - 1}_L${lIdx}_TM${mIdx}`);
-              if (sIdx < sellZones.length - 1)
-                neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx + 1}_L${lIdx}_TM${mIdx}`);
+                if (sIdx > 0)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx - 1}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
+                if (sIdx < sellZones.length - 1)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx + 1}_L${lIdx}_TM${mIdx}_TR${trIdx}`);
 
-              if (lIdx > 0) neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx - 1}_TM${mIdx}`);
-              if (lIdx < lookbacks.length - 1)
-                neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx + 1}_TM${mIdx}`);
+                if (lIdx > 0)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx - 1}_TM${mIdx}_TR${trIdx}`);
+                if (lIdx < lookbacks.length - 1)
+                  neighborKeys.push(`${tf}_ICH${ichIdx}_B${bIdx}_S${sIdx}_L${lIdx + 1}_TM${mIdx}_TR${trIdx}`);
 
-              let neighborSum = 0;
-              let validCount = 0;
-              for (const nk of neighborKeys) {
-                const nRes = resultMap.get(nk);
-                if (nRes) {
-                  neighborSum += nRes.test.netReturnPercent;
-                  validCount++;
+                let neighborSum = 0;
+                let validCount = 0;
+                for (const nk of neighborKeys) {
+                  const nRes = resultMap.get(nk);
+                  if (nRes) {
+                    neighborSum += nRes.test.netReturnPercent;
+                    validCount++;
+                  }
                 }
-              }
 
-              const neighborAvg =
-                validCount > 0 ? neighborSum / validCount : curr.test.netReturnPercent;
-              curr.neighborAvgReturn = Math.round(neighborAvg * 100) / 100;
-              curr.isStable = neighborAvg > 0;
+                const neighborAvg =
+                  validCount > 0 ? neighborSum / validCount : curr.test.netReturnPercent;
+                curr.neighborAvgReturn = Math.round(neighborAvg * 100) / 100;
+                curr.isStable = neighborAvg > 0;
+              }
             }
           }
         }
@@ -352,9 +431,10 @@ async function runOptimization() {
     return;
   }
 
-  // Filtering:
-  // - Ignore combos with < 30 trades on train or < 10 on test
-  // - Require positive net return on BOTH train and test
+  // Strict Qualification Filter (A3):
+  // - Train trades >= 30
+  // - Test trades >= 10
+  // - Positive net return on BOTH train and test
   const qualified = allResults.filter(
     (r) =>
       r.train.trades >= 30 &&
@@ -364,44 +444,66 @@ async function runOptimization() {
   );
 
   console.log(`\n========================================================================`);
-  console.log(`  Optimization Summary`);
+  console.log(`  Optimization Summary for ${targetSymbol}`);
   console.log(`  Total evaluated: ${allResults.length.toLocaleString()} combos`);
   console.log(
     `  Qualified (Train Trades >= 30, Test Trades >= 10, Train Ret > 0, Test Ret > 0): ${qualified.length}`
   );
   console.log(`========================================================================\n`);
 
-  // Rank by Calmar-like ratio on test set
-  qualified.sort((a, b) => b.calmarRatio - a.calmarRatio);
+  let isTableRelaxed = false;
+  let relaxedHurdleDesc = '';
+  let displayResults: ComboResult[] = [];
 
-  // If no combos pass the strict 30/10 trade count with positive returns on both,
-  // display combos that achieved positive returns on both train and test (lower trade count),
-  // or fall back to ranking all combos by Calmar ratio.
-  const displayResults =
-    qualified.length > 0
-      ? qualified
-      : allResults
-          .filter((r) => r.train.netReturnPercent > 0 && r.test.netReturnPercent > 0)
-          .sort((a, b) => b.calmarRatio - a.calmarRatio);
+  if (qualified.length > 0) {
+    qualified.sort((a, b) => b.calmarRatio - a.calmarRatio);
+    displayResults = qualified.slice(0, 15);
+  } else {
+    isTableRelaxed = true;
+    console.log('========================================================================');
+    console.log('  ⚠️  NO ROBUST COMBINATION FOUND');
+    console.log('  No parameter combinations satisfied the strict statistical hurdle:');
+    console.log('  - Train Trades >= 30');
+    console.log('  - Test Trades >= 10');
+    console.log('  - Positive return on Train and Test (> 0%)');
+    console.log('========================================================================\n');
 
-  const fallbackResults =
-    displayResults.length > 0
-      ? displayResults
-      : [...allResults].sort((a, b) => b.calmarRatio - a.calmarRatio);
+    // Explicit relaxed filters (A3)
+    const relaxed10_5 = allResults.filter(
+      (r) =>
+        r.train.trades >= 10 &&
+        r.test.trades >= 5 &&
+        r.train.netReturnPercent > 0 &&
+        r.test.netReturnPercent > 0
+    );
 
-  const top15 = fallbackResults.slice(0, 15);
+    if (relaxed10_5.length > 0) {
+      relaxedHurdleDesc = 'Train Trades >= 10, Test Trades >= 5, Train Ret > 0, Test Ret > 0';
+      relaxed10_5.sort((a, b) => b.calmarRatio - a.calmarRatio);
+      displayResults = relaxed10_5.slice(0, 15);
+    } else {
+      const relaxedPos = allResults.filter(
+        (r) => r.train.netReturnPercent > 0 && r.test.netReturnPercent > 0
+      );
+      if (relaxedPos.length > 0) {
+        relaxedHurdleDesc = 'Train Ret > 0, Test Ret > 0 (Unrestricted Trade Count)';
+        relaxedPos.sort((a, b) => b.calmarRatio - a.calmarRatio);
+        displayResults = relaxedPos.slice(0, 15);
+      } else {
+        relaxedHurdleDesc = 'Unrestricted (Ranked by Test Calmar-like Ratio)';
+        const sortedAll = [...allResults].sort((a, b) => b.calmarRatio - a.calmarRatio);
+        displayResults = sortedAll.slice(0, 15);
+      }
+    }
+  }
 
-  const tableTitle =
-    qualified.length > 0
-      ? 'Top 15 Parameter Combinations (Ranked by Calmar-like Ratio = Test Return / Test MaxDD):'
-      : displayResults.length > 0
-        ? 'Top Parameter Combinations with Positive Return on BOTH Train & Test (Relaxed Trade Count Filter):'
-        : 'Top 15 Parameter Combinations (Ranked by Test Calmar-like Ratio):';
+  const tableTitle = !isTableRelaxed
+    ? 'Top 15 Parameter Combinations (Strict Filter: Train Trades >= 30, Test Trades >= 10, Ret > 0):'
+    : `Does NOT meet minimum trade filter - for information only (Relaxed Hurdle: ${relaxedHurdleDesc}):`;
 
-  // Print Top 15 Table to Console
   console.log(tableTitle);
   console.table(
-    top15.map((r, i) => ({
+    displayResults.map((r, i) => ({
       Rank: i + 1,
       TF: r.combo.timeframe,
       Ichimoku: r.combo.ichimoku.label,
@@ -409,31 +511,36 @@ async function runOptimization() {
       RSI_Sell: r.combo.sellZone.label,
       Lookback: r.combo.rsiLookback,
       Mode: r.combo.tradeMode,
+      TrailStop: r.combo.trailingStop?.label || 'off',
       'Train Ret%': `${r.train.netReturnPercent}%`,
       'Test Ret%': `${r.test.netReturnPercent}%`,
+      'Base Ret%': `${r.baseTestNetReturnPercent}%`,
+      'Diff%': `${r.diffReturnPercent! >= 0 ? '+' : ''}${r.diffReturnPercent}%`,
       'Test DD%': `${r.test.maxDrawdownPercent}%`,
-      'Test WR%': `${r.test.winRate}%`,
       Trades: `${r.train.trades}/${r.test.trades}`,
+      Fees: `$${r.test.totalFees}`,
+      AvgMFE: `${r.test.avgMfePercent}%`,
+      AvgMAE: `${r.test.avgMaePercent}%`,
       Calmar: r.calmarRatio,
-      'Neighbor Avg%': `${r.neighborAvgReturn}%`,
       Stability: r.isStable ? 'Robust' : 'Fragile',
     }))
   );
 
-  console.log('\n⚠️ IMPORTANT NOTE:');
-  console.log(
-    'Past backtested performance is historical and does not guarantee future results.'
-  );
-  console.log(
-    'Never select a single best row without verifying parameter stability across adjacent neighbor settings.\n'
-  );
+  if (isTableRelaxed) {
+    console.log(
+      '\n⚠️ WARNING: The table above displays rows with relaxed trade count filters for informational purposes only.'
+    );
+    console.log(
+      'Due to small sample sizes, these results are vulnerable to curve-fitting and variance.\n'
+    );
+  }
 
   // Generate output files
   const dateStr = new Date().toISOString().split('T')[0];
 
   // 1. CSV Output
   const csvHeader =
-    'Timeframe,Ichimoku,RSI_Buy,RSI_Sell,Lookback,TradeMode,TrainTrades,TrainWinRate,TrainNetReturn,TrainMaxDD,TrainPF,TrainBnH,TestTrades,TestWinRate,TestNetReturn,TestMaxDD,TestPF,TestBnH,CalmarRatio,NeighborAvgReturn,Stability\n';
+    'Timeframe,Ichimoku,RSI_Buy,RSI_Sell,Lookback,TradeMode,TrailingStop,TrainTrades,TrainWinRate,TrainNetReturn,TrainMaxDD,TrainPF,TrainTotalFees,TrainAvgMFE,TrainAvgMAE,TrainBnH,TestTrades,TestWinRate,TestNetReturn,BaseTestNetReturn,DiffReturn,TestMaxDD,TestPF,TestTotalFees,TestAvgMFE,TestAvgMAE,TestBnH,CalmarRatio,NeighborAvgReturn,Stability\n';
   const csvRows = allResults.map((r) =>
     [
       r.combo.timeframe,
@@ -442,17 +549,26 @@ async function runOptimization() {
       `"${r.combo.sellZone.label}"`,
       r.combo.rsiLookback,
       r.combo.tradeMode,
+      `"${r.combo.trailingStop?.label || 'off'}"`,
       r.train.trades,
       r.train.winRate,
       r.train.netReturnPercent,
       r.train.maxDrawdownPercent,
       r.train.profitFactor,
+      r.train.totalFees,
+      r.train.avgMfePercent,
+      r.train.avgMaePercent,
       r.train.buyAndHoldPercent,
       r.test.trades,
       r.test.winRate,
       r.test.netReturnPercent,
+      r.baseTestNetReturnPercent ?? '',
+      r.diffReturnPercent ?? '',
       r.test.maxDrawdownPercent,
       r.test.profitFactor,
+      r.test.totalFees,
+      r.test.avgMfePercent,
+      r.test.avgMaePercent,
       r.test.buyAndHoldPercent,
       r.calmarRatio,
       r.neighborAvgReturn ?? '',
@@ -478,33 +594,49 @@ async function runOptimization() {
     `- **Engine:** BacktestEngine (Fee: 0.1%, Position: 100%, Initial Balance: $10,000)`,
     `- **Validation:** Chronological split (70% Train, 30% Test, no shuffle)`,
     `- **Total Evaluated Combinations:** ${allResults.length.toLocaleString()}`,
-    `- **Combinations Passing Filter (Train Trades >= 30, Test Trades >= 10, Return > 0):** ${qualified.length}`,
+    `- **Combinations Passing Strict Filter (Train Trades >= 30, Test Trades >= 10, Return > 0):** ${qualified.length}`,
+    `- **Table Filter Status:** ${isTableRelaxed ? `⚠️ Relaxed (${relaxedHurdleDesc})` : '✅ Strict Filter Passed'}`,
     ``,
     `> **Disclaimer:** Historical backtest results do not guarantee future performance. Parameter selection should prioritize robust parameter neighborhoods over isolated peaks.`,
   ];
 
-  if (qualified.length === 0) {
+  if (isTableRelaxed) {
     mdLines.push(
       ``,
-      `> **Empirical Finding on Trade Filter:** No parameter sets met the strict hurdle of (Train Trades >= 30, Test Trades >= 10, Train Ret > 0, Test Ret > 0). High-frequency settings (Lookback = 20) produced high trade counts but incurred net losses in trend-reversal/choppy regimes. The table below displays combinations that achieved positive net returns on BOTH train and test partitions under lower trade frequency (Train >= 4, Test >= 1).`
+      `## ⚠️ NO ROBUST COMBINATION FOUND`,
+      ``,
+      `> **Empirical Finding on Trade Filter:** No parameter combination met the strict hurdle of (Train Trades >= 30, Test Trades >= 10, Train Ret > 0, Test Ret > 0). High-frequency settings produced high trade counts but incurred net losses in trend-reversal/choppy regimes.`,
+      `>`,
+      `> **Warning:** The table below is **for information only** and shows combinations under relaxed trade frequency (${relaxedHurdleDesc}). Small sample sizes carry significant curve-fitting and variance risk.`,
+      ``,
+      `### Does NOT meet minimum trade filter - for information only`
+    );
+  } else {
+    mdLines.push(
+      ``,
+      `## Top Parameter Combinations (Strict Filter: Train Trades >= 30, Test Trades >= 10)`
     );
   }
 
   mdLines.push(
     ``,
-    `## Top Parameter Combinations`,
-    ``,
-    `| Rank | Timeframe | Ichimoku | RSI Buy | RSI Sell | Lookback | Trade Mode | Train Ret | Train B&H | Test Ret | Test B&H | Test MaxDD | Test WinRate | Trades (Train/Test) | Calmar | Neighbor Avg | Stability |`,
-    `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|`
+    `| Rank | Timeframe | Ichimoku | RSI Buy | RSI Sell | Lookback | Trade Mode | Trailing Stop | Train Ret | Test Ret | Base Test Ret | Diff Ret | Test MaxDD | Test WinRate | Trades (Train/Test) | Test Fees | Test Avg MFE | Test Avg MAE | Calmar | Neighbor Avg | Stability |`,
+    `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|`
   );
 
-  for (let i = 0; i < top15.length; i++) {
-    const r = top15[i];
+  for (let i = 0; i < displayResults.length; i++) {
+    const r = displayResults[i];
+    const diffStr = (r.diffReturnPercent ?? 0) >= 0 ? `+${r.diffReturnPercent}%` : `${r.diffReturnPercent}%`;
     mdLines.push(
-      `| ${i + 1} | ${r.combo.timeframe} | ${r.combo.ichimoku.label} | ${r.combo.buyZone.label} | ${r.combo.sellZone.label} | ${r.combo.rsiLookback} | ${r.combo.tradeMode} | ${r.train.netReturnPercent}% | ${r.train.buyAndHoldPercent}% | ${r.test.netReturnPercent}% | ${r.test.buyAndHoldPercent}% | ${r.test.maxDrawdownPercent}% | ${r.test.winRate}% | ${r.train.trades}/${r.test.trades} | ${r.calmarRatio} | ${r.neighborAvgReturn}% | ${r.isStable ? '✅ Robust' : '⚠️ Fragile'} |`
+      `| ${i + 1} | ${r.combo.timeframe} | ${r.combo.ichimoku.label} | ${r.combo.buyZone.label} | ${r.combo.sellZone.label} | ${r.combo.rsiLookback} | ${r.combo.tradeMode} | ${r.combo.trailingStop?.label || 'off'} | ${r.train.netReturnPercent}% | ${r.test.netReturnPercent}% | ${r.baseTestNetReturnPercent}% | ${diffStr} | ${r.test.maxDrawdownPercent}% | ${r.test.winRate}% | ${r.train.trades}/${r.test.trades} | $${r.test.totalFees} | ${r.test.avgMfePercent}% | ${r.test.avgMaePercent}% | ${r.calmarRatio} | ${r.neighborAvgReturn}% | ${r.isStable ? '✅ Robust' : '⚠️ Fragile'} |`
     );
   }
 
+  mdLines.push(``);
+  mdLines.push(`## Trailing Stop Contribution Analysis`);
+  mdLines.push(
+    `Each row in the table above explicitly compares the strategy with trailing stop against the exact same configuration **WITHOUT** trailing stop (\`Base Test Ret\` and \`Diff Ret\`). This isolates the specific performance contribution of the trailing ratchet mechanism from the underlying indicator confluence.`
+  );
   mdLines.push(``);
   mdLines.push(`## Parameter Stability Analysis`);
   mdLines.push(

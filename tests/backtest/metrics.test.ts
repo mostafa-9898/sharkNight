@@ -1,4 +1,4 @@
-import { calculateMetrics } from '@/backtest/metrics';
+import { calculateMetrics, computeMfeMaeAnalysis } from '@/backtest/metrics';
 import type { Trade } from '@/backtest/types';
 import type { TradeSignal } from '@/data/models';
 
@@ -9,7 +9,14 @@ describe('Backtest Metrics Calculator', () => {
     price: 100,
   });
 
-  const createTrade = (pnl: number, pnlPercent: number, side: 'long' | 'short' = 'long'): Trade => ({
+  const createTrade = (
+    pnl: number,
+    pnlPercent: number,
+    side: 'long' | 'short' = 'long',
+    fee = 2,
+    mfe = Math.max(0, pnlPercent),
+    mae = Math.max(0, -pnlPercent)
+  ): Trade => ({
     side,
     exitReason: 'signal',
     entrySignal: dummySignal('BUY'),
@@ -19,7 +26,9 @@ describe('Backtest Metrics Calculator', () => {
     quantity: 1,
     pnl,
     pnlPercent,
-    fee: 2,
+    fee,
+    maxFavorablePercent: mfe,
+    maxAdversePercent: mae,
   });
 
   it('should return safe default metrics when no trades occurred', () => {
@@ -34,15 +43,20 @@ describe('Backtest Metrics Calculator', () => {
     expect(metrics.maxDrawdown).toBe(0);
     expect(metrics.sharpeRatio).toBe(0);
     expect(metrics.finalBalance).toBe(10000);
+    expect(metrics.totalFees).toBe(0);
+    expect(metrics.totalFeesPercent).toBe(0);
+    expect(metrics.averageWin).toBe(0);
+    expect(metrics.averageLoss).toBe(0);
+    expect(metrics.feeDragPercent).toBe(0);
     expect(metrics.long.totalTrades).toBe(0);
     expect(metrics.short.totalTrades).toBe(0);
   });
 
   it('should calculate win rate and trade statistics accurately including long/short breakdown', () => {
     const trades: Trade[] = [
-      createTrade(100, 10, 'long'),
-      createTrade(-50, -5, 'long'),
-      createTrade(200, 20, 'short'),
+      createTrade(100, 10, 'long', 2),
+      createTrade(-50, -5, 'long', 2),
+      createTrade(200, 20, 'short', 3),
     ];
 
     const equityCurve = [1000, 1100, 1050, 1250];
@@ -58,6 +72,13 @@ describe('Backtest Metrics Calculator', () => {
     expect(metrics.totalPnl).toBe(250);
     expect(metrics.totalPnlPercent).toBe(25);
     expect(metrics.finalBalance).toBe(1250);
+
+    // Fees and Win/Loss metrics
+    expect(metrics.totalFees).toBe(7);
+    expect(metrics.totalFeesPercent).toBe(0.7);
+    expect(metrics.feeDragPercent).toBe(0.7);
+    expect(metrics.averageWin).toBe(15);
+    expect(metrics.averageLoss).toBe(-5);
 
     // Long breakdown
     expect(metrics.long.totalTrades).toBe(2);
@@ -94,5 +115,25 @@ describe('Backtest Metrics Calculator', () => {
     const metrics = calculateMetrics(trades, 1000, equity);
 
     expect(metrics.sharpeRatio).toBeGreaterThan(0);
+  });
+
+  it('should compute MFE and MAE analysis accurately across trades', () => {
+    const trades: Trade[] = [
+      createTrade(100, 10, 'long', 2, 12, 2),
+      createTrade(-50, -5, 'long', 2, 3, 6),
+      createTrade(200, 20, 'short', 3, 22, 1),
+    ];
+
+    const analysis = computeMfeMaeAnalysis(trades);
+    expect(analysis.all.count).toBe(3);
+    expect(analysis.long.count).toBe(2);
+    expect(analysis.short.count).toBe(1);
+
+    // All trades MFEs: [3, 12, 22] -> median is 12
+    expect(analysis.all.mfeMedian).toBe(12);
+    // All trades MAEs: [1, 2, 6] -> median is 2
+    expect(analysis.all.maeMedian).toBe(2);
+    // Threshold >= 10%: 12 and 22 -> 2/3 = 66.7%
+    expect(analysis.all.mfeThresholds['>=10%']).toBe(66.7);
   });
 });

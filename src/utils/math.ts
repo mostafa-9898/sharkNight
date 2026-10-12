@@ -31,3 +31,19 @@ export function percentChange(from: number, to: number): number {
   if (from === 0) return 0;
   return ((to - from) / from) * 100;
 }
+
+/**
+ * Calculate the p-th percentile of an array of numbers (0 <= p <= 100)
+ * Uses standard linear interpolation between closest ranks.
+ */
+export function percentile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  if (values.length === 1) return values[0];
+  const sorted = [...values].sort((a, b) => a - b);
+  const clampedP = Math.max(0, Math.min(100, p));
+  const index = (clampedP / 100) * (sorted.length - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  const weight = index - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}

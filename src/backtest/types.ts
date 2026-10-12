@@ -3,7 +3,14 @@ import type { Strategy } from '../strategies/types';
 
 export type TradeMode = 'long-short' | 'long-only';
 export type TradeSide = 'long' | 'short';
-export type ExitReason = 'signal' | 'reverse' | 'takeProfit' | 'stopLoss' | 'end';
+export type ExitReason = 'signal' | 'reverse' | 'takeProfit' | 'stopLoss' | 'trailingStop' | 'end';
+export type StopCheckMode = 'intrabar' | 'close';
+
+export interface TrailingStopConfig {
+  initialStopPercent: number; // e.g., 5 for 5% initial stop below/above entry
+  stepPercent: number;        // e.g., 10 for each 10% favorable move
+  raisePercent: number;       // e.g., 5 for 5% stop raise per step
+}
 
 export interface BacktestConfig {
   strategy: Strategy;
@@ -14,6 +21,9 @@ export interface BacktestConfig {
   tradeMode?: TradeMode;          // DEFAULT: 'long-short'
   takeProfitPercent?: number;     // e.g., 5 for 5% TP
   stopLossPercent?: number;       // e.g., 3 for 3% SL
+  trailingStop?: TrailingStopConfig;
+  slippagePercent?: number;       // default 0, applied adversely on stop/TP exits
+  stopCheckMode?: StopCheckMode;  // default 'intrabar'
 }
 
 export interface Trade {
@@ -30,6 +40,10 @@ export interface Trade {
   entryTime?: number;
   exitTime?: number;
   duration?: number;
+  maxFavorablePercent: number;    // Best unrealized favorable move (% of entry price)
+  maxAdversePercent: number;      // Worst unrealized adverse move (% of entry price)
+  stopPrice?: number;             // Stop level at time of exit (if stopped out or tracked)
+  ratchetSteps?: number;          // Number of trailing ratchet steps reached
 }
 
 export interface ActivePosition {
@@ -70,8 +84,30 @@ export interface BacktestMetrics {
   bestTrade: number;
   worstTrade: number;
   finalBalance: number;
+  totalFees: number;              // Absolute fees paid across all trades
+  totalFeesPercent: number;       // Total fees paid as % of initial balance
+  averageWin: number;             // Average return % of winning trades
+  averageLoss: number;            // Average return % of losing trades
+  feeDragPercent: number;         // Total fee drag (% of initial balance)
   long: SideMetrics;
   short: SideMetrics;
+}
+
+export interface MfeMaeDistribution {
+  count: number;
+  mfeThresholds: Record<string, number>; // Share (%) of trades whose MFE >= threshold
+  mfeMedian: number;
+  mfeP75: number;
+  mfeP90: number;
+  maeMedian: number;
+  maeP75: number;
+  maeP90: number;
+}
+
+export interface MfeMaeAnalysis {
+  all: MfeMaeDistribution;
+  long: MfeMaeDistribution;
+  short: MfeMaeDistribution;
 }
 
 export interface BacktestResult {

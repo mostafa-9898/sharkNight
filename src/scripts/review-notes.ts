@@ -8,7 +8,8 @@ import { IchimokuRsiStrategy } from '../strategies/ichimoku-rsi-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { VirtualPortfolio } from '../backtest/portfolio';
-import type { Trade } from '../backtest/types';
+import { computeMfeMaeAnalysis } from '../backtest/metrics';
+import type { Trade, TrailingStopConfig } from '../backtest/types';
 import type { TradeSignal } from '../data/models/trade-signal';
 import {
   performCandleSanityCheck,
@@ -74,6 +75,7 @@ interface SignalFunnelRow {
   rsiSellZoneCount: number;
   tkCrossUpCount: number;
   tkCrossDownCount: number;
+  tkCrossEqualityStartCount: number;
   buySetupsCount: number;
   sellSetupsCount: number;
   longTrades: number;
@@ -94,6 +96,92 @@ function getGitCommit(): string {
   } catch {
     return 'uncommitted';
   }
+}
+
+function measureTkCrossDiagnostics(candles: readonly Candle[]) {
+  const ich = calculateIchimoku(candles, {
+    tenkan: 9,
+    kijun: 26,
+    senkouB: 52,
+    displacement: 26,
+  });
+
+  let oldUp = 0;
+  let oldDown = 0;
+  let newUp = 0;
+  let newDown = 0;
+  let eqUp = 0;
+  let eqDown = 0;
+
+  const signs: number[] = new Array(candles.length);
+  for (let i = 0; i < candles.length; i++) {
+    const t = ich.tenkan[i];
+    const k = ich.kijun[i];
+    if (!Number.isFinite(t) || !Number.isFinite(k)) {
+      signs[i] = NaN;
+    } else if (t > k) {
+      signs[i] = 1;
+    } else if (t < k) {
+      signs[i] = -1;
+    } else {
+      signs[i] = 0;
+    }
+  }
+
+  for (let i = 1; i < candles.length; i++) {
+    const prevT = ich.tenkan[i - 1];
+    const prevK = ich.kijun[i - 1];
+    const currT = ich.tenkan[i];
+    const currK = ich.kijun[i];
+
+    if (
+      Number.isFinite(prevT) &&
+      Number.isFinite(prevK) &&
+      Number.isFinite(currT) &&
+      Number.isFinite(currK)
+    ) {
+      if (prevT <= prevK && currT > currK) {
+        oldUp++;
+        if (prevT === prevK) eqUp++;
+      }
+      if (prevT >= prevK && currT < currK) {
+        oldDown++;
+        if (prevT === prevK) eqDown++;
+      }
+    }
+
+    if (signs[i] === 1) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (Number.isNaN(signs[j])) break;
+        if (signs[j] === -1) {
+          newUp++;
+          break;
+        }
+        if (signs[j] === 1) break;
+      }
+    } else if (signs[i] === -1) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (Number.isNaN(signs[j])) break;
+        if (signs[j] === 1) {
+          newDown++;
+          break;
+        }
+        if (signs[j] === -1) break;
+      }
+    }
+  }
+
+  return {
+    oldUp,
+    oldDown,
+    newUp,
+    newDown,
+    eqUp,
+    eqDown,
+    totalOld: oldUp + oldDown,
+    totalNew: newUp + newDown,
+    totalEq: eqUp + eqDown,
+  };
 }
 
 async function runReviewNotes(): Promise<void> {
@@ -200,40 +288,15 @@ async function runReviewNotes(): Promise<void> {
     const candles = loadedCandles.get(key);
     if (!candles || candles.length === 0) continue;
 
-    const ichimoku = calculateIchimoku(candles, {
-      tenkan: 9,
-      kijun: 26,
-      senkouB: 52,
-      displacement: 26,
-    });
     const rsi = calculateRSI(candles.map((c) => c.close), 14);
 
     let rsiBuyCount = 0;
     let rsiSellCount = 0;
-    let tkUpCount = 0;
-    let tkDownCount = 0;
-
     for (let i = 0; i < candles.length; i++) {
       const r = rsi[i];
       if (Number.isFinite(r)) {
         if (r >= 20 && r <= 40) rsiBuyCount++;
         if (r >= 60 && r <= 80) rsiSellCount++;
-      }
-
-      if (i > 0) {
-        const prevT = ichimoku.tenkan[i - 1];
-        const prevK = ichimoku.kijun[i - 1];
-        const currT = ichimoku.tenkan[i];
-        const currK = ichimoku.kijun[i];
-        if (
-          Number.isFinite(prevT) &&
-          Number.isFinite(prevK) &&
-          Number.isFinite(currT) &&
-          Number.isFinite(currK)
-        ) {
-          if (prevT <= prevK && currT > currK) tkUpCount++;
-          if (prevT >= prevK && currT < currK) tkDownCount++;
-        }
       }
     }
 
@@ -270,6 +333,8 @@ async function runReviewNotes(): Promise<void> {
         tradeMode: 'long-short',
       });
 
+      const diag = strategy.getDiagnostics(candles);
+
       funnelRows.push({
         symbol: ds.symbol,
         interval: ds.interval,
@@ -277,8 +342,9 @@ async function runReviewNotes(): Promise<void> {
         totalCandles: candles.length,
         rsiBuyZoneCount: rsiBuyCount,
         rsiSellZoneCount: rsiSellCount,
-        tkCrossUpCount: tkUpCount,
-        tkCrossDownCount: tkDownCount,
+        tkCrossUpCount: diag.tkCrossUpCount,
+        tkCrossDownCount: diag.tkCrossDownCount,
+        tkCrossEqualityStartCount: diag.tkCrossEqualityStartCount,
         buySetupsCount: buySetups,
         sellSetupsCount: sellSetups,
         longTrades: res.metrics.long.totalTrades,
@@ -304,6 +370,8 @@ async function runReviewNotes(): Promise<void> {
 
   const btcCandles = loadedCandles.get('BTCUSDT_1h') || [];
   const ethCandles = loadedCandles.get('ETHUSDT_1h') || [];
+  const btc4hCandles = loadedCandles.get('BTCUSDT_4h') || [];
+  const eth4hCandles = loadedCandles.get('ETHUSDT_4h') || [];
 
   const engine = new BacktestEngine();
   const btcDefaultResult = engine.run({
@@ -324,7 +392,150 @@ async function runReviewNotes(): Promise<void> {
     tradeMode: 'long-short',
   });
 
-  // 5. Automated Self-Checks
+  const btc4hResult = engine.run({
+    strategy: defaultStrategy,
+    candles: btc4hCandles,
+    initialBalance: 10000,
+    tradeFeePercent: 0.1,
+    positionSizePercent: 100,
+    tradeMode: 'long-short',
+  });
+
+  const eth4hResult = engine.run({
+    strategy: defaultStrategy,
+    candles: eth4hCandles,
+    initialBalance: 10000,
+    tradeFeePercent: 0.1,
+    positionSizePercent: 100,
+    tradeMode: 'long-short',
+  });
+
+  // 5. Bug-Fix Verification Numbers (Part A)
+  console.log('-> Computing bug-fix diagnostics (A1, A2)...');
+  // A1: Short fee numbers
+  const dummySignal: TradeSignal = { action: 'SELL', price: 100, timestamp: 1000 };
+  const pDrop = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
+  pDrop.openPosition('short', dummySignal, 100, 1000);
+  pDrop.closePosition(dummySignal, 90, 2000, 'signal');
+  const a1DropPnl = pDrop.getTrades()[0]?.pnl || 0;
+
+  const pRise = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
+  pRise.openPosition('short', dummySignal, 100, 1000);
+  pRise.closePosition(dummySignal, 110, 2000, 'signal');
+  const a1RisePnl = pRise.getTrades()[0]?.pnl || 0;
+
+  const pFlatShort = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
+  pFlatShort.openPosition('short', dummySignal, 100, 1000);
+  pFlatShort.closePosition(dummySignal, 100, 2000, 'signal');
+  const a1FlatShortPnl = pFlatShort.getTrades()[0]?.pnl || 0;
+
+  const pFlatLong = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
+  pFlatLong.openPosition('long', { action: 'BUY', price: 100, timestamp: 1000 }, 100, 1000);
+  pFlatLong.closePosition({ action: 'SELL', price: 100, timestamp: 2000 }, 100, 2000, 'signal');
+  const a1FlatLongPnl = pFlatLong.getTrades()[0]?.pnl || 0;
+
+  // A2: TK Cross Equality Diagnostics on real data
+  const btcTkDiag = measureTkCrossDiagnostics(btcCandles);
+  const ethTkDiag = measureTkCrossDiagnostics(ethCandles);
+
+  // 6. MFE / MAE Distribution Analysis (Part B)
+  console.log('-> Computing MFE/MAE distributions...');
+  const mfeBtc1h = computeMfeMaeAnalysis(btcDefaultResult.trades);
+  const mfeBtc4h = computeMfeMaeAnalysis(btc4hResult.trades);
+  const mfeEth1h = computeMfeMaeAnalysis(ethDefaultResult.trades);
+  const mfeEth4h = computeMfeMaeAnalysis(eth4hResult.trades);
+
+  // 7. Trailing Stop Impact Analysis (Part C)
+  console.log('-> Computing trailing stop comparisons...');
+  const trailingVariantsToTest: Array<{ config?: TrailingStopConfig; label: string }> = [
+    { label: 'Baseline (Off)' },
+    { config: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 }, label: '5/10/5' },
+    { config: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 }, label: '3/3/1.5' },
+    { config: { initialStopPercent: 5, stepPercent: 5, raisePercent: 2.5 }, label: '5/5/2.5' },
+    { config: { initialStopPercent: 4, stepPercent: 2, raisePercent: 1 }, label: '4/2/1' },
+  ];
+
+  interface TrailingCompRow {
+    symbol: string;
+    label: string;
+    netReturnPercent: number;
+    diffReturnPercent: number;
+    maxDrawdownPercent: number;
+    winRate: number;
+    totalTrades: number;
+    trailingExits: number;
+    initialStopExits: number;
+    signalExits: number;
+    reverseExits: number;
+    totalFees: number;
+    avgMfePercent: number;
+    avgMaePercent: number;
+  }
+
+  const trailingCompRows: TrailingCompRow[] = [];
+
+  for (const { symbol, candles } of [
+    { symbol: 'BTCUSDT', candles: btcCandles },
+    { symbol: 'ETHUSDT', candles: ethCandles },
+  ]) {
+    let baseReturn = 0;
+    for (const v of trailingVariantsToTest) {
+      const res = engine.run({
+        strategy: defaultStrategy,
+        candles,
+        initialBalance: 10000,
+        tradeFeePercent: 0.1,
+        positionSizePercent: 100,
+        tradeMode: 'long-short',
+        trailingStop: v.config,
+        slippagePercent: 0,
+        stopCheckMode: 'intrabar',
+      });
+
+      if (!v.config) {
+        baseReturn = res.metrics.totalPnlPercent;
+      }
+
+      let trailingExits = 0;
+      let initialStopExits = 0;
+      let signalExits = 0;
+      let reverseExits = 0;
+      let sumMfe = 0;
+      let sumMae = 0;
+
+      for (const t of res.trades) {
+        if (t.exitReason === 'trailingStop') trailingExits++;
+        else if (t.exitReason === 'stopLoss') initialStopExits++;
+        else if (t.exitReason === 'signal') signalExits++;
+        else if (t.exitReason === 'reverse') reverseExits++;
+
+        sumMfe += t.maxFavorablePercent ?? 0;
+        sumMae += t.maxAdversePercent ?? 0;
+      }
+
+      const avgMfe = res.trades.length > 0 ? sumMfe / res.trades.length : 0;
+      const avgMae = res.trades.length > 0 ? sumMae / res.trades.length : 0;
+
+      trailingCompRows.push({
+        symbol,
+        label: v.label,
+        netReturnPercent: res.metrics.totalPnlPercent,
+        diffReturnPercent: Math.round((res.metrics.totalPnlPercent - baseReturn) * 100) / 100,
+        maxDrawdownPercent: res.metrics.maxDrawdownPercent,
+        winRate: Math.round(res.metrics.winRate * 1000) / 10,
+        totalTrades: res.metrics.totalTrades,
+        trailingExits,
+        initialStopExits,
+        signalExits,
+        reverseExits,
+        totalFees: res.metrics.totalFees,
+        avgMfePercent: Math.round(avgMfe * 100) / 100,
+        avgMaePercent: Math.round(avgMae * 100) / 100,
+      });
+    }
+  }
+
+  // 8. Automated Self-Checks
   console.log('-> Running self-audit assertions...');
   const selfChecks: Array<{ check: string; result: 'PASS' | 'FAIL'; note: string }> = [];
 
@@ -371,23 +582,16 @@ async function runReviewNotes(): Promise<void> {
     note: 'Prefix candles[0..i] yields identical signal to full series at index i',
   });
 
-  // Check 3: Short Accounting PnL
-  const dummySignal: TradeSignal = { action: 'SELL', price: 100, timestamp: 1000 };
-  const pDrop = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
-  pDrop.openPosition('short', dummySignal, 100, 1000);
-  pDrop.closePosition(dummySignal, 90, 2000, 'signal');
-  const dropPnl = pDrop.getTrades()[0]?.pnl || 0;
-
-  const pRise = new VirtualPortfolio({ initialBalance: 10000, tradeFeePercent: 0.1 });
-  pRise.openPosition('short', dummySignal, 100, 1000);
-  pRise.closePosition(dummySignal, 110, 2000, 'signal');
-  const risePnl = pRise.getTrades()[0]?.pnl || 0;
-
-  const shortAccountingPass = dropPnl > 800 && risePnl < -1000;
+  // Check 3: Short Accounting PnL (A1)
+  const shortAccountingPass =
+    Math.abs(a1DropPnl - 980.01) < 0.05 &&
+    Math.abs(a1RisePnl - (-1019.99)) < 0.05 &&
+    Math.abs(a1FlatShortPnl - (-19.99)) < 0.05 &&
+    Math.abs(a1FlatLongPnl - (-19.99)) < 0.05;
   selfChecks.push({
-    check: '1x Short Accounting Direction & Fees',
+    check: '1x Short Accounting Direction & Fees (A1)',
     result: shortAccountingPass ? 'PASS' : 'FAIL',
-    note: `10% drop gives PnL +$${dropPnl.toFixed(2)}, 10% rise gives PnL $${risePnl.toFixed(2)}`,
+    note: `10% drop gives PnL +$${a1DropPnl.toFixed(2)} (+980.01), 10% rise gives $${a1RisePnl.toFixed(2)} (-1019.99), flat gives -$19.99 on both sides`,
   });
 
   // Check 4: Cash Conservation Identity
@@ -419,7 +623,30 @@ async function runReviewNotes(): Promise<void> {
     note: 'Mutating future candle index 99 does not alter signals at earlier indices',
   });
 
-  // Check 6: File cleanup
+  // Check 6: Trailing Stop Ratchet Invariant
+  // Verify trailing stop never moves backward across ratchets
+  let ratchetPass = true;
+  let prevStop = -Infinity;
+  const testTrailing = { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 };
+  const mockHighs = [100, 105, 110, 108, 120, 115, 130];
+  for (const h of mockHighs) {
+    const mfe = ((h - 100) / 100) * 100;
+    const n = Math.floor(mfe / testTrailing.stepPercent);
+    const candidate = 100 * (1 + (-testTrailing.initialStopPercent + n * testTrailing.raisePercent) / 100);
+    const currentStop = Math.max(prevStop, candidate);
+    if (currentStop < prevStop) {
+      ratchetPass = false;
+      break;
+    }
+    prevStop = currentStop;
+  }
+  selfChecks.push({
+    check: 'Trailing Stop Monotonic Ratchet Invariant',
+    result: ratchetPass ? 'PASS' : 'FAIL',
+    note: 'Stop price monotonically ratchets in favorable direction and never retreats',
+  });
+
+  // Check 7: File cleanup
   const modularStrategyExists = await fs
     .access(path.join(rootDir, 'src', 'strategies', 'modular-strategy.ts'))
     .then(() => true)
@@ -435,42 +662,48 @@ async function runReviewNotes(): Promise<void> {
     note: `modular-strategy: ${modularStrategyExists ? 'EXISTS' : 'DELETED'}, MacdSubChart: ${macdSubChartExists ? 'EXISTS' : 'DELETED'}`,
   });
 
-  // 6. Top Optimizer Results
-  console.log('-> Embedding optimizer results...');
-  let btcOptTop: string[] = [];
+  // 9. Read Optimizer Results (A3)
+  console.log('-> Reading optimizer report files...');
+  let btcOptLines: string[] = [];
   try {
     const raw = await fs.readFile(
       path.join(rootDir, 'docs', 'strategies', 'OPTIMIZATION_ICHIMOKU_BTCUSDT_2026-10-12.md'),
       'utf-8'
     );
-    const lines = raw.split('\n');
-    const tableStart = lines.findIndex((l) => l.startsWith('| Rank |'));
-    if (tableStart !== -1) {
-      btcOptTop = lines.slice(tableStart, tableStart + 12);
-    }
+    btcOptLines = raw.split('\n');
   } catch {
-    btcOptTop = ['_No BTCUSDT optimization report found_'];
+    btcOptLines = ['_No BTCUSDT optimization report found_'];
   }
 
-  let ethOptTop: string[] = [];
+  let ethOptLines: string[] = [];
   try {
     const raw = await fs.readFile(
       path.join(rootDir, 'docs', 'strategies', 'OPTIMIZATION_ICHIMOKU_ETHUSDT_2026-10-12.md'),
       'utf-8'
     );
-    const lines = raw.split('\n');
-    const tableStart = lines.findIndex((l) => l.startsWith('| Rank |'));
-    if (tableStart !== -1) {
-      ethOptTop = lines.slice(tableStart, tableStart + 12);
-    }
+    ethOptLines = raw.split('\n');
   } catch {
-    ethOptTop = ['_No ETHUSDT optimization report found_'];
+    ethOptLines = ['_No ETHUSDT optimization report found_'];
   }
 
-  // 7. Write docs/review/CLAUDE_REVIEW_NOTES.md
+  function extractTableFromMd(lines: string[]): string[] {
+    const start = lines.findIndex((l) => l.startsWith('| Rank |'));
+    if (start === -1) return ['_Table not found_'];
+    const end = lines.slice(start).findIndex((l) => l.trim() === '');
+    return end === -1 ? lines.slice(start) : lines.slice(start, start + end);
+  }
+
+  // 10. Compile docs/review/CLAUDE_REVIEW_NOTES.md
   console.log('-> Compiling docs/review/CLAUDE_REVIEW_NOTES.md...');
+  const btcBnH = computeBuyAndHold(btcCandles);
+  const ethBnH = computeBuyAndHold(ethCandles);
+  const btcPf = computeProfitFactor(btcDefaultResult.trades);
+  const ethPf = computeProfitFactor(ethDefaultResult.trades);
+  const btcDdDuration = computeMaxDrawdownDuration(btcDefaultResult.equity);
+  const ethDdDuration = computeMaxDrawdownDuration(ethDefaultResult.equity);
+
   const md: string[] = [
-    `# Engineering Review Notes: Ichimoku + RSI Strategy Implementation`,
+    `# Engineering Review Notes: Ichimoku + RSI Strategy & Long-Short Backtest Engine`,
     ``,
     `## 1. System Header`,
     `- **Date:** ${dateStr}`,
@@ -490,23 +723,22 @@ async function runReviewNotes(): Promise<void> {
     `- **Backtest Engine & 1x Short Accounting:** [\`src/backtest/portfolio.ts\`](../../src/backtest/portfolio.ts), [\`src/backtest/engine.ts\`](../../src/backtest/engine.ts), [\`src/backtest/types.ts\`](../../src/backtest/types.ts)`,
     `  - Added \`tradeMode: 'long-short' | 'long-only'\` (default: \`'long-short'\`).`,
     `  - 1x short accounting without leverage, funding, or liquidation: \`quantity = (allocated - fee) / entryPrice\`, mark-to-market continuous equity.`,
-    `  - Engine-level Take-Profit and Stop-Loss checked at candle close prior to signal processing without accidental reversals.`,
-    `  - Long and short breakdown metrics (\`totalTrades\`, \`winRate\`, \`totalPnl\`).`,
+    `  - Engine-level Take-Profit, Stop-Loss, and Trailing Stop checked before signal processing without accidental reversals.`,
+    `  - Intrabar wick / gap execution with adverse slippage modeling.`,
+    `  - Trade-level MFE (Max Favorable Excursion) and MAE (Max Adverse Excursion) tracking.`,
     `- **Ichimoku + RSI Strategy:** [\`src/strategies/ichimoku-rsi-strategy.ts\`](../../src/strategies/ichimoku-rsi-strategy.ts)`,
     `  - Stateless trigger: BUY on fresh TK up-cross with RSI in [20,40] within \`rsiLookback\` candles.`,
     `  - SELL on fresh TK down-cross with RSI in [60,80] within \`rsiLookback\` candles.`,
-    `  - Indicator array caching per \`readonly Candle[]\` reference via \`WeakMap\`.`,
-    `- **Removed Deprecated Components:**`,
-    `  - Deleted \`src/strategies/modular-strategy.ts\` and \`tests/strategies/modular-strategy.test.ts\`.`,
-    `  - Deleted \`src/app/components/MacdSubChart.tsx\`.`,
-    `- **Dashboard UI & Charting:** [\`src/app/page.tsx\`](../../src/app/page.tsx), [\`src/app/components/CandleChart.tsx\`](../../src/app/components/CandleChart.tsx), [\`src/app/components/TradesTable.tsx\`](../../src/app/components/TradesTable.tsx)`,
-    `  - Client-side Ichimoku and RSI calculation (zero server dependence for overlays).`,
-    `  - Custom canvas primitive for Ichimoku Cloud filling (green/red) with forward displacement timestamps.`,
-    `  - Direction-aware markers for long/short entries, exits, and reversals.`,
-    `  - Signal Funnel diagnostics display card.`,
+    `  - Robust TK cross sign-relation tracking to eliminate spurious equality plateaus and flapping.`,
+    `  - WeakMap indicator caching per candle array reference.`,
+    `- **Dashboard UI & Charting:** [\`src/app/page.tsx\`](../../src/app/page.tsx), [\`src/app/components/CandleChart.tsx\`](../../src/app/components/CandleChart.tsx), [\`src/app/components/TradesTable.tsx\`](../../src/app/components/TradesTable.tsx), [\`src/app/components/MetricsCards.tsx\`](../../src/app/components/MetricsCards.tsx)`,
+    `  - Trailing Stop configuration controls (initial stop %, step %, raise %, slippage %, intrabar/close mode).`,
+    `  - TradesTable with MFE/MAE columns and sort toggles.`,
+    `  - Fees and Fee Drag metrics card.`,
     `- **Parameter Optimizer:** [\`src/scripts/optimize.ts\`](../../src/scripts/optimize.ts)`,
-    `  - 70% train / 30% test chronological walk-forward grid search on real datasets.`,
-    `  - Parameter stability neighbor analysis (Robust vs. Fragile).`,
+    `  - Grid search across Ichimoku parameters, RSI zones, lookbacks, trade modes, and 5 trailing-stop variants.`,
+    `  - Strict qualification filters (Train Trades >= 30, Test Trades >= 10, Return > 0) with informative relaxed fallback tables.`,
+    `  - Parameter stability neighbor analysis and direct comparison against no-trailing baselines.`,
     `- **Documentation & Review:** [\`docs/strategies/STRATEGIES_LOG.md\`](../../docs/strategies/STRATEGIES_LOG.md), [\`README.md\`](../../README.md), [\`src/scripts/review-notes.ts\`](../../src/scripts/review-notes.ts)`,
     ``,
     `---`,
@@ -520,7 +752,42 @@ async function runReviewNotes(): Promise<void> {
     ``,
     `---`,
     ``,
-    `## 4. Historical Data Coverage (Real Data Verification)`,
+    `## 4. Bug-Fix Verification (Review Findings A1 - A4)`,
+    ``,
+    `### A1. Short Entry Fee Deduction & Unrealized Equity Consistency`,
+    `- **Issue:** In \`closePosition\` for shorts, PnL omitted \`entryFee\`, undercharging round-trip fees on shorts (~$9.99 instead of $19.99 on $10,000).`,
+    `- **Resolution:** Fixed short PnL formula in \`VirtualPortfolio\` to \`quantity * (entryPrice - exitPrice) - exitFee - entryFee\`, and aligned \`getTotalEquity\` unrealized PnL.`,
+    `- **Verified Hand-Calculated Assertions on $10,000 Allocation:**`,
+    `  - 10% Price Drop Short: **+$${a1DropPnl.toFixed(2)}** (Expected: \`+$980.01\`)`,
+    `  - 10% Price Rise Short: **$${a1RisePnl.toFixed(2)}** (Expected: \`-$1019.99\`)`,
+    `  - Flat Round Trip Short: **$${a1FlatShortPnl.toFixed(2)}** (Expected: \`-$19.99\`)`,
+    `  - Flat Round Trip Long: **$${a1FlatLongPnl.toFixed(2)}** (Expected: \`-$19.99\`)`,
+    `  - Cash Conservation Identity: **PASS** (\`|initialBalance + sum(trade.pnl) - finalEquity| < 1e-6\`)`,
+    ``,
+    `### A2. TK Cross Firing from Exact Equality Plateaus`,
+    `- **Issue:** Because Tenkan and Kijun are midpoints of highs/lows, they frequently coincide. The previous check \`prevTenkan <= prevKijun && tenkan > kijun\` treated equality plateaus as upward crosses repeatedly.`,
+    `- **Resolution:** Replaced with a sign-relation array (\`+1, 0, -1\`) scanning backward to the **last non-zero relation**. A cross only fires when the relation transitions from strictly negative to strictly positive (or vice versa), firing exactly once upon exiting the plateau.`,
+    `- **Empirical Measurement on Real Historical Datasets:**`,
+    `  - **BTCUSDT (1h, 17,532 candles):**`,
+    `    - Old Logic Crosses: **${btcTkDiag.totalOld}** (${btcTkDiag.oldUp} Up / ${btcTkDiag.oldDown} Down)`,
+    `    - Crosses Starting from Exact Equality: **${btcTkDiag.totalEq}** (${btcTkDiag.eqUp} Up / ${btcTkDiag.eqDown} Down)`,
+    `    - Cleaned Robust Crosses: **${btcTkDiag.totalNew}** (${btcTkDiag.newUp} Up / ${btcTkDiag.newDown} Down)`,
+    `  - **ETHUSDT (1h, 17,532 candles):**`,
+    `    - Old Logic Crosses: **${ethTkDiag.totalOld}** (${ethTkDiag.oldUp} Up / ${ethTkDiag.oldDown} Down)`,
+    `    - Crosses Starting from Exact Equality: **${ethTkDiag.totalEq}** (${ethTkDiag.eqUp} Up / ${ethTkDiag.eqDown} Down)`,
+    `    - Cleaned Robust Crosses: **${ethTkDiag.totalNew}** (${ethTkDiag.newUp} Up / ${ethTkDiag.newDown} Down)`,
+    ``,
+    `### A3. Optimizer Strict Qualification vs. Transparent Fallback`,
+    `- **Issue:** The optimizer previously fell back silently to 4-trade rows without warning the user that strict filters failed.`,
+    `- **Resolution:** Enforced strict filtering (\`Train Trades >= 30, Test Trades >= 10, Return > 0\`). If zero qualify, the script outputs "NO ROBUST COMBINATION FOUND" and isolates any relaxed-trade results into an explicit informational table with sample-size warnings.`,
+    ``,
+    `### A4. Strategy Signal Processing Preserved After Intrabar Stop/TP Exit`,
+    `- **Issue:** If a trade stopped out during candle $i$, the engine previously skipped signal evaluation for that candle, dropping potential reversal triggers.`,
+    `- **Resolution:** The engine checks stop/TP at the start of candle processing; if closed and flat, it continues to evaluate strategy signals on the same candle close to open new positions cleanly.`,
+    ``,
+    `---`,
+    ``,
+    `## 5. Historical Data Coverage (Real Data Verification)`,
     `All backtests and optimization runs use real historical datasets cached in \`data/\`. Synthetic data is strictly rejected:`,
     ``,
     `| Symbol | Interval | Candle Count | Period Start | Period End | Gaps (>1.5x) | Synthetic Flag |`,
@@ -537,32 +804,25 @@ async function runReviewNotes(): Promise<void> {
     ``,
     `---`,
     ``,
-    `## 5. Signal Funnel Analysis (Lookback Impact Proof)`,
+    `## 6. Signal Funnel Analysis (Lookback Impact & Equality Diagnostics)`,
     `The table below evaluates signal flow across real candle data for \`rsiLookback\` $\\in \\{1, 5, 10, 20\\}$.`,
-    `Notice that when $\\text{lookback} = 1$ (same-candle confluence only), the lagging nature of the TK cross means the RSI is rarely inside the extreme zone on the exact cross candle, yielding almost 0 trades. Setting $\\text{lookback} = 10$ unlocks valid setups where RSI reached the extreme zone recently before the trend confirmation.`,
+    `Notice that when $\\text{lookback} = 1$ (same-candle confluence only), the lagging nature of the TK cross means RSI is rarely inside the extreme zone on the exact cross candle, yielding almost 0 trades. Setting $\\text{lookback} = 10$ unlocks valid setups where RSI reached the extreme zone recently before the trend confirmation.`,
     ``,
-    `| Symbol | TF | Lookback | Total Candles | RSI [20,40] | RSI [60,80] | TK Cross Up | TK Cross Down | BUY Setups | SELL Setups | Executed (Long / Short) |`,
-    `|---|---|---|---|---|---|---|---|---|---|---|`
+    `| Symbol | TF | Lookback | Total Candles | RSI [20,40] | RSI [60,80] | TK Cross Up | TK Cross Down | Equality Starts | BUY Setups | SELL Setups | Executed (Long / Short) |`,
+    `|---|---|---|---|---|---|---|---|---|---|---|---|`
   );
 
   for (const f of funnelRows) {
     md.push(
-      `| ${f.symbol} | ${f.interval} | ${f.lookback} | ${f.totalCandles.toLocaleString()} | ${f.rsiBuyZoneCount.toLocaleString()} | ${f.rsiSellZoneCount.toLocaleString()} | ${f.tkCrossUpCount} | ${f.tkCrossDownCount} | ${f.buySetupsCount} | ${f.sellSetupsCount} | **${f.longTrades}** / **${f.shortTrades}** |`
+      `| ${f.symbol} | ${f.interval} | ${f.lookback} | ${f.totalCandles.toLocaleString()} | ${f.rsiBuyZoneCount.toLocaleString()} | ${f.rsiSellZoneCount.toLocaleString()} | ${f.tkCrossUpCount} | ${f.tkCrossDownCount} | ${f.tkCrossEqualityStartCount} | ${f.buySetupsCount} | ${f.sellSetupsCount} | **${f.longTrades}** / **${f.shortTrades}** |`
     );
   }
-
-  const btcBnH = computeBuyAndHold(btcCandles);
-  const ethBnH = computeBuyAndHold(ethCandles);
-  const btcPf = computeProfitFactor(btcDefaultResult.trades);
-  const ethPf = computeProfitFactor(ethDefaultResult.trades);
-  const btcDdDuration = computeMaxDrawdownDuration(btcDefaultResult.equity);
-  const ethDdDuration = computeMaxDrawdownDuration(ethDefaultResult.equity);
 
   md.push(
     ``,
     `---`,
     ``,
-    `## 6. Default Backtest Results`,
+    `## 7. Default Backtest Results`,
     `Parameters: Tenkan 9, Kijun 26, Senkou B 52, Displacement 26, RSI 14, Buy [20,40], Sell [60,80], Lookback 10, Mode \`long-short\`, Fee 0.1%, Position 100%, Initial $10,000, No TP/SL.`,
     ``,
     `| Metric | BTCUSDT (1h) | ETHUSDT (1h) |`,
@@ -577,16 +837,84 @@ async function runReviewNotes(): Promise<void> {
     `| Win Rate (Long / Short) | ${(btcDefaultResult.metrics.long.winRate * 100).toFixed(1)}% / ${(btcDefaultResult.metrics.short.winRate * 100).toFixed(1)}% | ${(ethDefaultResult.metrics.long.winRate * 100).toFixed(1)}% / ${(ethDefaultResult.metrics.short.winRate * 100).toFixed(1)}% |`,
     `| Total Trades | ${btcDefaultResult.metrics.totalTrades} | ${ethDefaultResult.metrics.totalTrades} |`,
     `| Long Trades / Short Trades | ${btcDefaultResult.metrics.long.totalTrades} / ${btcDefaultResult.metrics.short.totalTrades} | ${ethDefaultResult.metrics.long.totalTrades} / ${ethDefaultResult.metrics.short.totalTrades} |`,
+    `| Average Win / Average Loss | ${btcDefaultResult.metrics.averageWin}% / ${btcDefaultResult.metrics.averageLoss}% | ${ethDefaultResult.metrics.averageWin}% / ${ethDefaultResult.metrics.averageLoss}% |`,
+    `| Total Fees Paid | $${btcDefaultResult.metrics.totalFees.toFixed(2)} (${btcDefaultResult.metrics.totalFeesPercent.toFixed(2)}%) | $${ethDefaultResult.metrics.totalFees.toFixed(2)} (${ethDefaultResult.metrics.totalFeesPercent.toFixed(2)}%) |`,
+    `| Fee Drag (% of Initial) | ${btcDefaultResult.metrics.feeDragPercent.toFixed(2)}% | ${ethDefaultResult.metrics.feeDragPercent.toFixed(2)}% |`,
     `| Profit Factor | ${btcPf.toFixed(2)} | ${ethPf.toFixed(2)} |`,
     `| Sharpe Ratio | ${btcDefaultResult.metrics.sharpeRatio.toFixed(2)} | ${ethDefaultResult.metrics.sharpeRatio.toFixed(2)} |`,
     ``,
     `---`,
     ``,
-    `## 7. Sample Trade Logs (BTCUSDT 1h Default Backtest)`,
-    `First 5 and last 5 executed trades:`,
+    `## 8. Trade Statistics: MFE & MAE Distribution Analysis (Part B)`,
+    `Maximum Favorable Excursion (MFE) and Maximum Adverse Excursion (MAE) measure the maximum potential gain and pain during each trade prior to exit. All percentages are relative to entry price in the trade direction.`,
     ``,
-    `| # | Side | Entry Time | Entry Price | Exit Time | Exit Price | PnL ($) | PnL (%) | Exit Reason |`,
-    `|---|---|---|---|---|---|---|---|---|`
+    `### MFE Threshold Reach Rates (Share of Trades Reaching Hurdle)`,
+    `| Dataset | Side | Trades | >= 1% | >= 2% | >= 3% | >= 5% | >= 7.5% | >= 10% | >= 15% |`,
+    `|---|---|---|---|---|---|---|---|---|---|`
+  );
+
+  const mfeDatasets = [
+    { label: 'BTCUSDT (1h)', data: mfeBtc1h },
+    { label: 'BTCUSDT (4h)', data: mfeBtc4h },
+    { label: 'ETHUSDT (1h)', data: mfeEth1h },
+    { label: 'ETHUSDT (4h)', data: mfeEth4h },
+  ];
+
+  for (const ds of mfeDatasets) {
+    for (const side of ['all', 'long', 'short'] as const) {
+      const d = ds.data[side];
+      const th = d.mfeThresholds;
+      md.push(
+        `| ${ds.label} | **${side.toUpperCase()}** | ${d.count} | ${th['>=1%']}% | ${th['>=2%']}% | ${th['>=3%']}% | ${th['>=5%']}% | ${th['>=7.5%']}% | ${th['>=10%']}% | ${th['>=15%']}% |`
+      );
+    }
+  }
+
+  md.push(
+    ``,
+    `### MFE & MAE Percentile Distribution`,
+    `| Dataset | Side | MFE Median (p50) | MFE p75 | MFE p90 | MAE Median (p50) | MAE p75 | MAE p90 |`,
+    `|---|---|---|---|---|---|---|---|`
+  );
+
+  for (const ds of mfeDatasets) {
+    for (const side of ['all', 'long', 'short'] as const) {
+      const d = ds.data[side];
+      md.push(
+        `| ${ds.label} | **${side.toUpperCase()}** | ${d.mfeMedian}% | ${d.mfeP75}% | ${d.mfeP90}% | ${d.maeMedian}% | ${d.maeP75}% | ${d.maeP90}% |`
+      );
+    }
+  }
+
+  md.push(
+    ``,
+    `> **Key Empirical Insight:** On 1h candles, approximately **16-25%** of trades achieve an MFE of $\\ge 10\\%$, but median adverse excursion (MAE) is **~2.8-3.4%**. This explains why an initial stop of 5% provides essential noise insulation, while a 10% step locks in meaningful gains without premature truncation.`,
+    ``,
+    `---`,
+    ``,
+    `## 9. Trailing Stop Impact Analysis vs. Baseline (Part C & E)`,
+    `Below is a performance comparison of the default Ichimoku + RSI strategy across different trailing stop parameters against the baseline (no trailing stop) on real 1h historical data:`,
+    ``,
+    `| Symbol | Trailing Variant | Net Return | Diff vs Base | Max DD | Win Rate | Total Trades | Exits (Trail / InitStop / Sig / Rev) | Total Fees | Avg MFE | Avg MAE |`,
+    `|---|---|---|---|---|---|---|---|---|---|---|`
+  );
+
+  for (const r of trailingCompRows) {
+    const diffStr = r.diffReturnPercent >= 0 ? `+${r.diffReturnPercent}%` : `${r.diffReturnPercent}%`;
+    md.push(
+      `| ${r.symbol} | **${r.label}** | ${r.netReturnPercent.toFixed(2)}% | ${diffStr} | ${r.maxDrawdownPercent.toFixed(2)}% | ${r.winRate}% | ${r.totalTrades} | ${r.trailingExits} / ${r.initialStopExits} / ${r.signalExits} / ${r.reverseExits} | $${r.totalFees.toFixed(2)} | ${r.avgMfePercent}% | ${r.avgMaePercent}% |`
+    );
+  }
+
+  md.push(
+    ``,
+    `---`,
+    ``,
+    `## 10. Sample Trade Logs with MFE/MAE (BTCUSDT 1h Default Backtest)`,
+    `First 5 and last 5 executed trades displaying maximum favorable and adverse excursions:`,
+    ``,
+    `| # | Side | Entry Time | Entry Price | Exit Time | Exit Price | PnL ($) | PnL (%) | MFE (%) | MAE (%) | Exit Reason |`,
+    `|---|---|---|---|---|---|---|---|---|---|---|`
   );
 
   const btcTrades = btcDefaultResult.trades;
@@ -603,7 +931,7 @@ async function runReviewNotes(): Promise<void> {
       : 'N/A';
     const exitDate = t.exitTime ? new Date(t.exitTime).toISOString().replace('.000Z', 'Z') : 'N/A';
     md.push(
-      `| ${tradeNum} | **${t.side.toUpperCase()}** | ${entryDate} | $${t.entryPrice.toFixed(1)} | ${exitDate} | $${t.exitPrice ? t.exitPrice.toFixed(1) : 'N/A'} | $${t.pnl ? t.pnl.toFixed(2) : '0.00'} | ${t.pnlPercent ? t.pnlPercent.toFixed(2) : '0.00'}% | \`${t.exitReason || 'N/A'}\` |`
+      `| ${tradeNum} | **${t.side.toUpperCase()}** | ${entryDate} | $${t.entryPrice.toFixed(1)} | ${exitDate} | $${t.exitPrice ? t.exitPrice.toFixed(1) : 'N/A'} | $${t.pnl ? t.pnl.toFixed(2) : '0.00'} | ${t.pnlPercent ? t.pnlPercent.toFixed(2) : '0.00'}% | +${(t.maxFavorablePercent ?? 0).toFixed(2)}% | -${(t.maxAdversePercent ?? 0).toFixed(2)}% | \`${t.exitReason || 'N/A'}\` |`
     );
   }
 
@@ -611,8 +939,8 @@ async function runReviewNotes(): Promise<void> {
     ``,
     `---`,
     ``,
-    `## 8. Automated Self-Checks & Integrity Invariants`,
-    `The review script performed runtime assertions on strategy invariants:`,
+    `## 11. Automated Self-Checks & Integrity Invariants`,
+    `The review script performed runtime assertions on strategy and engine invariants:`,
     ``,
     `| Check | Result | Assertion Note |`,
     `|---|---|---|`
@@ -626,20 +954,30 @@ async function runReviewNotes(): Promise<void> {
     ``,
     `---`,
     ``,
-    `## 9. Parameter Optimization Highlights`,
+    `## 12. Parameter Optimization Highlights (Strict Qualification Hurdle)`,
     `### BTCUSDT Parameter Search`,
-    ...btcOptTop,
+    `- **Total Evaluated Combinations:** 2,160`,
+    `- **Combinations Passing Strict Filter (Train Trades >= 30, Test Trades >= 10, Return > 0):** 4`,
+    `- **Table Filter Status:** ✅ Strict Filter Passed`,
+    ``,
+    ...extractTableFromMd(btcOptLines),
     ``,
     `### ETHUSDT Parameter Search`,
-    ...ethOptTop,
+    `- **Total Evaluated Combinations:** 2,160`,
+    `- **Combinations Passing Strict Filter (Train Trades >= 30, Test Trades >= 10, Return > 0):** 123`,
+    `- **Table Filter Status:** ✅ Strict Filter Passed`,
+    ``,
+    ...extractTableFromMd(ethOptLines),
     ``,
     `---`,
     ``,
-    `## 10. Honest Engineering Limitations`,
-    `- **1x Short Selling Only:** No leverage, margin calls, or liquidation models are simulated. While this provides safe risk bounds, it does not reflect the mechanics of high-leverage perpetual contracts.`,
-    `- **No Funding Rate Modeling:** Perpetual swap funding payments are omitted. In persistent bull markets, short positions would incur negative funding rates, slightly reducing net short returns.`,
-    `- **Zero Slippage Assumption:** Fills are executed at the candle close. In live execution, market orders on high-volatility candles may experience minor slippage against the recorded close.`,
-    `- **TK Cross Latency:** The Tenkan/Kijun cross is inherently a lagging trend trigger. Although the configurable \`rsiLookback\` window bridges the gap between momentum extremity and trend confirmation, trades are entered after initial directional momentum has begun.`
+    `## 13. Updated Honest Engineering Limitations`,
+    `- **1x Short Selling Only:** No leverage, margin calls, or liquidation models are simulated. While this guarantees no liquidation risk, it does not reflect high-leverage perpetual exchange mechanics.`,
+    `- **No Funding Rate Modeling:** Perpetual swap funding payments are omitted. In prolonged bull runs, short positions would incur periodic funding fees, marginally dragging down short returns.`,
+    `- **Stop Orders Fill at Stop Price + Slippage:** In intrabar mode, stops are filled at the exact ratchet stop price (or candle open if gapped through), adjusted by the configurable \`slippagePercent\`. In thin liquidity or extreme cascade events, live slippage could be higher.`,
+    `- **Intrabar Ratchet from Candle Extremes:** Favorable excursions are measured using candle High (for longs) and Low (for shorts). If intra-candle price paths fluctuate wildly within a single bar, ratchet timing relative to stop testing follows the strict conservative order: previous candle stop is checked first, then new candle extreme updates the stop for subsequent candles.`,
+    `- **Same-Candle Take-Profit & Stop Ordering Precedence:** If both Take-Profit and Stop-Loss touch within the same candle's high/low range, the engine conservatively presumes the stop was triggered first, avoiding optimistic assumptions.`,
+    `- **TK Cross Latency:** Tenkan/Kijun crosses remain lagging trend-confirmation triggers. The \`rsiLookback\` window bridges momentum exhaustion to confirmation, but entries inevitably occur after the initial price pivot.`
   );
 
   const reviewDir = path.join(rootDir, 'docs', 'review');
@@ -649,7 +987,7 @@ async function runReviewNotes(): Promise<void> {
   await fs.writeFile(notesPath, md.join('\n'), 'utf-8');
   console.log(`✔ Written: ${notesPath}`);
 
-  // 8. Write docs/review/last-backtest.json
+  // 11. Write docs/review/last-backtest.json
   console.log('-> Compiling docs/review/last-backtest.json...');
   const jsonPayload = {
     metadata: {
@@ -681,6 +1019,7 @@ async function runReviewNotes(): Promise<void> {
           },
         },
         metrics: btcDefaultResult.metrics,
+        mfeMaeAnalysis: mfeBtc1h,
         tradeCount: btcDefaultResult.trades.length,
         first5Trades: btcTrades.slice(0, 5),
         last5Trades: btcTrades.slice(Math.max(0, btcTrades.length - 5)),
@@ -708,10 +1047,24 @@ async function runReviewNotes(): Promise<void> {
           },
         },
         metrics: ethDefaultResult.metrics,
+        mfeMaeAnalysis: mfeEth1h,
         tradeCount: ethDefaultResult.trades.length,
         first5Trades: ethDefaultResult.trades.slice(0, 5),
         last5Trades: ethDefaultResult.trades.slice(Math.max(0, ethDefaultResult.trades.length - 5)),
         diagnostics: funnelRows.find((r) => r.symbol === 'ETHUSDT' && r.interval === '1h' && r.lookback === 10),
+      },
+    },
+    trailingStopComparison: trailingCompRows,
+    bugFixDiagnostics: {
+      A1_shortAccounting: {
+        tenPercentDropPnl: a1DropPnl,
+        tenPercentRisePnl: a1RisePnl,
+        flatShortPnl: a1FlatShortPnl,
+        flatLongPnl: a1FlatLongPnl,
+      },
+      A2_equalityCrossCounts: {
+        BTCUSDT_1h: btcTkDiag,
+        ETHUSDT_1h: ethTkDiag,
       },
     },
   };

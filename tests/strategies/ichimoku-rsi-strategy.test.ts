@@ -300,5 +300,116 @@ describe('IchimokuRsiStrategy', () => {
         }
       }
     });
+
+    describe('TK Equality and Plateau Handling (A2)', () => {
+      it('should handle equality plateau between two candles then fire real cross once on first candle of new side', () => {
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 40,
+          rsiBuyMax: 55,
+          rsiSellMin: 60,
+          rsiSellMax: 80,
+          rsiLookback: 5,
+        });
+
+        // i=5: diff = -10 (tenkan < kijun)
+        // i=6: diff = -5 (tenkan < kijun)
+        // i=7..10: diff = 0 (tenkan === kijun plateau)
+        // i=11: diff = +10 (tenkan > kijun breakout)
+        // i=12: diff = +10 (tenkan > kijun continuation)
+        const candles: Candle[] = [
+          createCandle(50, 100, 50, 50, 1000),  // 0
+          createCandle(50, 90, 50, 50, 2000),   // 1
+          createCandle(50, 80, 50, 50, 3000),   // 2
+          createCandle(50, 70, 50, 50, 4000),   // 3
+          createCandle(50, 60, 50, 50, 5000),   // 4
+          createCandle(50, 60, 50, 50, 6000),   // 5
+          createCandle(50, 60, 50, 50, 7000),   // 6
+          createCandle(50, 60, 50, 50, 8000),   // 7
+          createCandle(50, 80, 50, 50, 9000),   // 8
+          createCandle(50, 80, 50, 50, 10000),  // 9
+          createCandle(50, 80, 70, 75, 11000),  // 10
+          createCandle(50, 80, 70, 75, 12000),  // 11: breakout -> BUY
+          createCandle(50, 80, 70, 75, 13000),  // 12: continuation -> HOLD
+        ];
+
+        expect(strategy.analyze(candles, 9).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 10).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 11).action).toBe('BUY');
+        expect(strategy.analyze(candles, 12).action).toBe('HOLD');
+      });
+
+      it('should not fire a signal on equality plateau without changing side', () => {
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 40,
+          rsiBuyMax: 55,
+          rsiSellMin: 60,
+          rsiSellMax: 80,
+          rsiLookback: 5,
+        });
+
+        // Sequence where relation is +1, then 0, 0, then +1 again
+        const candles: Candle[] = [
+          createCandle(50, 50, 50, 50, 1000),
+          createCandle(50, 60, 50, 50, 2000),
+          createCandle(50, 70, 50, 50, 3000),
+          createCandle(50, 80, 50, 50, 4000),
+          createCandle(50, 90, 70, 50, 5000), // tenkan > kijun (+1)
+          createCandle(50, 90, 70, 50, 6000), // tenkan > kijun (+1)
+          createCandle(50, 90, 50, 50, 7000), // tenkan === kijun (0)
+          createCandle(50, 90, 50, 50, 8000), // tenkan === kijun (0)
+          createCandle(50, 90, 70, 50, 9000), // tenkan > kijun (+1, but side did not change)
+        ];
+
+        // Should NOT emit BUY on candle 8 or 9 because previous non-zero relation was already +1
+        expect(strategy.analyze(candles, 7).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 8).action).toBe('HOLD');
+      });
+
+      it('should not emit repeated signals when flapping equal/greater/equal/greater', () => {
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 40,
+          rsiBuyMax: 55,
+          rsiSellMin: 60,
+          rsiSellMax: 80,
+          rsiLookback: 5,
+        });
+
+        // Sequence: negative, then cross up (+1, fires once on candle 7), then 0, 0, +1
+        const candles: Candle[] = [
+          createCandle(50, 100, 50, 50, 1000),
+          createCandle(50, 90, 50, 50, 2000),
+          createCandle(50, 80, 50, 50, 3000),
+          createCandle(50, 70, 50, 50, 4000),
+          createCandle(50, 60, 50, 50, 5000),
+          createCandle(50, 60, 50, 50, 6000),  // 5: tenkan < kijun (-1)
+          createCandle(50, 80, 70, 50, 7000),  // 6: equal (0)
+          createCandle(50, 80, 70, 50, 8000),  // 7: tenkan > kijun (+1, initial cross up -> BUY)
+          createCandle(50, 60, 50, 50, 9000),  // 8: equal (0)
+          createCandle(50, 80, 70, 50, 10000), // 9: equal (0)
+          createCandle(50, 80, 70, 50, 11000), // 10: greater (+1, flapping without changing side -> HOLD)
+        ];
+
+        expect(strategy.analyze(candles, 6).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 7).action).toBe('BUY');
+        expect(strategy.analyze(candles, 8).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 9).action).toBe('HOLD');
+        expect(strategy.analyze(candles, 10).action).toBe('HOLD');
+      });
+    });
   });
 });

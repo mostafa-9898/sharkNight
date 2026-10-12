@@ -145,6 +145,26 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
           <span>Net Return: {isNetProfit ? '+' : ''}{metrics.totalPnlPercent}%</span>
         </div>
       </div>
+
+      {/* Fees & Drag */}
+      <div style={cardStyle}>
+        <span style={labelStyle}>Fees & Fee Drag</span>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#e6edf3' }}>
+          ${metrics.totalFees?.toLocaleString() ?? '0.00'}
+          <span style={{ fontSize: '12px', color: '#f85149', marginLeft: '6px' }}>
+            (-{metrics.totalFeesPercent ?? 0}% drag)
+          </span>
+        </div>
+        <div style={breakdownStyle}>
+          <span>
+            Avg Win: <strong style={{ color: '#3fb950' }}>+{metrics.averageWin ?? 0}%</strong>
+          </span>
+          <span>•</span>
+          <span>
+            Avg Loss: <strong style={{ color: '#f85149' }}>{metrics.averageLoss ?? 0}%</strong>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -17,6 +17,8 @@ type SortField =
   | 'exitPrice'
   | 'duration'
   | 'fee'
+  | 'mfe'
+  | 'mae'
   | 'pnl'
   | 'pnlPercent';
 
@@ -38,6 +40,8 @@ const COLUMNS: ColumnConfig[] = [
   { key: 'exitPrice', label: 'Exit Price', align: 'right' },
   { key: 'duration', label: 'Duration', align: 'center' },
   { key: 'fee', label: 'Fee', align: 'right' },
+  { key: 'mfe', label: 'MFE (%)', align: 'right' },
+  { key: 'mae', label: 'MAE (%)', align: 'right' },
   { key: 'pnl', label: 'Net PnL', align: 'right' },
   { key: 'pnlPercent', label: 'Return (%)', align: 'right' },
 ];
@@ -118,6 +122,14 @@ export default function TradesTable({ trades }: TradesTableProps) {
           valA = a.fee;
           valB = b.fee;
           break;
+        case 'mfe':
+          valA = a.maxFavorablePercent ?? 0;
+          valB = b.maxFavorablePercent ?? 0;
+          break;
+        case 'mae':
+          valA = a.maxAdversePercent ?? 0;
+          valB = b.maxAdversePercent ?? 0;
+          break;
         case 'pnl':
           valA = a.pnl;
           valB = b.pnl;
@@ -177,6 +189,8 @@ export default function TradesTable({ trades }: TradesTableProps) {
     switch (reason) {
       case 'takeProfit':
         return { label: 'Take Profit', bg: 'rgba(46, 160, 67, 0.15)', color: '#3fb950', border: '#2ea043' };
+      case 'trailingStop':
+        return { label: 'Trailing Stop', bg: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '#ca8a04' };
       case 'stopLoss':
         return { label: 'Stop Loss', bg: 'rgba(248, 81, 73, 0.15)', color: '#f85149', border: '#f85149' };
       case 'reverse':
@@ -462,6 +476,30 @@ export default function TradesTable({ trades }: TradesTableProps) {
                     }}
                   >
                     ${trade.fee.toFixed(2)}
+                  </td>
+
+                  {/* MFE (%) */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      color: '#3fb950',
+                      textAlign: 'right',
+                      fontWeight: sortField === 'mfe' ? 700 : 400,
+                    }}
+                  >
+                    +{trade.maxFavorablePercent?.toFixed(2) ?? '0.00'}%
+                  </td>
+
+                  {/* MAE (%) */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      color: '#f85149',
+                      textAlign: 'right',
+                      fontWeight: sortField === 'mae' ? 700 : 400,
+                    }}
+                  >
+                    -{trade.maxAdversePercent?.toFixed(2) ?? '0.00'}%
                   </td>
 
                   {/* Net PnL */}

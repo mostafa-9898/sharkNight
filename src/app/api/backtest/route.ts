@@ -5,7 +5,8 @@ import { JsonStorage } from '@/data/storage/json-storage';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import { performCandleSanityCheck } from '@/data/models/candle';
 import { BacktestEngine } from '@/backtest/engine';
-import type { TradeMode } from '@/backtest/types';
+import type { TradeMode, StopCheckMode, TrailingStopConfig } from '@/backtest/types';
+import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
@@ -88,6 +89,50 @@ export async function POST(request: Request) {
       Number(body.stopLossPercent) > 0
         ? Number(body.stopLossPercent)
         : undefined;
+
+    // Trailing Stop parameters
+    const trailingStopEnabled = Boolean(body.trailingStopEnabled);
+    let trailingStop: TrailingStopConfig | undefined;
+
+    if (trailingStopEnabled) {
+      const initialStopPercent = Number(body.initialStopPercent ?? 5);
+      const trailStepPercent = Number(body.trailStepPercent ?? 10);
+      const trailRaisePercent = Number(body.trailRaisePercent ?? 5);
+
+      if (!Number.isFinite(initialStopPercent) || initialStopPercent <= 0 || initialStopPercent > 50) {
+        return NextResponse.json(
+          { success: false, error: 'initialStopPercent must be between 0 and 50%' },
+          { status: 400 }
+        );
+      }
+      if (!Number.isFinite(trailStepPercent) || trailStepPercent <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'trailStepPercent must be greater than 0' },
+          { status: 400 }
+        );
+      }
+      if (!Number.isFinite(trailRaisePercent) || trailRaisePercent <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'trailRaisePercent must be greater than 0' },
+          { status: 400 }
+        );
+      }
+      if (trailRaisePercent > trailStepPercent * 1.0) {
+        return NextResponse.json(
+          { success: false, error: 'trailRaisePercent cannot exceed trailStepPercent' },
+          { status: 400 }
+        );
+      }
+
+      trailingStop = {
+        initialStopPercent,
+        stepPercent: trailStepPercent,
+        raisePercent: trailRaisePercent,
+      };
+    }
+
+    const slippagePercent = Math.max(0, Number(body.slippagePercent ?? 0));
+    const stopCheckMode: StopCheckMode = body.stopCheckMode === 'close' ? 'close' : 'intrabar';
 
     const allowSynthetic = Boolean(body.allowSynthetic);
     const initialBalance = Math.max(100, Number(body.initialBalance ?? 10000));
@@ -173,7 +218,10 @@ export async function POST(request: Request) {
       tradeFeePercent,
       tradeMode,
       takeProfitPercent,
-      stopLossPercent,
+      stopLossPercent: trailingStopEnabled ? undefined : stopLossPercent,
+      trailingStop,
+      slippagePercent,
+      stopCheckMode,
     });
 
     // Compute indicator series for response
@@ -193,6 +241,17 @@ export async function POST(request: Request) {
     let tkCrossDownCount = 0;
     let buySetupsCount = 0;
     let sellSetupsCount = 0;
+
+    const relation = new Int8Array(candles.length);
+    for (let i = 0; i < candles.length; i++) {
+      const t = ichimokuData.tenkan[i];
+      const k = ichimokuData.kijun[i];
+      if (Number.isFinite(t) && Number.isFinite(k)) {
+        relation[i] = t > k ? 1 : t < k ? -1 : 0;
+      }
+    }
+
+    let tkCrossEqualityStartCount = 0;
 
     for (let i = 0; i < candles.length; i++) {
       const rsiVal = rsiValues[i];
@@ -217,38 +276,54 @@ export async function POST(request: Request) {
           Number.isFinite(prevT) &&
           Number.isFinite(prevK)
         ) {
-          const isCrossUp = prevT <= prevK && curT > curK;
-          const isCrossDown = prevT >= prevK && curT < curK;
+          const oldCrossUp = prevT <= prevK && curT > curK;
+          const oldCrossDown = prevT >= prevK && curT < curK;
+          if (oldCrossUp && prevT === prevK) tkCrossEqualityStartCount++;
+          if (oldCrossDown && prevT === prevK) tkCrossEqualityStartCount++;
 
-          if (isCrossUp) {
-            tkCrossUpCount++;
-            const lookbackStart = Math.max(0, i - rsiLookback + 1);
-            let hasRsiInZone = false;
-            for (let k = i; k >= lookbackStart; k--) {
-              const v = rsiValues[k];
-              if (Number.isFinite(v) && v >= rsiBuyMin && v <= rsiBuyMax) {
-                hasRsiInZone = true;
+          const curRel = relation[i];
+          if (curRel !== 0) {
+            let lastNonZero = 0;
+            for (let k = i - 1; k >= 0; k--) {
+              if (relation[k] !== 0) {
+                lastNonZero = relation[k];
                 break;
               }
             }
-            if (hasRsiInZone) {
-              buySetupsCount++;
-            }
-          }
 
-          if (isCrossDown) {
-            tkCrossDownCount++;
-            const lookbackStart = Math.max(0, i - rsiLookback + 1);
-            let hasRsiInZone = false;
-            for (let k = i; k >= lookbackStart; k--) {
-              const v = rsiValues[k];
-              if (Number.isFinite(v) && v >= rsiSellMin && v <= rsiSellMax) {
-                hasRsiInZone = true;
-                break;
+            const isCrossUp = curRel === 1 && lastNonZero === -1;
+            const isCrossDown = curRel === -1 && lastNonZero === 1;
+
+            if (isCrossUp) {
+              tkCrossUpCount++;
+              const lookbackStart = Math.max(0, i - rsiLookback + 1);
+              let hasRsiInZone = false;
+              for (let k = i; k >= lookbackStart; k--) {
+                const v = rsiValues[k];
+                if (Number.isFinite(v) && v >= rsiBuyMin && v <= rsiBuyMax) {
+                  hasRsiInZone = true;
+                  break;
+                }
+              }
+              if (hasRsiInZone) {
+                buySetupsCount++;
               }
             }
-            if (hasRsiInZone) {
-              sellSetupsCount++;
+
+            if (isCrossDown) {
+              tkCrossDownCount++;
+              const lookbackStart = Math.max(0, i - rsiLookback + 1);
+              let hasRsiInZone = false;
+              for (let k = i; k >= lookbackStart; k--) {
+                const v = rsiValues[k];
+                if (Number.isFinite(v) && v >= rsiSellMin && v <= rsiSellMax) {
+                  hasRsiInZone = true;
+                  break;
+                }
+              }
+              if (hasRsiInZone) {
+                sellSetupsCount++;
+              }
             }
           }
         }
@@ -263,6 +338,7 @@ export async function POST(request: Request) {
       rsiSellZoneCandles: rsiSellZoneCount,
       tkCrossUpEvents: tkCrossUpCount,
       tkCrossDownEvents: tkCrossDownCount,
+      tkCrossEqualityStartCount,
       buySetups: buySetupsCount,
       sellSetups: sellSetupsCount,
       executedTradesLong,
@@ -311,6 +387,16 @@ export async function POST(request: Request) {
         tradeMode,
         takeProfitPercent,
         stopLossPercent,
+        trailingStop: trailingStopEnabled && trailingStop
+          ? {
+              enabled: true,
+              initialStopPercent: trailingStop.initialStopPercent,
+              stepPercent: trailingStop.stepPercent,
+              raisePercent: trailingStop.raisePercent,
+            }
+          : { enabled: false },
+        slippagePercent,
+        stopCheckMode,
       },
       diagnostics,
       backtest: {
@@ -318,6 +404,7 @@ export async function POST(request: Request) {
         trades: backtestResult.trades,
         equity: backtestResult.equity,
         activePosition: backtestResult.activePosition,
+        mfeMaeAnalysis: computeMfeMaeAnalysis(backtestResult.trades),
       },
     });
   } catch (error) {
