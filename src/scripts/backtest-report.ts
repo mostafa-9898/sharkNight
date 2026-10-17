@@ -323,7 +323,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
   console.log(`   - Net Return:      ${m.totalPnlPercent > 0 ? '+' : ''}${m.totalPnlPercent.toFixed(2)}% ($${m.totalPnl.toFixed(2)})`);
   console.log(`   - Max Drawdown:    ${m.maxDrawdownPercent.toFixed(2)}%`);
   console.log(`   - Total Trades:    ${m.totalTrades} (Long: ${m.long.totalTrades} | Short: ${m.short.totalTrades})`);
-  console.log(`   - Win Rate:        ${(m.winRate * 100).toFixed(1)}%`);
+  console.log(`   - Win Rate:        ${m.totalTrades > 0 ? `${(m.winRate * 100).toFixed(1)}%` : 'N/A'}`);
   console.log(`   - Config Hash:     ${report.configHash}`);
 
   const flags = (report.json as { flags?: Array<{ level: string; message: string }> }).flags ?? [];

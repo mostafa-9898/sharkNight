@@ -374,6 +374,8 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(summary.profitFactor).toBeNull();
       expect(summary.profitFactorDisplay).toBe('N/A');
       expect(summary.winRate).toBeNull();
+      expect((summary.long as Record<string, unknown>).winRate).toBeNull();
+      expect((summary.short as Record<string, unknown>).winRate).toBeNull();
       expect(summary.expectancyPercent).toBeNull();
       expect(summary.averageWinPercent).toBeNull();
       expect(summary.averageLossPercent).toBeNull();
@@ -424,6 +426,8 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(summary.profitFactorDisplay).toBe('N/A');
       expect(summary.averageWinPercent).toBe(5.0);
       expect(summary.averageLossPercent).toBeNull();
+      expect((summary.long as Record<string, unknown>).winRate).toBe(1.0);
+      expect((summary.short as Record<string, unknown>).winRate).toBeNull();
     });
 
     it('should distinguish a sample with one losing trade (zero gross profit)', () => {
@@ -468,6 +472,8 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(summary.profitFactorDisplay).toBe('0.00');
       expect(summary.averageWinPercent).toBeNull();
       expect(summary.averageLossPercent).toBe(-3.0);
+      expect((summary.long as Record<string, unknown>).winRate).toBeNull();
+      expect((summary.short as Record<string, unknown>).winRate).toBe(0.0);
     });
 
     it('should compute numerical profit factor and win/loss ratio when both wins and losses exist', () => {
@@ -531,6 +537,8 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(summary.profitFactor).toBe(2);
       expect(summary.profitFactorDisplay).toBe('2.00');
       expect(summary.winRate).toBe(0.5);
+      expect((summary.long as Record<string, unknown>).winRate).toBe(1.0);
+      expect((summary.short as Record<string, unknown>).winRate).toBe(0.0);
     });
 
     it('should correctly handle edge cases where denominators of reported breakdown metrics are zero', () => {
@@ -861,6 +869,115 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(output.markdown).toContain(
         '"Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order'
       );
+    });
+  });
+
+  describe('9. Section F Trajectory & Empty Sample Progression Audit', () => {
+    it('should display N/A for empty trade samples in Section F header and progression table', () => {
+      const input = makeReportInput([]);
+      const output = buildBacktestReport(input);
+
+      // Section F header on zero trades
+      expect(output.markdown).toContain('- **Trades Rebounding After Drawdown:** 0 (N/A)');
+      expect(output.markdown).toContain('- **Permanently Underwater Trades:** 0 (N/A)');
+
+      // Section F progression table rows on zero trades
+      for (const bar of [1, 3, 6, 12, 24, 48, 96]) {
+        expect(output.markdown).toContain(`| **Bar ${bar}** | N/A (0 trades) | N/A | N/A |`);
+      }
+    });
+
+    it('should display valid percentages for populated categories and N/A for empty categories in Section F', () => {
+      const winTrade: Trade = {
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+
+      const input = makeReportInput([winTrade], {
+        totalTrades: 1,
+        winningTrades: 1,
+        winRate: 1.0,
+        long: { totalTrades: 1, winningTrades: 1, losingTrades: 0, winRate: 1.0, totalPnl: 500, totalPnlPercent: 5.0 },
+      });
+
+      const output = buildBacktestReport(input);
+
+      // Non-empty header stats for 1 trade
+      expect(output.markdown).toContain('- **Trades Rebounding After Drawdown:** 0 (0%)');
+      expect(output.markdown).toContain('- **Permanently Underwater Trades:** 0 (0%)');
+
+      // Bars 1 and 3 are within holding duration (5 bars)
+      // Winning trades column is populated; Losing trades column must be N/A
+      expect(output.markdown).toMatch(/\| \*\*Bar 1\*\* \| [+-]?[0-9.]+%\s*\(1 trades\) \| [+-]?[0-9.]+%\s*\| N\/A \|/);
+      expect(output.markdown).toMatch(/\| \*\*Bar 3\*\* \| [+-]?[0-9.]+%\s*\(1 trades\) \| [+-]?[0-9.]+%\s*\| N\/A \|/);
+
+      // Bar 6, 12, etc. exceed holding duration (5 bars), so all columns are N/A
+      expect(output.markdown).toContain('| **Bar 6** | N/A (0 trades) | N/A | N/A |');
+      expect(output.markdown).toContain('| **Bar 12** | N/A (0 trades) | N/A | N/A |');
+    });
+
+    it('should preserve legitimate numeric 0.00% when a non-empty sample produces an average PnL of zero', () => {
+      const customCandles: Candle[] = [
+        createCandle(0, 100, 105, 95, 100),
+        createCandle(1, 100, 105, 95, 100), // Bar 1: close = 100 -> unrealized PnL = 0.00%
+        createCandle(2, 100, 105, 95, 100),
+        createCandle(3, 100, 106, 95, 105), // Exit candle
+      ];
+
+      const zeroTrade: Trade = {
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: customCandles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: customCandles[3].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: customCandles[0].timestamp,
+        exitTime: customCandles[3].timestamp,
+        duration: 3,
+        maxFavorablePercent: 5.0,
+        maxAdversePercent: 0.0,
+      };
+
+      const input: BacktestReportInput = {
+        backtestResult: {
+          config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+          trades: [zeroTrade],
+          metrics: {
+            ...baseMetrics,
+            totalTrades: 1,
+            winningTrades: 1,
+            winRate: 1.0,
+            long: { totalTrades: 1, winningTrades: 1, losingTrades: 0, winRate: 1.0, totalPnl: 500, totalPnlPercent: 5.0 },
+          },
+          equity: [10000, 10500],
+        },
+        candles: customCandles,
+        config: { symbol: 'BTCUSDT', interval: '1h', initialBalance: 10000 },
+      };
+
+      const output = buildBacktestReport(input);
+
+      // Bar 1 should be exactly 0.00% (not N/A) for All Trades and Winning Trades, and N/A for Losing Trades
+      expect(output.markdown).toContain('| **Bar 1** | 0.00% (1 trades) | 0.00% | N/A |');
+      // Bar 6 was not reached, so it should be N/A
+      expect(output.markdown).toContain('| **Bar 6** | N/A (0 trades) | N/A | N/A |');
     });
   });
 });

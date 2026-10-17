@@ -1,13 +1,13 @@
 # Automated Backtest Review Report
-Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-17T15:00:39.827Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `ccc9adb` (⚠️ dirty) |
+| **Git Commit** | `3f9a84b` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
-| **Total Candles** | 52,594 |
-| **Start Time (UTC)** | 2020-10-17T03:00:00Z |
+| **Total Candles** | 52,593 |
+| **Start Time (UTC)** | 2020-10-17T04:00:00Z |
 | **End Time (UTC)** | 2026-10-17T12:00:00Z |
 | **Data Source** | `cache` ✅ |
 | **Config Hash** | `f8e53fab` |
@@ -33,7 +33,7 @@ Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
 | Metric | Value | Baseline / Context |
 |---|---|---|
 | **Net Return** | **0.00%** ($0.00) | Initial: $10000.00 → Final: $10000.00 |
-| **Buy & Hold Return** | **+617.83%** | Market performance over same candle window |
+| **Buy & Hold Return** | **+618.83%** | Market performance over same candle window |
 | **Max Drawdown** | **0.00%** | Peak to trough depth on continuous equity |
 | **Total Trades** | **0** | Long: 0 / Short: 0 |
 | **Win Rate** | **N/A** | Long: N/A / Short: N/A |
@@ -42,7 +42,7 @@ Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
 | **Profit Factor** | **N/A** | Gross Profit: $0.00 / Gross Loss: $0.00 (no trades executed) |
 | **Total Fees Paid** | **$0.00** (0.00% of capital) | Fee Drag: 0.00% |
 | **Avg Holding Duration** | **0 bars** | Total bars in positions: 0 |
-| **Time in Market** | **0%** | 0 of 52,594 candles |
+| **Time in Market** | **0%** | 0 of 52,593 candles |
 
 ## Section C: Automated Warning Flags
 - 🚨 **[CRITICAL]** Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample.
@@ -70,10 +70,10 @@ Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
 #### Sample of Rejected TK Crosses (First 8 Events)
 | Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |
 |---|---|---|---|---|
-| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.5 | `cloudFilter` |
-| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.5 | `cloudFilter` |
-| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.2 | `cloudFilter` |
-| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.2 | `cloudFilter` |
+| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.7 | `cloudFilter` |
+| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.7 | `cloudFilter` |
+| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.3 | `cloudFilter` |
+| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.3 | `cloudFilter` |
 | 2020-10-22T17:00:00Z | `DOWN` | $13043.40 | 64.9 | `cloudFilter` |
 | 2020-10-22T19:00:00Z | `UP` | $13071.80 | 66.1 | `kijunSlopeFilter` |
 | 2020-10-23T08:00:00Z | `DOWN` | $12920.60 | 51.2 | `cloudFilter` |
@@ -84,19 +84,19 @@ Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 
 ## Section F: Per-Trade Trajectory Analysis
-- **Trades Rebounding After Drawdown:** 0 (0%)
-- **Permanently Underwater Trades:** 0 (0%)
+- **Trades Rebounding After Drawdown:** 0 (N/A)
+- **Permanently Underwater Trades:** 0 (N/A)
 
 ### Average Unrealized PnL Progression (Winners vs Losers)
 | Candle Horizon | All Trades | Winning Trades | Losing Trades |
 |---|---|---|---|
-| **Bar 1** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 3** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 6** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 12** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 24** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 48** | 0.00% (0 trades) | 0.00% | 0.00% |
-| **Bar 96** | 0.00% (0 trades) | 0.00% | 0.00% |
+| **Bar 1** | N/A (0 trades) | N/A | N/A |
+| **Bar 3** | N/A (0 trades) | N/A | N/A |
+| **Bar 6** | N/A (0 trades) | N/A | N/A |
+| **Bar 12** | N/A (0 trades) | N/A | N/A |
+| **Bar 24** | N/A (0 trades) | N/A | N/A |
+| **Bar 48** | N/A (0 trades) | N/A | N/A |
+| **Bar 96** | N/A (0 trades) | N/A | N/A |
 
 ## Section G: Outlier Trades Analysis (Top 10 Worst & Best)
 ### Top 10 Worst Trades (Largest Losses)

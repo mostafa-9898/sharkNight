@@ -1,15 +1,15 @@
 {
   "meta": {
-    "generatedAt": "2026-10-17T14:47:13.645Z",
+    "generatedAt": "2026-10-17T15:00:39.827Z",
     "configHash": "f8e53fab",
-    "gitCommit": "ccc9adb",
+    "gitCommit": "3f9a84b",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "1h",
     "period": "6y",
     "dataSource": "cache",
-    "candleCount": 52594,
-    "startTime": 1602903600000,
+    "candleCount": 52593,
+    "startTime": 1602907200000,
     "endTime": 1792238400000,
     "config": {
       "symbol": "BTCUSDT",
@@ -49,7 +49,7 @@
     "finalBalance": 10000,
     "netReturnPercent": 0,
     "netReturnDollar": 0,
-    "buyAndHoldReturnPercent": 617.83,
+    "buyAndHoldReturnPercent": 618.83,
     "maxDrawdownPercent": 0,
     "totalTrades": 0,
     "winRate": null,
@@ -68,7 +68,7 @@
       "totalTrades": 0,
       "winningTrades": 0,
       "losingTrades": 0,
-      "winRate": 0,
+      "winRate": null,
       "totalPnl": 0,
       "totalPnlPercent": 0
     },
@@ -76,7 +76,7 @@
       "totalTrades": 0,
       "winningTrades": 0,
       "losingTrades": 0,
-      "winRate": 0,
+      "winRate": null,
       "totalPnl": 0,
       "totalPnlPercent": 0
     }

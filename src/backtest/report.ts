@@ -990,8 +990,10 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`## Section F: Per-Trade Trajectory Analysis`);
   const reboundedCount = trajectories.filter((tr) => tr.reboundedAfterDrawdown).length;
   const permanentlyUnderwater = trajectories.filter((tr) => tr.underwaterPercent >= 99).length;
-  lines.push(`- **Trades Rebounding After Drawdown:** ${reboundedCount} (${trades.length > 0 ? roundTo((reboundedCount / trades.length) * 100, 1) : 0}%)`);
-  lines.push(`- **Permanently Underwater Trades:** ${permanentlyUnderwater} (${trades.length > 0 ? roundTo((permanentlyUnderwater / trades.length) * 100, 1) : 0}%)`);
+  const reboundedPctStr = trades.length > 0 ? `${roundTo((reboundedCount / trades.length) * 100, 1)}%` : 'N/A';
+  const underwaterPctStr = trades.length > 0 ? `${roundTo((permanentlyUnderwater / trades.length) * 100, 1)}%` : 'N/A';
+  lines.push(`- **Trades Rebounding After Drawdown:** ${reboundedCount} (${reboundedPctStr})`);
+  lines.push(`- **Permanently Underwater Trades:** ${permanentlyUnderwater} (${underwaterPctStr})`);
   lines.push(``);
 
   lines.push(`### Average Unrealized PnL Progression (Winners vs Losers)`);
@@ -1011,11 +1013,20 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       .map((tr) => tr.unrealizedAtBars[bar])
       .filter((v): v is number => v !== undefined);
 
-    const avgAll = allVals.length > 0 ? roundTo(allVals.reduce((s, v) => s + v, 0) / allVals.length, 2) : 0;
-    const avgWinVal = winVals.length > 0 ? roundTo(winVals.reduce((s, v) => s + v, 0) / winVals.length, 2) : 0;
-    const avgLossVal = lossVals.length > 0 ? roundTo(lossVals.reduce((s, v) => s + v, 0) / lossVals.length, 2) : 0;
+    const avgAllStr =
+      allVals.length > 0
+        ? `${formatPercent(roundTo(allVals.reduce((s, v) => s + v, 0) / allVals.length, 2))} (${allVals.length} trades)`
+        : 'N/A (0 trades)';
+    const avgWinStr =
+      winVals.length > 0
+        ? formatPercent(roundTo(winVals.reduce((s, v) => s + v, 0) / winVals.length, 2))
+        : 'N/A';
+    const avgLossStr =
+      lossVals.length > 0
+        ? formatPercent(roundTo(lossVals.reduce((s, v) => s + v, 0) / lossVals.length, 2))
+        : 'N/A';
 
-    lines.push(`| **Bar ${bar}** | ${formatPercent(avgAll)} (${allVals.length} trades) | ${formatPercent(avgWinVal)} | ${formatPercent(avgLossVal)} |`);
+    lines.push(`| **Bar ${bar}** | ${avgAllStr} | ${avgWinStr} | ${avgLossStr} |`);
   }
   lines.push(``);
 
@@ -1219,8 +1230,14 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       feeDragPercent: metrics.feeDragPercent,
       avgBarsHeld,
       marketExposurePercent,
-      long: metrics.long,
-      short: metrics.short,
+      long: {
+        ...metrics.long,
+        winRate: metrics.long.totalTrades > 0 ? metrics.long.winRate : null,
+      },
+      short: {
+        ...metrics.short,
+        winRate: metrics.short.totalTrades > 0 ? metrics.short.winRate : null,
+      },
     },
     flags,
     funnel: trace
