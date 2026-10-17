@@ -12,12 +12,29 @@ export interface TrailingStopConfig {
   raisePercent: number;       // e.g., 5 for 5% stop raise per step
 }
 
+export type CloudLocation = 'above' | 'inside' | 'below';
+
+export interface EntryDiagnostics {
+  side: TradeSide;
+  priceVsCloud: CloudLocation;
+  tkCrossVsCloud: CloudLocation;
+  cloudThicknessPercent: number;
+  rsiAtEntry: number;
+  rsiHitValue: number;
+  kijunSlope: number;
+  atrPercentile: number;
+  distanceFromKijunAtr: number;
+  hourOfDayUtc: number;
+  dayOfWeek: number;
+}
+
 export interface BacktestConfig {
   strategy: Strategy;
   candles: readonly Candle[];
   initialBalance: number;
   tradeFeePercent?: number;       // e.g., 0.1 for 0.1%
-  positionSizePercent?: number;   // e.g., 100 for 100% of balance
+  positionSizePercent?: number;   // e.g., 100 for 100% of balance (or cap when riskPerTradePercent is set)
+  riskPerTradePercent?: number;   // e.g., 1 for 1% risk of account on initial stop
   tradeMode?: TradeMode;          // DEFAULT: 'long-short'
   takeProfitPercent?: number;     // e.g., 5 for 5% TP
   stopLossPercent?: number;       // e.g., 3 for 3% SL
@@ -44,7 +61,9 @@ export interface Trade {
   maxAdversePercent: number;      // Worst unrealized adverse move (% of entry price)
   stopPrice?: number;             // Stop level at time of exit (if stopped out or tracked)
   ratchetSteps?: number;          // Number of trailing ratchet steps reached
+  entryDiagnostics?: EntryDiagnostics;
 }
+
 
 export interface ActivePosition {
   symbol?: string;

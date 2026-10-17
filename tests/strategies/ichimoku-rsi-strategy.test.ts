@@ -411,5 +411,80 @@ describe('IchimokuRsiStrategy', () => {
         expect(strategy.analyze(candles, 10).action).toBe('HOLD');
       });
     });
+
+    describe('Cloud Filter and Entry Diagnostics', () => {
+      it('should record comprehensive EntryDiagnostics on emitted signals', () => {
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+        });
+
+        const candles: Candle[] = [
+          createCandle(100, 100, 100, 100, 1000),
+          createCandle(95, 95, 95, 95, 2000),
+          createCandle(85, 85, 84, 85, 3000),
+          createCandle(75, 75, 74, 75, 4000),
+          createCandle(70, 70, 69, 70, 5000),
+          createCandle(68, 68, 68, 68, 6000),
+          createCandle(70, 71, 70, 70, 7000),
+          createCandle(70, 82, 74, 70.3, 8000), // c7: Cross up + RSI ~36.9
+        ];
+
+        const sig = strategy.analyze(candles, 7);
+        expect(sig.action).toBe('BUY');
+        const diag = (sig.metadata as { entryDiagnostics?: unknown })?.entryDiagnostics as {
+          side: string;
+          priceVsCloud: string;
+          tkCrossVsCloud: string;
+          cloudThicknessPercent: number;
+          rsiAtEntry: number;
+          kijunSlope: number;
+          atrPercentile: number;
+        };
+        expect(diag).toBeDefined();
+        expect(diag.side).toBe('long');
+        expect(['above', 'inside', 'below']).toContain(diag.priceVsCloud);
+        expect(['above', 'inside', 'below']).toContain(diag.tkCrossVsCloud);
+        expect(typeof diag.cloudThicknessPercent).toBe('number');
+        expect(typeof diag.rsiAtEntry).toBe('number');
+        expect(typeof diag.atrPercentile).toBe('number');
+      });
+
+
+      it('should filter signals when cloudFilter is trend', () => {
+        // Test with cloudFilter: trend
+        const strategyTrend = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          cloudFilter: 'trend',
+        });
+
+        // Candles where close at index 6 is below the cloud
+        const candles: Candle[] = [
+          createCandle(50, 200, 50, 50, 1000),
+          createCandle(50, 200, 50, 50, 2000),
+          createCandle(50, 200, 50, 50, 3000),
+          createCandle(50, 200, 50, 50, 4000),
+          createCandle(50, 200, 50, 50, 5000),
+          createCandle(50, 60, 50, 30, 6000),
+          createCandle(50, 80, 50, 40, 7000),
+        ];
+
+        // Off emits or doesn't depending on TK, but Trend strictly requires close > cloudTop
+        const sigTrend = strategyTrend.analyze(candles, 6);
+        expect(sigTrend.action).toBe('HOLD');
+      });
+    });
   });
 });
+

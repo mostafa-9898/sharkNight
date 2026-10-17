@@ -37,6 +37,9 @@ interface BacktestResultData {
   rsiSellMax: number;
   rsiLookback: number;
   tradeMode: TradeMode;
+  positionSizePercent?: number;
+  riskPerTradePercent?: number;
+  cloudFilter?: string;
   initialBalance: number;
   metrics: BacktestMetrics;
   trades: Trade[];
@@ -77,6 +80,9 @@ interface BacktestResultData {
     };
     slippagePercent?: number;
     stopCheckMode?: StopCheckMode;
+    cloudFilter?: string;
+    positionSizePercent?: number;
+    riskPerTradePercent?: number;
   };
   candles: Candle[];
   totalCandles: number;
@@ -113,8 +119,13 @@ export default function DashboardPage() {
   const [stopLossEnabled, setStopLossEnabled] = useState(false);
   const [stopLossPercent, setStopLossPercent] = useState(5);
 
+  // Position Sizing & Cloud Filter
+  const [positionSizePercent, setPositionSizePercent] = useState<number>(20);
+  const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
+  const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('off');
+
   // Trailing Stop & Execution Mode
-  const [trailingStopEnabled, setTrailingStopEnabled] = useState(false);
+  const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
   const [initialStopPercent, setInitialStopPercent] = useState(5);
   const [trailStepPercent, setTrailStepPercent] = useState(10);
   const [trailRaisePercent, setTrailRaisePercent] = useState(5);
@@ -189,6 +200,9 @@ export default function DashboardPage() {
           limit: btLimit === 'all' ? undefined : Number(btLimit),
           initialBalance: btInitialBalance,
           tradeFeePercent: btTradeFeePercent,
+          positionSizePercent,
+          riskPerTradePercent,
+          cloudFilter,
           ichimokuTenkan,
           ichimokuKijun,
           ichimokuSenkouB,
@@ -221,6 +235,9 @@ export default function DashboardPage() {
         symbol: btSymbol,
         interval: btInterval,
         dataSource: data.dataSource,
+        positionSizePercent,
+        riskPerTradePercent,
+        cloudFilter,
         ichimokuTenkan,
         ichimokuKijun,
         ichimokuSenkouB,
@@ -704,6 +721,28 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {/* Cloud Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Cloud Filter:</label>
+              <select
+                value={cloudFilter}
+                onChange={(e) => setCloudFilter(e.target.value as 'off' | 'trend' | 'strongCross')}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#38bdf8',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                <option value="off">Off (Default)</option>
+                <option value="trend">Trend (Close vs Cloud)</option>
+                <option value="strongCross">Strong Cross (TK vs Cloud)</option>
+              </select>
+            </div>
           </div>
 
           {/* Line 2: Relative Strength Index (RSI) Box */}
@@ -863,9 +902,57 @@ export default function DashboardPage() {
               padding: '10px 14px',
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc', minWidth: '240px' }}>
-              🛡️ Risk Management (Engine-Level Exits)
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc', minWidth: '200px' }}>
+              🛡️ Risk & Sizing
             </span>
+
+            {/* Position Size Cap % */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Size Cap:</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={positionSizePercent}
+                onChange={(e) => setPositionSizePercent(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#38bdf8',
+                  fontWeight: 700,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+            </div>
+
+            {/* Risk Per Trade % */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Risk/Trade:</span>
+              <input
+                type="number"
+                min={0.1}
+                max={100}
+                step={0.5}
+                value={riskPerTradePercent}
+                onChange={(e) => setRiskPerTradePercent(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#eab308',
+                  fontWeight: 700,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+            </div>
 
             {/* Take Profit % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -985,116 +1072,120 @@ export default function DashboardPage() {
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
+                flexDirection: 'column',
+                gap: '4px',
                 borderLeft: '1px solid #30363d',
                 paddingLeft: '12px',
               }}
             >
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={trailingStopEnabled}
-                  onChange={(e) => setTrailingStopEnabled(e.target.checked)}
-                  style={{ accentColor: '#eab308', width: '14px', height: '14px', cursor: 'pointer' }}
-                />
-                <span
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={trailingStopEnabled}
+                    onChange={(e) => setTrailingStopEnabled(e.target.checked)}
+                    style={{ accentColor: '#eab308', width: '14px', height: '14px', cursor: 'pointer' }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      color: trailingStopEnabled ? '#e6edf3' : '#8b949e',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Trailing Stop:
+                  </span>
+                </label>
+
+                <div
                   style={{
-                    fontSize: '12px',
-                    color: trailingStopEnabled ? '#e6edf3' : '#8b949e',
-                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    opacity: trailingStopEnabled ? 1 : 0.4,
                   }}
                 >
-                  Trailing Stop:
-                </span>
-              </label>
+                  {/* Initial Stop */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Initial:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      step={1}
+                      disabled={!trailingStopEnabled}
+                      value={initialStopPercent}
+                      onChange={(e) => setInitialStopPercent(Number(e.target.value))}
+                      style={{
+                        backgroundColor: '#0d1117',
+                        color: '#eab308',
+                        fontWeight: 700,
+                        border: '1px solid #30363d',
+                        borderRadius: '6px',
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        width: '50px',
+                        cursor: trailingStopEnabled ? 'text' : 'not-allowed',
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
+                  </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  opacity: trailingStopEnabled ? 1 : 0.4,
-                }}
-              >
-                {/* Initial Stop */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>Initial:</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    step={1}
-                    disabled={!trailingStopEnabled}
-                    value={initialStopPercent}
-                    onChange={(e) => setInitialStopPercent(Number(e.target.value))}
-                    style={{
-                      backgroundColor: '#0d1117',
-                      color: '#eab308',
-                      fontWeight: 700,
-                      border: '1px solid #30363d',
-                      borderRadius: '6px',
-                      padding: '4px 6px',
-                      fontSize: '11px',
-                      width: '50px',
-                      cursor: trailingStopEnabled ? 'text' : 'not-allowed',
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
-                </div>
+                  {/* Step */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Step:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      step={1}
+                      disabled={!trailingStopEnabled}
+                      value={trailStepPercent}
+                      onChange={(e) => setTrailStepPercent(Number(e.target.value))}
+                      style={{
+                        backgroundColor: '#0d1117',
+                        color: '#eab308',
+                        fontWeight: 700,
+                        border: '1px solid #30363d',
+                        borderRadius: '6px',
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        width: '50px',
+                        cursor: trailingStopEnabled ? 'text' : 'not-allowed',
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
+                  </div>
 
-                {/* Step */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>Step:</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    step={1}
-                    disabled={!trailingStopEnabled}
-                    value={trailStepPercent}
-                    onChange={(e) => setTrailStepPercent(Number(e.target.value))}
-                    style={{
-                      backgroundColor: '#0d1117',
-                      color: '#eab308',
-                      fontWeight: 700,
-                      border: '1px solid #30363d',
-                      borderRadius: '6px',
-                      padding: '4px 6px',
-                      fontSize: '11px',
-                      width: '50px',
-                      cursor: trailingStopEnabled ? 'text' : 'not-allowed',
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
+                  {/* Raise */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Raise:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      step={0.5}
+                      disabled={!trailingStopEnabled}
+                      value={trailRaisePercent}
+                      onChange={(e) => setTrailRaisePercent(Number(e.target.value))}
+                      style={{
+                        backgroundColor: '#0d1117',
+                        color: '#eab308',
+                        fontWeight: 700,
+                        border: '1px solid #30363d',
+                        borderRadius: '6px',
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        width: '50px',
+                        cursor: trailingStopEnabled ? 'text' : 'not-allowed',
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
+                  </div>
                 </div>
-
-                {/* Raise */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>Raise:</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    step={0.5}
-                    disabled={!trailingStopEnabled}
-                    value={trailRaisePercent}
-                    onChange={(e) => setTrailRaisePercent(Number(e.target.value))}
-                    style={{
-                      backgroundColor: '#0d1117',
-                      color: '#eab308',
-                      fontWeight: 700,
-                      border: '1px solid #30363d',
-                      borderRadius: '6px',
-                      padding: '4px 6px',
-                      fontSize: '11px',
-                      width: '50px',
-                      cursor: trailingStopEnabled ? 'text' : 'not-allowed',
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', color: '#8b949e' }}>%</span>
-                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '2px' }}>
+                Close at -5% loss; every +10% of profit raises stop by 5% (+10% -&gt; break-even, +20% -&gt; +5%, ...)
               </div>
             </div>
 

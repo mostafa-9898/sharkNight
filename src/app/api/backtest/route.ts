@@ -9,7 +9,7 @@ import type { TradeMode, StopCheckMode, TrailingStopConfig } from '@/backtest/ty
 import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
-import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
+import { IchimokuRsiStrategy, type CloudFilter } from '@/strategies/ichimoku-rsi-strategy';
 
 /**
  * Fallback generator for realistic market candles in case external exchanges are completely blocked.
@@ -131,6 +131,44 @@ export async function POST(request: Request) {
       };
     }
 
+    // Cloud filter
+    const cloudFilter: CloudFilter =
+      body.cloudFilter === 'trend' || body.cloudFilter === 'strongCross'
+        ? body.cloudFilter
+        : 'off';
+
+    // Position Sizing & Risk
+    const positionSizePercent =
+      body.positionSizePercent !== undefined &&
+      body.positionSizePercent !== null &&
+      body.positionSizePercent !== '' &&
+      Number(body.positionSizePercent) > 0
+        ? Math.min(100, Math.max(0.0001, Number(body.positionSizePercent)))
+        : undefined;
+
+    const riskPerTradePercent =
+      body.riskPerTradePercent !== undefined &&
+      body.riskPerTradePercent !== null &&
+      body.riskPerTradePercent !== '' &&
+      Number(body.riskPerTradePercent) > 0
+        ? Math.min(100, Math.max(0.01, Number(body.riskPerTradePercent)))
+        : undefined;
+
+    if (
+      riskPerTradePercent !== undefined &&
+      !trailingStopEnabled &&
+      (stopLossPercent === undefined || stopLossPercent <= 0)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'riskPerTradePercent requires an initial stopLossPercent or trailingStop to calculate position size',
+        },
+        { status: 400 }
+      );
+    }
+
     const slippagePercent = Math.max(0, Number(body.slippagePercent ?? 0));
     const stopCheckMode: StopCheckMode = body.stopCheckMode === 'close' ? 'close' : 'intrabar';
 
@@ -208,6 +246,7 @@ export async function POST(request: Request) {
       rsiSellMin,
       rsiSellMax,
       rsiLookback,
+      cloudFilter,
     });
 
     const engine = new BacktestEngine();
@@ -216,6 +255,8 @@ export async function POST(request: Request) {
       candles,
       initialBalance,
       tradeFeePercent,
+      positionSizePercent,
+      riskPerTradePercent,
       tradeMode,
       takeProfitPercent,
       stopLossPercent: trailingStopEnabled ? undefined : stopLossPercent,
@@ -397,6 +438,9 @@ export async function POST(request: Request) {
           : { enabled: false },
         slippagePercent,
         stopCheckMode,
+        cloudFilter,
+        positionSizePercent,
+        riskPerTradePercent,
       },
       diagnostics,
       backtest: {

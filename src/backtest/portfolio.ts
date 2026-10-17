@@ -1,5 +1,5 @@
 import type { TradeSignal } from '../data/models';
-import type { Trade, TradeSide, ExitReason } from './types';
+import type { Trade, TradeSide, ExitReason, EntryDiagnostics } from './types';
 import { roundTo } from '../utils/math';
 
 export interface ExtraTradeInfo {
@@ -7,6 +7,7 @@ export interface ExtraTradeInfo {
   maxAdversePercent?: number;
   stopPrice?: number;
   ratchetSteps?: number;
+  entryDiagnostics?: EntryDiagnostics;
 }
 
 export interface PortfolioOptions {
@@ -58,8 +59,9 @@ export class VirtualPortfolio {
     this.initialBalance = options.initialBalance;
     this.cash = options.initialBalance;
     this.tradeFeePercent = Math.max(0, options.tradeFeePercent ?? 0.1);
-    this.positionSizePercent = Math.min(100, Math.max(1, options.positionSizePercent ?? 100));
+    this.positionSizePercent = Math.min(100, Math.max(0.0001, options.positionSizePercent ?? 100));
   }
+
 
   /**
    * Current available cash not committed to an open trade.
@@ -96,7 +98,8 @@ export class VirtualPortfolio {
     side: TradeSide,
     signal: TradeSignal,
     currentPrice: number,
-    timestamp: number
+    timestamp: number,
+    sizePercentOverride?: number
   ): boolean {
     if (currentPrice <= 0) {
       throw new Error(`Invalid price for opening position: ${currentPrice}`);
@@ -106,7 +109,12 @@ export class VirtualPortfolio {
       return false;
     }
 
-    const allocatedAmount = this.cash * (this.positionSizePercent / 100);
+    const effectiveSize =
+      sizePercentOverride !== undefined
+        ? Math.min(100, Math.max(0.0001, sizePercentOverride))
+        : this.positionSizePercent;
+
+    const allocatedAmount = this.cash * (effectiveSize / 100);
     const feeRate = this.tradeFeePercent / 100;
     const entryFee = allocatedAmount * feeRate;
     const netInvest = allocatedAmount - entryFee;
@@ -192,6 +200,7 @@ export class VirtualPortfolio {
       maxAdversePercent: roundTo(extra?.maxAdversePercent ?? defaultMae, 2),
       stopPrice: extra?.stopPrice !== undefined ? roundTo(extra.stopPrice, 4) : undefined,
       ratchetSteps: extra?.ratchetSteps,
+      entryDiagnostics: extra?.entryDiagnostics,
     };
 
     this.completedTrades.push(trade);
@@ -199,6 +208,7 @@ export class VirtualPortfolio {
 
     return trade;
   }
+
 
   /**
    * Calculates total net equity (cash + mark-to-market liquidation value of open position).

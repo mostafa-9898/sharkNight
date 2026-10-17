@@ -1,5 +1,5 @@
 import type { TradeSignal } from '../data/models';
-import type { BacktestConfig, BacktestResult, ExitReason, TradeSide } from './types';
+import type { BacktestConfig, BacktestResult, ExitReason, TradeSide, EntryDiagnostics } from './types';
 import { VirtualPortfolio } from './portfolio';
 import { calculateMetrics } from './metrics';
 import { roundTo } from '../utils/math';
@@ -11,6 +11,7 @@ interface ActiveTradeState {
   lowestLow: number;
   stopPrice: number | null;
   ratchetSteps: number;
+  entryDiagnostics?: EntryDiagnostics;
 }
 
 export class BacktestEngine {
@@ -24,6 +25,7 @@ export class BacktestEngine {
       initialBalance,
       tradeFeePercent = 0.1,
       positionSizePercent = 100,
+      riskPerTradePercent,
       tradeMode = 'long-short',
       takeProfitPercent,
       stopLossPercent,
@@ -38,6 +40,20 @@ export class BacktestEngine {
 
     if (initialBalance <= 0) {
       throw new Error(`Initial balance must be positive, got ${initialBalance}`);
+    }
+
+    if (positionSizePercent <= 0 || positionSizePercent > 100) {
+      throw new Error(`positionSizePercent must be between 0 and 100, got ${positionSizePercent}`);
+    }
+
+    if (riskPerTradePercent !== undefined) {
+      if (riskPerTradePercent <= 0 || riskPerTradePercent > 100) {
+        throw new Error(`riskPerTradePercent must be between 0 and 100, got ${riskPerTradePercent}`);
+      }
+      const initialStop = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
+      if (initialStop === undefined || initialStop <= 0) {
+        throw new Error('riskPerTradePercent requires an initial stop loss or trailing stop to be configured');
+      }
     }
 
     if (trailingStop !== undefined && stopLossPercent !== undefined) {
@@ -74,7 +90,20 @@ export class BacktestEngine {
       positionSizePercent,
     });
 
-    const initTradeState = (side: TradeSide, entryPrice: number): ActiveTradeState => {
+    const computeEffectiveSizePercent = (): number => {
+      if (riskPerTradePercent !== undefined) {
+        const stopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent!;
+        const calculatedSize = (riskPerTradePercent / stopPercent) * 100;
+        return Math.min(positionSizePercent, calculatedSize);
+      }
+      return positionSizePercent;
+    };
+
+    const initTradeState = (
+      side: TradeSide,
+      entryPrice: number,
+      entryDiagnostics?: EntryDiagnostics
+    ): ActiveTradeState => {
       let initialStop: number | null = null;
       if (trailingStop) {
         initialStop =
@@ -95,8 +124,10 @@ export class BacktestEngine {
         lowestLow: entryPrice,
         stopPrice: initialStop,
         ratchetSteps: 0,
+        entryDiagnostics,
       };
     };
+
 
     let tradeState: ActiveTradeState | null = null;
     const equityCurve: number[] = [];
@@ -221,6 +252,7 @@ export class BacktestEngine {
             maxAdversePercent: mae,
             stopPrice: currentStopPrice!,
             ratchetSteps: tradeState.ratchetSteps,
+            entryDiagnostics: tradeState.entryDiagnostics,
           });
           tradeState = null;
         } else if (tpTriggered) {
@@ -256,8 +288,10 @@ export class BacktestEngine {
             maxAdversePercent: mae,
             stopPrice: currentStopPrice ?? undefined,
             ratchetSteps: tradeState.ratchetSteps,
+            entryDiagnostics: tradeState.entryDiagnostics,
           });
           tradeState = null;
+
         }
       }
 
@@ -312,12 +346,13 @@ export class BacktestEngine {
       // 3. Process strategy signal at candle close (even after stop-out)
       const signal = strategy.analyze(candles, i);
       const activePos = portfolio.getOpenPosition();
+      const entryDiag = (signal.metadata as { entryDiagnostics?: EntryDiagnostics } | undefined)?.entryDiagnostics;
 
       if (tradeMode === 'long-short') {
         if (signal.action === 'BUY') {
           if (!activePos) {
-            portfolio.openPosition('long', signal, candle.close, candle.timestamp);
-            tradeState = initTradeState('long', candle.close);
+            portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
+            tradeState = initTradeState('long', candle.close, entryDiag);
           } else if (activePos.side === 'short') {
             const mfe = tradeState
               ? ((activePos.entryPrice - tradeState.lowestLow) / activePos.entryPrice) * 100
@@ -330,14 +365,15 @@ export class BacktestEngine {
               maxAdversePercent: mae,
               stopPrice: tradeState?.stopPrice ?? undefined,
               ratchetSteps: tradeState?.ratchetSteps,
+              entryDiagnostics: tradeState?.entryDiagnostics,
             });
-            portfolio.openPosition('long', signal, candle.close, candle.timestamp);
-            tradeState = initTradeState('long', candle.close);
+            portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
+            tradeState = initTradeState('long', candle.close, entryDiag);
           }
         } else if (signal.action === 'SELL') {
           if (!activePos) {
-            portfolio.openPosition('short', signal, candle.close, candle.timestamp);
-            tradeState = initTradeState('short', candle.close);
+            portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
+            tradeState = initTradeState('short', candle.close, entryDiag);
           } else if (activePos.side === 'long') {
             const mfe = tradeState
               ? ((tradeState.highestHigh - activePos.entryPrice) / activePos.entryPrice) * 100
@@ -350,17 +386,18 @@ export class BacktestEngine {
               maxAdversePercent: mae,
               stopPrice: tradeState?.stopPrice ?? undefined,
               ratchetSteps: tradeState?.ratchetSteps,
+              entryDiagnostics: tradeState?.entryDiagnostics,
             });
-            portfolio.openPosition('short', signal, candle.close, candle.timestamp);
-            tradeState = initTradeState('short', candle.close);
+            portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
+            tradeState = initTradeState('short', candle.close, entryDiag);
           }
         }
       } else {
         // 'long-only' mode
         if (signal.action === 'BUY') {
           if (!activePos) {
-            portfolio.openPosition('long', signal, candle.close, candle.timestamp);
-            tradeState = initTradeState('long', candle.close);
+            portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
+            tradeState = initTradeState('long', candle.close, entryDiag);
           }
         } else if (signal.action === 'SELL') {
           if (activePos && activePos.side === 'long') {
@@ -375,6 +412,7 @@ export class BacktestEngine {
               maxAdversePercent: mae,
               stopPrice: tradeState?.stopPrice ?? undefined,
               ratchetSteps: tradeState?.ratchetSteps,
+              entryDiagnostics: tradeState?.entryDiagnostics,
             });
             tradeState = null;
           }
@@ -416,6 +454,7 @@ export class BacktestEngine {
         maxAdversePercent: mae,
         stopPrice: tradeState?.stopPrice ?? undefined,
         ratchetSteps: tradeState?.ratchetSteps,
+        entryDiagnostics: tradeState?.entryDiagnostics,
       });
       tradeState = null;
       equityCurve[equityCurve.length - 1] = portfolio.getCash();
@@ -429,6 +468,7 @@ export class BacktestEngine {
       initialBalance: config.initialBalance,
       tradeFeePercent,
       positionSizePercent,
+      riskPerTradePercent,
       tradeMode,
       takeProfitPercent,
       stopLossPercent,
@@ -436,6 +476,7 @@ export class BacktestEngine {
       slippagePercent,
       stopCheckMode,
     };
+
 
     return {
       config: configSummary,

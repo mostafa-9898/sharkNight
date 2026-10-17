@@ -678,4 +678,114 @@ describe('BacktestEngine', () => {
       expect(result.trades[0].exitReason).toBe('stopLoss');
     });
   });
+
+  describe('Risk-Based Position Sizing (riskPerTradePercent)', () => {
+    it('should throw validation error if riskPerTradePercent is set without any stop loss', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 105]);
+
+      expect(() =>
+        engine.run({
+          strategy: new MockActionStrategy({ 0: 'BUY' }),
+          candles,
+          initialBalance: 10000,
+          riskPerTradePercent: 1,
+        })
+      ).toThrow('riskPerTradePercent requires an initial stop loss or trailing stop');
+    });
+
+    it('should calculate position size as (risk / stop) * 100 of current cash', () => {
+      const engine = new BacktestEngine();
+      // Risk 1%, fixed stop 5% -> size is 20%
+      // Initial balance 10,000 -> allocated is 2,000 (net of 0 fee)
+      const candles = generateCandles([100, 105, 95]);
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY', 1: 'SELL' }),
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-only',
+        tradeFeePercent: 0,
+        stopLossPercent: 5,
+        riskPerTradePercent: 1,
+      });
+
+      expect(result.trades).toHaveLength(1);
+      const trade = result.trades[0];
+      // Size = 20% of 10,000 = 2,000
+      // 2,000 / 100 = 20 units
+      expect(trade.quantity).toBeCloseTo(20, 4);
+    });
+
+    it('should cap position size at positionSizePercent', () => {
+      const engine = new BacktestEngine();
+      // Risk 2%, stop 4% -> calculated size 50%
+      // But positionSizePercent is 30% -> effective size is 30% ($3,000 on $10,000)
+      const candles = generateCandles([100, 105]);
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY', 1: 'SELL' }),
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-only',
+        tradeFeePercent: 0,
+        stopLossPercent: 4,
+        riskPerTradePercent: 2,
+        positionSizePercent: 30,
+      });
+
+      expect(result.trades).toHaveLength(1);
+      // 30% of 10,000 = 3,000 -> 30 units at 100
+      expect(result.trades[0].quantity).toBeCloseTo(30, 4);
+    });
+
+    it('should recompute position size dynamically from current equity across consecutive trades', () => {
+      const engine = new BacktestEngine();
+      // Risk 1%, stop 5% -> 20% size
+      // Trade 1: Entry 100, Exit 110 (+10% gain on 20% size = +2% on portfolio -> equity 10,200)
+      // Trade 2: Entry 100, Exit 95 (Stop-out -5% on 20% of 10,200 = -1% on portfolio)
+      const candles = generateCandles([100, 110, 100, 95]);
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY', 1: 'SELL', 2: 'BUY' }),
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-only',
+        tradeFeePercent: 0,
+        stopLossPercent: 5,
+        riskPerTradePercent: 1,
+      });
+
+      expect(result.trades).toHaveLength(2);
+      // Trade 1: cash 10,000 -> allocated 2,000 -> qty 20 -> exit 110 -> pnl +200 -> new balance 10,200
+      expect(result.trades[0].quantity).toBeCloseTo(20, 4);
+      expect(result.trades[0].pnl).toBeCloseTo(200, 2);
+
+      // Trade 2: cash 10,200 -> allocated 20% of 10,200 = 2,040 -> qty 20.4 -> exit 95 -> pnl = 20.4 * -5 = -102 (-1% of 10,200)
+      expect(result.trades[1].quantity).toBeCloseTo(20.4, 4);
+      expect(result.trades[1].pnl).toBeCloseTo(-102, 2);
+
+      // Cash conservation check
+      const sumPnl = result.trades.reduce((s, t) => s + t.pnl, 0);
+      const finalBal = result.metrics.finalBalance;
+      expect(Math.abs(10000 + sumPnl - finalBal)).toBeLessThan(1e-6);
+    });
+
+    it('should work with trailingStop initialStopPercent as the sizing denominator', () => {
+      const engine = new BacktestEngine();
+      // Risk 1%, trailingStop initialStop 5% -> size 20%
+      const candles = generateCandles([100, 105, 95]);
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY', 1: 'SELL' }),
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-only',
+        tradeFeePercent: 0,
+        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
+        riskPerTradePercent: 1,
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].quantity).toBeCloseTo(20, 4);
+    });
+  });
 });
+
+

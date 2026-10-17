@@ -12,8 +12,8 @@ import {
 function parseArgs() {
   const args = process.argv.slice(2);
   let symbols = ['BTCUSDT', 'ETHUSDT'];
-  let intervals: CandleInterval[] = ['1h', '4h'];
-  let years = 2;
+  let intervals: CandleInterval[] = ['1h', '4h', '1d'];
+  let years = 5;
 
   for (const arg of args) {
     if (arg.startsWith('--symbols=')) {
