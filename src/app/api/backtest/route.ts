@@ -10,6 +10,7 @@ import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import { IchimokuRsiStrategy, type CloudFilter } from '@/strategies/ichimoku-rsi-strategy';
+import { generateAndSaveBacktestReport } from '@/backtest/report';
 
 /**
  * Fallback generator for realistic market candles in case external exchanges are completely blocked.
@@ -309,6 +310,7 @@ export async function POST(request: Request) {
       trailingStop,
       slippagePercent,
       stopCheckMode,
+      collectTrace: true,
     });
 
     // Compute indicator series for response
@@ -436,6 +438,50 @@ export async function POST(request: Request) {
     const firstCandle = candles[0];
     const lastCandle = candles[candles.length - 1];
     const sanityCheck = performCandleSanityCheck(candles, interval);
+
+    // Best-effort report generation (never breaks backtest response on failure)
+    try {
+      await generateAndSaveBacktestReport({
+        backtestResult,
+        candles,
+        indicators: {
+          ichimoku: ichimokuData,
+          rsi: rsiValues,
+        },
+        config: {
+          symbol,
+          interval,
+          period,
+          dataSource,
+          tenkan: ichimokuTenkan,
+          kijun: ichimokuKijun,
+          senkouB: ichimokuSenkouB,
+          displacement: ichimokuDisplacement,
+          rsiPeriod,
+          rsiBuyMin,
+          rsiBuyMax,
+          rsiSellMin,
+          rsiSellMax,
+          rsiLookback,
+          cloudFilter,
+          rsiRecoveryCap,
+          tradeMode,
+          exitMode,
+          maxBarsInTrade,
+          takeProfitPercent,
+          stopLossPercent: trailingStopEnabled ? undefined : stopLossPercent,
+          trailingStop,
+          positionSizePercent,
+          riskPerTradePercent,
+          tradeFeePercent,
+          slippagePercent,
+          stopCheckMode,
+          initialBalance,
+        },
+      });
+    } catch (reportErr) {
+      console.warn('Failed to generate backtest review report:', reportErr);
+    }
 
     return NextResponse.json({
       success: true,

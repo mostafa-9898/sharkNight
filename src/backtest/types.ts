@@ -39,6 +39,32 @@ export interface EntryDiagnostics {
   dayOfWeek: number;
 }
 
+export interface TkCrossTraceEvent {
+  index: number;
+  timestamp: number;
+  direction: 'up' | 'down';
+  price: number;
+  rsi: number;
+  inRsiZone: boolean;
+  filterRejection?: 'cloudFilter' | 'rsiRecoveryCap' | 'rsiOutOfZone';
+  signalEmitted: boolean;
+  rsiHitIndex?: number;
+  rsiHitValue?: number;
+  rsiHitAge?: number;
+}
+
+export interface IgnoredSignalTraceEvent {
+  index: number;
+  timestamp: number;
+  signal: TradeSignal;
+  reason: 'alreadyInPosition' | 'longOnlyShortIgnored';
+}
+
+export interface BacktestTrace {
+  tkCrossEvents: TkCrossTraceEvent[];
+  ignoredSignals: IgnoredSignalTraceEvent[];
+}
+
 export interface BacktestConfig {
   strategy: Strategy;
   candles: readonly Candle[];
@@ -54,6 +80,7 @@ export interface BacktestConfig {
   trailingStop?: TrailingStopConfig;
   slippagePercent?: number;       // default 0, applied adversely on stop/TP exits
   stopCheckMode?: StopCheckMode;  // default 'intrabar'
+  collectTrace?: boolean;         // optional passive trace collector
 }
 
 export interface Trade {
@@ -148,4 +175,5 @@ export interface BacktestResult {
   metrics: BacktestMetrics;
   equity: number[];               // Equity curve over time
   activePosition?: ActivePosition | null;
+  trace?: BacktestTrace;
 }

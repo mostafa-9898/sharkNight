@@ -1,5 +1,13 @@
 import type { TradeSignal } from '../data/models';
-import type { BacktestConfig, BacktestResult, ExitReason, TradeSide, EntryDiagnostics } from './types';
+import type {
+  BacktestConfig,
+  BacktestResult,
+  ExitReason,
+  TradeSide,
+  EntryDiagnostics,
+  BacktestTrace,
+  TkCrossTraceEvent,
+} from './types';
 import { VirtualPortfolio } from './portfolio';
 import { calculateMetrics } from './metrics';
 import { roundTo } from '../utils/math';
@@ -13,6 +21,10 @@ interface ActiveTradeState {
   stopPrice: number | null;
   ratchetSteps: number;
   entryDiagnostics?: EntryDiagnostics;
+}
+
+interface TraceableStrategy {
+  setTraceCollector?: (collector?: { onTkCross?: (event: TkCrossTraceEvent) => void }) => void;
 }
 
 export class BacktestEngine {
@@ -35,7 +47,22 @@ export class BacktestEngine {
       trailingStop,
       slippagePercent = 0,
       stopCheckMode = 'intrabar',
+      collectTrace = false,
     } = config;
+
+    const trace: BacktestTrace = {
+      tkCrossEvents: [],
+      ignoredSignals: [],
+    };
+
+    const traceable = strategy as unknown as TraceableStrategy;
+    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+      traceable.setTraceCollector({
+        onTkCross: (event: TkCrossTraceEvent) => {
+          trace.tkCrossEvents.push(event);
+        },
+      });
+    }
 
     if (!candles || candles.length === 0) {
       throw new Error('Backtest requires at least one candle to execute');
@@ -435,6 +462,15 @@ export class BacktestEngine {
             });
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
             tradeState = initTradeState('long', candle.close, i, entryDiag);
+          } else if (activePos.side === 'long') {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
           }
         } else if (signal.action === 'SELL') {
           if (!activePos) {
@@ -456,6 +492,15 @@ export class BacktestEngine {
             });
             portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
             tradeState = initTradeState('short', candle.close, i, entryDiag);
+          } else if (activePos.side === 'short') {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
           }
         }
       } else {
@@ -464,6 +509,15 @@ export class BacktestEngine {
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
             tradeState = initTradeState('long', candle.close, i, entryDiag);
+          } else if (activePos.side === 'long') {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
           }
         } else if (signal.action === 'SELL') {
           if (activePos && activePos.side === 'long') {
@@ -481,6 +535,15 @@ export class BacktestEngine {
               entryDiagnostics: tradeState?.entryDiagnostics,
             });
             tradeState = null;
+          } else if (!activePos) {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'longOnlyShortIgnored',
+              });
+            }
           }
         }
       }
@@ -526,6 +589,10 @@ export class BacktestEngine {
       equityCurve[equityCurve.length - 1] = portfolio.getCash();
     }
 
+    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+      traceable.setTraceCollector(undefined);
+    }
+
     const trades = portfolio.getTrades();
     const metrics = calculateMetrics(trades, initialBalance, equityCurve);
 
@@ -541,6 +608,7 @@ export class BacktestEngine {
       trailingStop,
       slippagePercent,
       stopCheckMode,
+      collectTrace: config.collectTrace,
     };
 
 
@@ -550,6 +618,7 @@ export class BacktestEngine {
       metrics,
       equity: equityCurve,
       activePosition: null,
+      trace: collectTrace ? trace : undefined,
     };
   }
 }

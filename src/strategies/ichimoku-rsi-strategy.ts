@@ -1,6 +1,6 @@
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from './types';
-import type { EntryDiagnostics, ExitMode } from '../backtest/types';
+import type { EntryDiagnostics, ExitMode, TkCrossTraceEvent } from '../backtest/types';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { roundTo } from '../utils/math';
@@ -116,6 +116,11 @@ export class IchimokuRsiStrategy implements Strategy {
   readonly rsiRecoveryCap?: number;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
+  private traceCollector?: { onTkCross?: (event: TkCrossTraceEvent) => void };
+
+  setTraceCollector(collector?: { onTkCross?: (event: TkCrossTraceEvent) => void }): void {
+    this.traceCollector = collector;
+  }
 
   constructor(config?: IchimokuRsiConfig) {
     this.tenkan = config?.tenkan ?? 9;
@@ -293,21 +298,81 @@ export class IchimokuRsiStrategy implements Strategy {
     // Optional Cloud Filter evaluation
     if (this.cloudFilter !== 'off') {
       if (!hasCloud) {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: crossUp ? 'up' : 'down',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: false,
+            filterRejection: 'cloudFilter',
+            signalEmitted: false,
+          });
+        }
         return defaultSignal; // Insufficient history to determine cloud
       }
 
       if (this.cloudFilter === 'trend') {
         if (crossUp && candle.close <= cloudTop) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'up',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: false,
+              filterRejection: 'cloudFilter',
+              signalEmitted: false,
+            });
+          }
           return defaultSignal;
         }
         if (crossDown && candle.close >= cloudBottom) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'down',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: false,
+              filterRejection: 'cloudFilter',
+              signalEmitted: false,
+            });
+          }
           return defaultSignal;
         }
       } else if (this.cloudFilter === 'strongCross') {
         if (crossUp && !(currentTenkan > cloudTop && currentKijun > cloudTop)) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'up',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: false,
+              filterRejection: 'cloudFilter',
+              signalEmitted: false,
+            });
+          }
           return defaultSignal;
         }
         if (crossDown && !(currentTenkan < cloudBottom && currentKijun < cloudBottom)) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'down',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: false,
+              filterRejection: 'cloudFilter',
+              signalEmitted: false,
+            });
+          }
           return defaultSignal;
         }
       }
@@ -330,6 +395,21 @@ export class IchimokuRsiStrategy implements Strategy {
 
       if (rsiHitIndex !== -1) {
         if (this.rsiRecoveryCap !== undefined && currentRsi > this.rsiBuyMax + this.rsiRecoveryCap) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'up',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: true,
+              filterRejection: 'rsiRecoveryCap',
+              signalEmitted: false,
+              rsiHitIndex,
+              rsiHitValue: roundTo(rsiHitValue, 2),
+              rsiHitAge: currentIndex - rsiHitIndex,
+            });
+          }
           return defaultSignal;
         }
 
@@ -380,6 +460,21 @@ export class IchimokuRsiStrategy implements Strategy {
           dayOfWeek,
         };
 
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'up',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: true,
+            signalEmitted: true,
+            rsiHitIndex,
+            rsiHitValue: roundTo(rsiHitValue, 2),
+            rsiHitAge: currentIndex - rsiHitIndex,
+          });
+        }
+
         return {
           action: 'BUY',
           timestamp: candle.timestamp,
@@ -394,6 +489,19 @@ export class IchimokuRsiStrategy implements Strategy {
             entryDiagnostics,
           },
         };
+      } else {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'up',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: false,
+            filterRejection: 'rsiOutOfZone',
+            signalEmitted: false,
+          });
+        }
       }
     } else if (crossDown) {
       let rsiHitIndex = -1;
@@ -410,6 +518,21 @@ export class IchimokuRsiStrategy implements Strategy {
 
       if (rsiHitIndex !== -1) {
         if (this.rsiRecoveryCap !== undefined && currentRsi < this.rsiSellMin - this.rsiRecoveryCap) {
+          if (this.traceCollector?.onTkCross) {
+            this.traceCollector.onTkCross({
+              index: currentIndex,
+              timestamp: candle.timestamp,
+              direction: 'down',
+              price: candle.close,
+              rsi: roundTo(currentRsi, 2),
+              inRsiZone: true,
+              filterRejection: 'rsiRecoveryCap',
+              signalEmitted: false,
+              rsiHitIndex,
+              rsiHitValue: roundTo(rsiHitValue, 2),
+              rsiHitAge: currentIndex - rsiHitIndex,
+            });
+          }
           return defaultSignal;
         }
 
@@ -460,6 +583,21 @@ export class IchimokuRsiStrategy implements Strategy {
           dayOfWeek,
         };
 
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'down',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: true,
+            signalEmitted: true,
+            rsiHitIndex,
+            rsiHitValue: roundTo(rsiHitValue, 2),
+            rsiHitAge: currentIndex - rsiHitIndex,
+          });
+        }
+
         return {
           action: 'SELL',
           timestamp: candle.timestamp,
@@ -474,6 +612,19 @@ export class IchimokuRsiStrategy implements Strategy {
             entryDiagnostics,
           },
         };
+      } else {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'down',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: false,
+            filterRejection: 'rsiOutOfZone',
+            signalEmitted: false,
+          });
+        }
       }
     }
 

@@ -9,6 +9,7 @@
     "edge-tests": "tsx src/scripts/edge-tests.ts",
     "optimize": "tsx src/scripts/optimize.ts",
     "review-notes": "tsx src/scripts/review-notes.ts",
+    "backtest-report": "tsx src/scripts/backtest-report.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",
