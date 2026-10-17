@@ -46,7 +46,7 @@ export interface TkCrossTraceEvent {
   price: number;
   rsi: number;
   inRsiZone: boolean;
-  filterRejection?: 'cloudFilter' | 'rsiRecoveryCap' | 'rsiOutOfZone';
+  filterRejection?: 'cloudFilter' | 'rsiRecoveryCap' | 'rsiOutOfZone' | 'kijunSlopeFilter';
   signalEmitted: boolean;
   rsiHitIndex?: number;
   rsiHitValue?: number;

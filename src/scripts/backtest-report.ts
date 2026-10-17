@@ -26,6 +26,23 @@ function parseNumArg(key: string, defaultValue?: number): number | undefined {
   return defaultValue;
 }
 
+function parseBoolArg(key: string, defaultValue = false): boolean {
+  const flag = `--${key}`;
+  const prefix = `--${key}=`;
+  for (const arg of process.argv.slice(2)) {
+    if (arg === flag) {
+      return true;
+    }
+    if (arg.startsWith(prefix)) {
+      const val = arg.slice(prefix.length).trim().toLowerCase();
+      if (val === 'true' || val === '1' || val === 'yes') return true;
+      if (val === 'false' || val === '0' || val === 'no') return false;
+      return true;
+    }
+  }
+  return defaultValue;
+}
+
 async function runCli(): Promise<void> {
   const symbol = (parseArg('symbol', 'BTCUSDT') ?? 'BTCUSDT').toUpperCase();
   const interval = (parseArg('interval', '1h') ?? '1h') as CandleInterval;
@@ -44,6 +61,7 @@ async function runCli(): Promise<void> {
   const rsiLookback = parseNumArg('rsiLookback', 10)!;
   const cloudFilter = (parseArg('cloudFilter', 'off') ?? 'off') as CloudFilter;
   const rsiRecoveryCap = parseNumArg('rsiRecoveryCap');
+  const kijunSlopeFilter = parseBoolArg('kijunSlopeFilter', false);
 
   // Engine params
   const tradeMode = (parseArg('tradeMode', 'long-short') ?? 'long-short') as TradeMode;
@@ -136,6 +154,7 @@ async function runCli(): Promise<void> {
     rsiLookback,
     cloudFilter,
     rsiRecoveryCap,
+    kijunSlopeFilter,
   });
 
   const engine = new BacktestEngine();
@@ -194,6 +213,7 @@ async function runCli(): Promise<void> {
       rsiLookback,
       cloudFilter,
       rsiRecoveryCap,
+      kijunSlopeFilter,
       tradeMode,
       exitMode,
       maxBarsInTrade,

@@ -82,6 +82,7 @@ export async function POST(request: Request) {
       Number(body.rsiRecoveryCap) >= 0
         ? Number(body.rsiRecoveryCap)
         : undefined;
+    const kijunSlopeFilter = Boolean(body.kijunSlopeFilter);
 
     // Trade Mode & Risk Management
     const tradeMode: TradeMode = body.tradeMode === 'long-only' ? 'long-only' : 'long-short';
@@ -292,6 +293,7 @@ export async function POST(request: Request) {
       rsiLookback,
       cloudFilter,
       rsiRecoveryCap,
+      kijunSlopeFilter,
     });
 
     const engine = new BacktestEngine();
@@ -422,14 +424,21 @@ export async function POST(request: Request) {
     const executedTradesLong = backtestResult.trades.filter((t) => t.side === 'long').length;
     const executedTradesShort = backtestResult.trades.filter((t) => t.side === 'short').length;
 
+    const buySetups = backtestResult.trace
+      ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length
+      : buySetupsCount;
+    const sellSetups = backtestResult.trace
+      ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length
+      : sellSetupsCount;
+
     const diagnostics = {
       rsiBuyZoneCandles: rsiBuyZoneCount,
       rsiSellZoneCandles: rsiSellZoneCount,
       tkCrossUpEvents: tkCrossUpCount,
       tkCrossDownEvents: tkCrossDownCount,
       tkCrossEqualityStartCount,
-      buySetups: buySetupsCount,
-      sellSetups: sellSetupsCount,
+      buySetups,
+      sellSetups,
       executedTradesLong,
       executedTradesShort,
       executedTradesTotal: backtestResult.trades.length,
@@ -465,6 +474,7 @@ export async function POST(request: Request) {
           rsiLookback,
           cloudFilter,
           rsiRecoveryCap,
+          kijunSlopeFilter,
           tradeMode,
           exitMode,
           maxBarsInTrade,

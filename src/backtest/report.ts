@@ -39,6 +39,7 @@ export interface BacktestReportConfig {
   rsiLookback?: number;
   cloudFilter?: string;
   rsiRecoveryCap?: number;
+  kijunSlopeFilter?: boolean;
   // Engine
   tradeMode?: string;
   exitMode?: string;
@@ -316,8 +317,8 @@ export function computeTradeTrajectories(
         rebounded = true;
       }
 
-      // Check opposite TK cross on this candle
-      if (cIdx > 0) {
+      // Check opposite TK cross on this candle (strictly before exit candle)
+      if (cIdx > 0 && cIdx < exitIdx) {
         const curRel = relations[cIdx];
         if (curRel !== 0) {
           let lastNonZero = 0;
@@ -546,6 +547,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   const cloudFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'cloudFilter').length;
   const rsiOutOfZoneRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiOutOfZone').length;
   const rsiRecoveryCapRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiRecoveryCap').length;
+  const kijunSlopeFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'kijunSlopeFilter').length;
 
   const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
   const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
@@ -653,7 +655,28 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : 0;
     const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
     const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : 0;
-    return { position: pos, count, winRate: winRateVal, totalPnl: totalPnlVal, avgPnl: avgPnlVal };
+
+    const longList = list.filter((t) => t.side === 'long');
+    const longCount = longList.length;
+    const longWins = longList.filter((t) => (t.pnl || 0) > 0).length;
+    const longWinRate = longCount > 0 ? roundTo((longWins / longCount) * 100, 1) : 0;
+    const longTotalPnl = roundTo(longList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
+
+    const shortList = list.filter((t) => t.side === 'short');
+    const shortCount = shortList.length;
+    const shortWins = shortList.filter((t) => (t.pnl || 0) > 0).length;
+    const shortWinRate = shortCount > 0 ? roundTo((shortWins / shortCount) * 100, 1) : 0;
+    const shortTotalPnl = roundTo(shortList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
+
+    return {
+      position: pos,
+      count,
+      winRate: winRateVal,
+      totalPnl: totalPnlVal,
+      avgPnl: avgPnlVal,
+      long: { count: longCount, winRate: longWinRate, totalPnl: longTotalPnl },
+      short: { count: shortCount, winRate: shortWinRate, totalPnl: shortTotalPnl },
+    };
   });
 
   // 5. By Entry RSI Buckets
@@ -780,6 +803,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`[${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}]\` / \`[${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}]\` |`);
   lines.push(`| Cloud Filter | Mode | \`${config.cloudFilter ?? 'off'}\` |`);
   lines.push(`| RSI Recovery Cap | Value | \`${config.rsiRecoveryCap !== undefined ? `+${config.rsiRecoveryCap}` : 'off'}\` |`);
+  lines.push(`| Kijun Slope Filter | Status | \`${config.kijunSlopeFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Execution | Trade Mode / Exit Mode | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` |`);
   lines.push(`| Time Stop | maxBarsInTrade | \`${config.maxBarsInTrade ?? 'none'}\` |`);
   lines.push(`| Fixed Stop / TP | Stop Loss % / Take Profit % | \`${config.stopLossPercent ?? 'none'}\` / \`${config.takeProfitPercent ?? 'none'}\` |`);
@@ -839,6 +863,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`  - RSI out of zone within lookback: **${rsiOutOfZoneRejections}**`);
   lines.push(`  - Rejected by Cloud Filter: **${cloudFilterRejections}**`);
   lines.push(`  - Rejected by RSI Recovery Cap: **${rsiRecoveryCapRejections}**`);
+  lines.push(`  - Rejected by Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
   lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
   lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
   lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
@@ -1057,10 +1082,12 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(``);
 
   lines.push(`### 4. By Price vs Cloud at Entry`);
-  lines.push(`| Price Location | Trades | Win Rate | Total Return % | Avg Return % |`);
-  lines.push(`|---|---|---|---|---|`);
+  lines.push(`| Price Location | Trades | Win Rate | Total Return % | Avg Return % | Long (Trades / WinRate / Ret%) | Short (Trades / WinRate / Ret%) |`);
+  lines.push(`|---|---|---|---|---|---|---|`);
   for (const c of cloudBreakdown) {
-    lines.push(`| \`${c.position}\` | ${c.count} | ${c.winRate}% | ${formatPercent(c.totalPnl)} | ${formatPercent(c.avgPnl)} |`);
+    const longStr = `${c.long.count} / ${c.long.winRate}% / ${formatPercent(c.long.totalPnl)}`;
+    const shortStr = `${c.short.count} / ${c.short.winRate}% / ${formatPercent(c.short.totalPnl)}`;
+    lines.push(`| \`${c.position}\` | ${c.count} | ${c.winRate}% | ${formatPercent(c.totalPnl)} | ${formatPercent(c.avgPnl)} | ${longStr} | ${shortStr} |`);
   }
   lines.push(``);
 
@@ -1135,6 +1162,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
         rsiOutOfZone: rsiOutOfZoneRejections,
         cloudFilter: cloudFilterRejections,
         rsiRecoveryCap: rsiRecoveryCapRejections,
+        kijunSlopeFilter: kijunSlopeFilterRejections,
       },
       ignoredSignals: {
         total: ignoredSignals.length,

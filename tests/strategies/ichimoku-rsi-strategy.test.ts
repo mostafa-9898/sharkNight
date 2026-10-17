@@ -1,5 +1,6 @@
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 import type { Candle } from '@/data/models';
+import type { TkCrossTraceEvent } from '@/backtest/types';
 
 describe('IchimokuRsiStrategy', () => {
   const createCandle = (
@@ -527,6 +528,60 @@ describe('IchimokuRsiStrategy', () => {
         if (sigNoCap.action === 'BUY') {
           expect(sigWithCap.action).toBe('HOLD');
         }
+      });
+
+      it('should enforce kijunSlopeFilter on BUY setup', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategySlope = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 1,
+          kijunSlopeFilter: true,
+        });
+        strategySlope.setTraceCollector({
+          onTkCross: (e) => {
+            events.push(e);
+          },
+        });
+
+        // 1. Rising Kijun emits BUY
+        const risingCandles: Candle[] = [
+          createCandle(100, 100, 100, 100, 1000),
+          createCandle(95, 95, 95, 95, 2000),
+          createCandle(85, 85, 84, 85, 3000),
+          createCandle(75, 75, 74, 75, 4000),
+          createCandle(70, 70, 69, 70, 5000),
+          createCandle(68, 68, 68, 68, 6000),
+          createCandle(70, 71, 70, 70, 7000),
+          createCandle(70, 82, 74, 70.3, 8000),
+        ];
+
+        const sigRising = strategySlope.analyze(risingCandles, 7);
+        expect(sigRising.action).toBe('BUY');
+        expect(events[0]?.signalEmitted).toBe(true);
+
+        // 2. Falling Kijun rejects BUY cross
+        const fallingKijunCandles: Candle[] = [
+          createCandle(100, 100, 100, 100, 1000),
+          createCandle(95, 95, 95, 95, 2000),
+          createCandle(85, 85, 84, 85, 3000),
+          createCandle(75, 85, 74, 75, 4000), // high = 85 makes prevKijun = (85+68)/2 = 76.5
+          createCandle(70, 70, 69, 70, 5000),
+          createCandle(68, 68, 68, 68, 6000),
+          createCandle(70, 71, 70, 70, 7000),
+          createCandle(70, 82, 74, 70.3, 8000), // curKijun = (82+68)/2 = 75 < 76.5
+        ];
+
+        const sigFalling = strategySlope.analyze(fallingKijunCandles, 7);
+        expect(sigFalling.action).toBe('HOLD');
+        expect(events.length).toBe(2);
+        expect(events[1]?.filterRejection).toBe('kijunSlopeFilter');
+        expect(events[1]?.signalEmitted).toBe(false);
       });
 
       it('should implement exitSignal for tkCross and kijun correctly', () => {

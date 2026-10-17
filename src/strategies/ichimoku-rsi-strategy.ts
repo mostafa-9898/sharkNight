@@ -20,6 +20,7 @@ export interface IchimokuRsiConfig {
   rsiLookback?: number;      // default 10
   cloudFilter?: CloudFilter; // default 'off'
   rsiRecoveryCap?: number;   // default undefined (off)
+  kijunSlopeFilter?: boolean; // default false
 }
 
 interface CachedIndicators {
@@ -114,6 +115,7 @@ export class IchimokuRsiStrategy implements Strategy {
   readonly rsiLookback: number;
   readonly cloudFilter: CloudFilter;
   readonly rsiRecoveryCap?: number;
+  readonly kijunSlopeFilter: boolean;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
   private traceCollector?: { onTkCross?: (event: TkCrossTraceEvent) => void };
@@ -138,6 +140,7 @@ export class IchimokuRsiStrategy implements Strategy {
       config?.rsiRecoveryCap !== undefined && Number.isFinite(config.rsiRecoveryCap) && config.rsiRecoveryCap >= 0
         ? config.rsiRecoveryCap
         : undefined;
+    this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
 
     // Validation
     if (
@@ -185,7 +188,8 @@ export class IchimokuRsiStrategy implements Strategy {
 
     this.requiredCandles = Math.max(this.kijun + 1, this.rsiPeriod + 3, 5);
     const cfSuffix = this.cloudFilter !== 'off' ? `_CF${this.cloudFilter}` : '';
-    this.name = `IchimokuRSI_${this.tenkan}_${this.kijun}_${this.senkouB}_${this.displacement}_RSI${this.rsiPeriod}_L${this.rsiLookback}${cfSuffix}`;
+    const ksSuffix = this.kijunSlopeFilter ? '_KS' : '';
+    this.name = `IchimokuRSI_${this.tenkan}_${this.kijun}_${this.senkouB}_${this.displacement}_RSI${this.rsiPeriod}_L${this.rsiLookback}${cfSuffix}${ksSuffix}`;
   }
 
   private getIndicators(candles: readonly Candle[]): CachedIndicators {
@@ -375,6 +379,45 @@ export class IchimokuRsiStrategy implements Strategy {
           }
           return defaultSignal;
         }
+      }
+    }
+
+    // Optional Kijun Slope Filter evaluation
+    if (this.kijunSlopeFilter) {
+      const prevKijun = currentIndex > 0 ? kijun[currentIndex - 1] : NaN;
+      const isRising = Number.isFinite(prevKijun) && currentKijun > prevKijun;
+      const isFalling = Number.isFinite(prevKijun) && currentKijun < prevKijun;
+
+      if (crossUp && !isRising) {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'up',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: false,
+            filterRejection: 'kijunSlopeFilter',
+            signalEmitted: false,
+          });
+        }
+        return defaultSignal;
+      }
+
+      if (crossDown && !isFalling) {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'down',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: false,
+            filterRejection: 'kijunSlopeFilter',
+            signalEmitted: false,
+          });
+        }
+        return defaultSignal;
       }
     }
 
