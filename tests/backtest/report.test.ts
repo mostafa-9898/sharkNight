@@ -980,5 +980,90 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(output.markdown).toContain('| **Bar 6** | N/A (0 trades) | N/A | N/A |');
     });
   });
+
+  describe('10. Section H Open Trade at Backtest Conclusion Audit', () => {
+    it('should report no trades executed and no forced liquidation required when trade sample is empty', () => {
+      const input = makeReportInput([]);
+      const output = buildBacktestReport(input);
+
+      expect(output.markdown).toContain(
+        'ℹ️ **No trades executed.** No trades were executed, no positions were opened, and no forced liquidation was required.'
+      );
+      expect(output.markdown).not.toContain('No forced exit at backtest conclusion');
+      expect(output.markdown).not.toContain('Ongoing / Forced Exit Active at End of Data');
+    });
+
+    it('should report natural exits when trades exist with normal exit reason', () => {
+      const normalTrade: Trade = {
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+
+      const input = makeReportInput([normalTrade], {
+        totalTrades: 1,
+        winningTrades: 1,
+        winRate: 1.0,
+        long: { totalTrades: 1, winningTrades: 1, losingTrades: 0, winRate: 1.0, totalPnl: 500, totalPnlPercent: 5.0 },
+      });
+
+      const output = buildBacktestReport(input);
+
+      expect(output.markdown).toContain(
+        '✅ **No forced exit at backtest conclusion.** Portfolio finished in 100% cash with all positions exited through regular strategy signals or stops.'
+      );
+      expect(output.markdown).not.toContain('No trades executed');
+      expect(output.markdown).not.toContain('Ongoing / Forced Exit Active at End of Data');
+    });
+
+    it('should report forced exit segregation when final trade has exitReason "end"', () => {
+      const endTrade: Trade = {
+        side: 'short',
+        exitReason: 'end',
+        entrySignal: { action: 'SELL', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'BUY', price: 102, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 102,
+        quantity: 1,
+        pnl: -200,
+        pnlPercent: -2.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 1.0,
+        maxAdversePercent: 2.5,
+      };
+
+      const input = makeReportInput([endTrade], {
+        totalTrades: 1,
+        losingTrades: 1,
+        winRate: 0.0,
+        short: { totalTrades: 1, winningTrades: 0, losingTrades: 1, winRate: 0.0, totalPnl: -200, totalPnlPercent: -2.0 },
+      });
+
+      const output = buildBacktestReport(input);
+
+      expect(output.markdown).toContain('⚠️ **Ongoing / Forced Exit Active at End of Data**');
+      expect(output.markdown).toContain(
+        'The backtest finished with an open position that was forcibly liquidated on the final candle close.'
+      );
+      expect(output.markdown).toContain('Forced Trade:');
+      expect(output.markdown).not.toContain('No forced exit at backtest conclusion');
+      expect(output.markdown).not.toContain('No trades executed');
+    });
+  });
 });
 

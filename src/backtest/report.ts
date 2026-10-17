@@ -1102,7 +1102,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
 
   // Section H: Open Trade at Conclusion
   lines.push(`## Section H: Open Trade at Backtest Conclusion`);
-  if (hasForcedEndExit && lastTrade) {
+  if (totalTradesCount === 0) {
+    lines.push(`ℹ️ **No trades executed.** No trades were executed, no positions were opened, and no forced liquidation was required.`);
+  } else if (hasForcedEndExit && lastTrade) {
     lines.push(`⚠️ **Ongoing / Forced Exit Active at End of Data**`);
     lines.push(`- The backtest finished with an open position that was forcibly liquidated on the final candle close.`);
     lines.push(`- **Forced Trade:** #${trades.length} (${lastTrade.side.toUpperCase()}) | Entered @ $${lastTrade.entryPrice.toFixed(2)} | Liquidated @ $${lastTrade.exitPrice.toFixed(2)}`);

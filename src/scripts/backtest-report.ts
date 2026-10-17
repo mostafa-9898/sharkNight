@@ -5,7 +5,13 @@ import { IchimokuRsiStrategy, type CloudFilter } from '../strategies/ichimoku-rs
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { generateAndSaveBacktestReport } from '../backtest/report';
-import type { TradeMode, ExitMode, StopCheckMode, TrailingStopConfig } from '../backtest/types';
+import type {
+  TradeMode,
+  ExitMode,
+  StopCheckMode,
+  TrailingStopConfig,
+  BacktestMetrics,
+} from '../backtest/types';
 
 export function parseArg(
   key: string,
@@ -311,31 +317,60 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 
   // 5. Console summary
   const m = backtestResult.metrics;
-  console.log(`\n======================================================`);
-  console.log(`✅ Backtest Report Successfully Generated!`);
-  console.log(`======================================================`);
-  console.log(`📁 Files Written:`);
-  console.log(`   - Latest Markdown: ${paths.latestMdPath}`);
-  console.log(`   - Latest JSON:     ${paths.latestJsonPath}`);
-  console.log(`   - History Archive: ${paths.historyMdPath}`);
-  console.log(`   - Index Table:     docs/review/HISTORY.md (${paths.historyIndexUpdated ? 'updated' : 'unchanged'})`);
-  console.log(`\n📈 Performance Summary:`);
-  console.log(`   - Net Return:      ${m.totalPnlPercent > 0 ? '+' : ''}${m.totalPnlPercent.toFixed(2)}% ($${m.totalPnl.toFixed(2)})`);
-  console.log(`   - Max Drawdown:    ${m.maxDrawdownPercent.toFixed(2)}%`);
-  console.log(`   - Total Trades:    ${m.totalTrades} (Long: ${m.long.totalTrades} | Short: ${m.short.totalTrades})`);
-  console.log(`   - Win Rate:        ${m.totalTrades > 0 ? `${(m.winRate * 100).toFixed(1)}%` : 'N/A'}`);
-  console.log(`   - Config Hash:     ${report.configHash}`);
-
   const flags = (report.json as { flags?: Array<{ level: string; message: string }> }).flags ?? [];
+  const summaryText = formatCliSummary({
+    metrics: m,
+    configHash: report.configHash,
+    paths,
+    flags,
+  });
+  console.log(`\n${summaryText}\n`);
+}
+
+export interface CliSummaryParams {
+  metrics: BacktestMetrics;
+  configHash: string;
+  paths: {
+    latestMdPath: string;
+    latestJsonPath: string;
+    historyMdPath: string;
+    historyIndexUpdated: boolean;
+  };
+  flags?: Array<{ level: string; message: string }>;
+}
+
+export function formatCliSummary(params: CliSummaryParams): string {
+  const { metrics: m, configHash, paths, flags = [] } = params;
+  const lines: string[] = [
+    `======================================================`,
+    `✅ Backtest Report Successfully Generated!`,
+    `======================================================`,
+    `📁 Files Written:`,
+    `   - Latest Markdown: ${paths.latestMdPath}`,
+    `   - Latest JSON:     ${paths.latestJsonPath}`,
+    `   - History Archive: ${paths.historyMdPath}`,
+    `   - Index Table:     docs/review/HISTORY.md (${paths.historyIndexUpdated ? 'updated' : 'unchanged'})`,
+    ``,
+    `📈 Performance Summary:`,
+    `   - Net Return:      ${m.totalPnlPercent > 0 ? '+' : ''}${m.totalPnlPercent.toFixed(2)}% ($${m.totalPnl.toFixed(2)})`,
+    `   - Max Drawdown:    ${m.maxDrawdownPercent.toFixed(2)}%`,
+    `   - Total Trades:    ${m.totalTrades} (Long: ${m.long.totalTrades} | Short: ${m.short.totalTrades})`,
+    `   - Win Rate:        ${m.totalTrades > 0 ? `${(m.winRate * 100).toFixed(1)}%` : 'N/A'}`,
+    `   - Config Hash:     ${configHash}`,
+  ];
+
   if (flags.length > 0) {
-    console.log(`\n🚩 Warnings Triggered (${flags.length}):`);
+    lines.push(``);
+    lines.push(`🚩 Warnings Triggered (${flags.length}):`);
     for (const f of flags) {
-      console.log(`   [${f.level}] ${f.message}`);
+      lines.push(`   [${f.level}] ${f.message}`);
     }
   } else {
-    console.log(`\n✨ Zero warning flags triggered.`);
+    lines.push(``);
+    lines.push(`✨ Zero warning flags triggered.`);
   }
-  console.log(`======================================================\n`);
+  lines.push(`======================================================`);
+  return lines.join('\n');
 }
 
 if (process.env.NODE_ENV !== 'test') {

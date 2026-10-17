@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-17T15:00:39.827Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-17T15:09:59.805Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `3f9a84b` (⚠️ dirty) |
+| **Git Commit** | `9b8b3ca` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
 | **Total Candles** | 52,593 |
 | **Start Time (UTC)** | 2020-10-17T04:00:00Z |
@@ -102,7 +102,7 @@ Generated: **2026-10-17T15:00:39.827Z** | Config Hash: `f8e53fab`
 ### Top 10 Worst Trades (Largest Losses)
 ### Top 10 Best Trades (Largest Gains)
 ## Section H: Open Trade at Backtest Conclusion
-✅ **No forced exit at backtest conclusion.** Portfolio finished in 100% cash with all positions exited through regular strategy signals or stops.
+ℹ️ **No trades executed.** No trades were executed, no positions were opened, and no forced liquidation was required.
 
 ## Section I: Top 5 Drawdown Periods
 _No significant drawdown periods detected on the equity curve._

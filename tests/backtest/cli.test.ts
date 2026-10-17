@@ -3,8 +3,10 @@ import {
   parseNumArg,
   parseBoolArg,
   parseCliArgs,
+  formatCliSummary,
 } from '@/scripts/backtest-report';
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
+import type { BacktestMetrics } from '@/backtest/types';
 
 describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
   describe('parseBoolArg', () => {
@@ -113,6 +115,98 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
       });
 
       expect(strategy).toBeDefined();
+    });
+  });
+
+  describe('formatCliSummary', () => {
+    const mockPaths = {
+      latestMdPath: '/path/to/BACKTEST_LATEST.md',
+      latestJsonPath: '/path/to/backtest-latest.json',
+      historyMdPath: '/path/to/history/archive.md',
+      historyIndexUpdated: true,
+    };
+
+    const baseMetrics: BacktestMetrics = {
+      totalTrades: 0,
+      winningTrades: 0,
+      losingTrades: 0,
+      winRate: 0,
+      totalPnl: 0,
+      totalPnlPercent: 0,
+      maxDrawdown: 0,
+      maxDrawdownPercent: 0,
+      sharpeRatio: 0,
+      averageTradeReturn: 0,
+      bestTrade: 0,
+      worstTrade: 0,
+      finalBalance: 10000,
+      totalFees: 0,
+      totalFeesPercent: 0,
+      averageWin: 0,
+      averageLoss: 0,
+      feeDragPercent: 0,
+      long: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
+      short: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
+    };
+
+    it('formats Win Rate as N/A on zero executed trades', () => {
+      const summary = formatCliSummary({
+        metrics: baseMetrics,
+        configHash: 'f8e53fab',
+        paths: mockPaths,
+        flags: [{ level: 'CRITICAL', message: 'Zero Trades Executed' }],
+      });
+
+      expect(summary).toContain('- Total Trades:    0 (Long: 0 | Short: 0)');
+      expect(summary).toContain('- Win Rate:        N/A');
+      expect(summary).toContain('- Config Hash:     f8e53fab');
+      expect(summary).toContain('[CRITICAL] Zero Trades Executed');
+    });
+
+    it('formats legitimate percentage win rate when trades are executed', () => {
+      const metricsWithTrades: BacktestMetrics = {
+        ...baseMetrics,
+        totalTrades: 4,
+        winningTrades: 1,
+        losingTrades: 3,
+        winRate: 0.25,
+        totalPnl: -150,
+        totalPnlPercent: -1.5,
+        long: { totalTrades: 2, winningTrades: 1, losingTrades: 1, winRate: 0.5, totalPnl: 50, totalPnlPercent: 0.5 },
+        short: { totalTrades: 2, winningTrades: 0, losingTrades: 2, winRate: 0, totalPnl: -200, totalPnlPercent: -2.0 },
+      };
+
+      const summary = formatCliSummary({
+        metrics: metricsWithTrades,
+        configHash: 'abc12345',
+        paths: mockPaths,
+      });
+
+      expect(summary).toContain('- Total Trades:    4 (Long: 2 | Short: 2)');
+      expect(summary).toContain('- Win Rate:        25.0%');
+      expect(summary).toContain('✨ Zero warning flags triggered.');
+    });
+
+    it('preserves valid 0.0% win rate when trades exist but none are winners', () => {
+      const zeroWinsMetrics: BacktestMetrics = {
+        ...baseMetrics,
+        totalTrades: 2,
+        winningTrades: 0,
+        losingTrades: 2,
+        winRate: 0.0,
+        totalPnl: -200,
+        totalPnlPercent: -2.0,
+        long: { totalTrades: 2, winningTrades: 0, losingTrades: 2, winRate: 0.0, totalPnl: -200, totalPnlPercent: -2.0 },
+      };
+
+      const summary = formatCliSummary({
+        metrics: zeroWinsMetrics,
+        configHash: 'xyz98765',
+        paths: mockPaths,
+      });
+
+      expect(summary).toContain('- Total Trades:    2 (Long: 2 | Short: 0)');
+      expect(summary).toContain('- Win Rate:        0.0%');
     });
   });
 });
