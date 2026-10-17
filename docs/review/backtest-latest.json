@@ -1,8 +1,8 @@
 {
   "meta": {
-    "generatedAt": "2026-10-17T14:27:43.868Z",
+    "generatedAt": "2026-10-17T14:47:13.645Z",
     "configHash": "f8e53fab",
-    "gitCommit": "7084729",
+    "gitCommit": "ccc9adb",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "1h",
@@ -137,51 +137,51 @@
       {
         "position": "above",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0,
+        "avgPnl": null,
         "long": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         },
         "short": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         }
       },
       {
         "position": "inside",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0,
+        "avgPnl": null,
         "long": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         },
         "short": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         }
       },
       {
         "position": "below",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0,
+        "avgPnl": null,
         "long": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         },
         "short": {
           "count": 0,
-          "winRate": 0,
+          "winRate": null,
           "totalPnl": 0
         }
       }
@@ -190,44 +190,44 @@
       {
         "bucket": "[20, 30)",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       },
       {
         "bucket": "[30, 40)",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       },
       {
         "bucket": "[40, 50)",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       },
       {
         "bucket": "[50, 60)",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       },
       {
         "bucket": "[60, 70)",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       },
       {
         "bucket": "[70, 80]",
         "count": 0,
-        "winRate": 0,
+        "winRate": null,
         "totalPnl": 0,
-        "avgPnl": 0
+        "avgPnl": null
       }
     ]
   },

@@ -690,20 +690,20 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const list = trades.filter((t) => t.entryDiagnostics?.priceVsCloud === pos);
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
-    const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : 0;
+    const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : null;
     const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : 0;
+    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : null;
 
     const longList = list.filter((t) => t.side === 'long');
     const longCount = longList.length;
     const longWins = longList.filter((t) => (t.pnl || 0) > 0).length;
-    const longWinRate = longCount > 0 ? roundTo((longWins / longCount) * 100, 1) : 0;
+    const longWinRate = longCount > 0 ? roundTo((longWins / longCount) * 100, 1) : null;
     const longTotalPnl = roundTo(longList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
 
     const shortList = list.filter((t) => t.side === 'short');
     const shortCount = shortList.length;
     const shortWins = shortList.filter((t) => (t.pnl || 0) > 0).length;
-    const shortWinRate = shortCount > 0 ? roundTo((shortWins / shortCount) * 100, 1) : 0;
+    const shortWinRate = shortCount > 0 ? roundTo((shortWins / shortCount) * 100, 1) : null;
     const shortTotalPnl = roundTo(shortList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
 
     return {
@@ -733,9 +733,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     });
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
-    const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : 0;
+    const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : null;
     const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : 0;
+    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : null;
     return { bucket: b.label, count, winRate: winRateVal, totalPnl: totalPnlVal, avgPnl: avgPnlVal };
   });
 
@@ -911,6 +911,10 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     );
     lines.push(``);
   } else {
+    lines.push(
+      `> ℹ️ **Diagnostic Semantics:** **Crosses with RSI in Zone** reflects independent RSI lookback qualification across all candidate TK crossovers, regardless of upstream filter rejections. In contrast, "Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order (Cloud Filter → Kijun Slope Filter → RSI Zone → RSI Recovery Cap). Crosses that qualify for RSI may still be rejected earlier by Cloud or Kijun Slope filters.`
+    );
+    lines.push(``);
     lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
     lines.push(`|---|---|---|---|`);
     lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
@@ -1147,9 +1151,13 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Price Location | Trades | Win Rate | Total Return % | Avg Return % | Long (Trades / WinRate / Ret%) | Short (Trades / WinRate / Ret%) |`);
   lines.push(`|---|---|---|---|---|---|---|`);
   for (const c of cloudBreakdown) {
-    const longStr = `${c.long.count} / ${c.long.winRate}% / ${formatPercent(c.long.totalPnl)}`;
-    const shortStr = `${c.short.count} / ${c.short.winRate}% / ${formatPercent(c.short.totalPnl)}`;
-    lines.push(`| \`${c.position}\` | ${c.count} | ${c.winRate}% | ${formatPercent(c.totalPnl)} | ${formatPercent(c.avgPnl)} | ${longStr} | ${shortStr} |`);
+    const winRateStr = c.winRate !== null ? `${c.winRate}%` : 'N/A';
+    const avgPnlStr = c.avgPnl !== null ? formatPercent(c.avgPnl) : 'N/A';
+    const longWrStr = c.long.winRate !== null ? `${c.long.winRate}%` : 'N/A';
+    const shortWrStr = c.short.winRate !== null ? `${c.short.winRate}%` : 'N/A';
+    const longStr = `${c.long.count} / ${longWrStr} / ${formatPercent(c.long.totalPnl)}`;
+    const shortStr = `${c.short.count} / ${shortWrStr} / ${formatPercent(c.short.totalPnl)}`;
+    lines.push(`| \`${c.position}\` | ${c.count} | ${winRateStr} | ${formatPercent(c.totalPnl)} | ${avgPnlStr} | ${longStr} | ${shortStr} |`);
   }
   lines.push(``);
 
@@ -1157,7 +1165,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| RSI Bucket | Trades | Win Rate | Total Return % | Avg Return % |`);
   lines.push(`|---|---|---|---|---|`);
   for (const r of rsiBreakdown) {
-    lines.push(`| \`${r.bucket}\` | ${r.count} | ${r.winRate}% | ${formatPercent(r.totalPnl)} | ${formatPercent(r.avgPnl)} |`);
+    const winRateStr = r.winRate !== null ? `${r.winRate}%` : 'N/A';
+    const avgPnlStr = r.avgPnl !== null ? formatPercent(r.avgPnl) : 'N/A';
+    lines.push(`| \`${r.bucket}\` | ${r.count} | ${winRateStr} | ${formatPercent(r.totalPnl)} | ${avgPnlStr} |`);
   }
   lines.push(``);
 
@@ -1261,6 +1271,34 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   };
 }
 
+export function formatHistoryWinRate(
+  winRate: number | null | undefined,
+  totalTrades: number
+): string {
+  if (totalTrades === 0 || winRate === null || winRate === undefined || !Number.isFinite(winRate)) {
+    return 'N/A';
+  }
+  return `${(winRate * 100).toFixed(1)}%`;
+}
+
+export function formatHistoryRow(params: {
+  dateFormatted: string;
+  commitShort: string;
+  confHash: string;
+  symIntPer: string;
+  netReturnPercent: number;
+  totalTrades: number;
+  maxDrawdownPercent: number;
+  winRate: number | null | undefined;
+  filename: string;
+}): string {
+  const retPct = formatPercent(params.netReturnPercent);
+  const maxDd = `${params.maxDrawdownPercent.toFixed(2)}%`;
+  const wr = formatHistoryWinRate(params.winRate, params.totalTrades);
+  const relLink = `[Report](history/${params.filename})`;
+  return `| ${params.dateFormatted} | \`${params.commitShort}\` | \`${params.confHash}\` | ${params.symIntPer} | **${retPct}** | ${params.totalTrades} | ${maxDd} | ${wr} | ${relLink} |`;
+}
+
 export async function saveBacktestReport(output: BacktestReportOutput): Promise<{
   latestMdPath: string;
   latestJsonPath: string;
@@ -1312,17 +1350,23 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
     const commitShort = (meta.gitCommit as string) || 'unknown';
     const confHash = output.configHash;
     const symIntPer = `${meta.symbol} / ${meta.interval} / ${meta.period}`;
-    const retPct = formatPercent(summary.netReturnPercent as number);
-    const trCount = summary.totalTrades as number;
-    const maxDd = `${(summary.maxDrawdownPercent as number).toFixed(2)}%`;
-    const wr =
-      typeof summary.winRate === 'number' && trCount > 0
-        ? `${(summary.winRate * 100).toFixed(1)}%`
-        : '0.0%';
-    const relLink = `[Report](history/${output.filename})`;
+    const retPct = (summary.netReturnPercent as number) ?? 0;
+    const trCount = (summary.totalTrades as number) ?? 0;
+    const maxDd = (summary.maxDrawdownPercent as number) ?? 0;
+    const wrVal = summary.winRate as number | null | undefined;
 
     const tableHeader = `# Backtest Run History\n\n| Timestamp (UTC) | Git Commit | Config Hash | Symbol / Interval / Period | Return % | Trades | Max DD % | Win Rate % | Archive |\n|---|---|---|---|---|---|---|---|---|`;
-    const newRow = `| ${dateFormatted} | \`${commitShort}\` | \`${confHash}\` | ${symIntPer} | **${retPct}** | ${trCount} | ${maxDd} | ${wr} | ${relLink} |`;
+    const newRow = formatHistoryRow({
+      dateFormatted,
+      commitShort,
+      confHash,
+      symIntPer,
+      netReturnPercent: retPct,
+      totalTrades: trCount,
+      maxDrawdownPercent: maxDd,
+      winRate: wrVal,
+      filename: output.filename,
+    });
 
     let existingContent = '';
     try {

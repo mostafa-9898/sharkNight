@@ -4,6 +4,8 @@ import {
   buildBacktestReport,
   computeDrawdownPeriods,
   computeTradeTrajectories,
+  formatHistoryWinRate,
+  formatHistoryRow,
   type BacktestReportInput,
 } from '@/backtest/report';
 import type { Candle } from '@/data/models/candle';
@@ -38,6 +40,48 @@ describe('Backtest Report Builder & Tracing', () => {
     candles.push(createCandle(i, open, high, low, close));
     price = close;
   }
+
+  const baseMetrics = {
+    totalTrades: 0,
+    winningTrades: 0,
+    losingTrades: 0,
+    winRate: 0,
+    totalPnl: 0,
+    totalPnlPercent: 0,
+    maxDrawdown: 0,
+    maxDrawdownPercent: 0,
+    sharpeRatio: 0,
+    averageTradeReturn: 0,
+    bestTrade: 0,
+    worstTrade: 0,
+    finalBalance: 10000,
+    totalFees: 0,
+    totalFeesPercent: 0,
+    averageWin: 0,
+    averageLoss: 0,
+    feeDragPercent: 0,
+    long: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
+    short: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
+  };
+
+  const makeReportInput = (trades: Trade[], overrides: Partial<typeof baseMetrics> = {}): BacktestReportInput => {
+    const metrics = { ...baseMetrics, ...overrides };
+    const backtestResult: BacktestResult = {
+      config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+      trades,
+      metrics,
+      equity: [10000, 10000],
+    };
+    return {
+      backtestResult,
+      candles,
+      config: {
+        symbol: 'BTCUSDT',
+        interval: '1h',
+        initialBalance: 10000,
+      },
+    };
+  };
 
   describe('1. Trace Non-Interference', () => {
     it('should produce 100% bit-identical trades and equity curve with vs without trace', () => {
@@ -313,48 +357,6 @@ describe('Backtest Report Builder & Tracing', () => {
   });
 
   describe('5. Zero-Trade & Single-Side Metric Ambiguity Handlers', () => {
-    const baseMetrics = {
-      totalTrades: 0,
-      winningTrades: 0,
-      losingTrades: 0,
-      winRate: 0,
-      totalPnl: 0,
-      totalPnlPercent: 0,
-      maxDrawdown: 0,
-      maxDrawdownPercent: 0,
-      sharpeRatio: 0,
-      averageTradeReturn: 0,
-      bestTrade: 0,
-      worstTrade: 0,
-      finalBalance: 10000,
-      totalFees: 0,
-      totalFeesPercent: 0,
-      averageWin: 0,
-      averageLoss: 0,
-      feeDragPercent: 0,
-      long: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
-      short: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
-    };
-
-    const makeReportInput = (trades: Trade[], overrides: Partial<typeof baseMetrics> = {}): BacktestReportInput => {
-      const metrics = { ...baseMetrics, ...overrides };
-      const backtestResult: BacktestResult = {
-        config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
-        trades,
-        metrics,
-        equity: [10000, 10000],
-      };
-      return {
-        backtestResult,
-        candles,
-        config: {
-          symbol: 'BTCUSDT',
-          interval: '1h',
-          initialBalance: 10000,
-        },
-      };
-    };
-
     it('should report N/A for profitFactor, winRate, expectancy, and trigger CRITICAL warning on zero trades', () => {
       const input = makeReportInput([]);
       const output = buildBacktestReport(input);
@@ -682,6 +684,183 @@ describe('Backtest Report Builder & Tracing', () => {
 
       expect(output.json.funnel).toBeNull();
       expect(output.markdown).toContain('Trace data was not collected for this backtest run');
+    });
+  });
+
+  describe('6. HISTORY.md Win Rate Fallback and Row Formatting (Step 2)', () => {
+    it('formatHistoryWinRate formats N/A for zero trades and actual percentage for executed trades', () => {
+      // Zero executed trades
+      expect(formatHistoryWinRate(null, 0)).toBe('N/A');
+      expect(formatHistoryWinRate(undefined, 0)).toBe('N/A');
+      expect(formatHistoryWinRate(0, 0)).toBe('N/A');
+      expect(formatHistoryWinRate(NaN, 0)).toBe('N/A');
+
+      // Executed trades with zero wins
+      expect(formatHistoryWinRate(0, 1)).toBe('0.0%');
+      expect(formatHistoryWinRate(0, 5)).toBe('0.0%');
+
+      // Executed trades with positive win rate
+      expect(formatHistoryWinRate(0.5, 2)).toBe('50.0%');
+      expect(formatHistoryWinRate(0.3333, 3)).toBe('33.3%');
+      expect(formatHistoryWinRate(1.0, 10)).toBe('100.0%');
+    });
+
+    it('formatHistoryRow formats deterministic rows clearly distinguishing zero trades from zero winners', () => {
+      const zeroTradeRow = formatHistoryRow({
+        dateFormatted: '2026-10-17 14:00:00',
+        commitShort: 'ccc9adb',
+        confHash: 'f8e53fab',
+        symIntPer: 'BTCUSDT / 1h / 6y',
+        netReturnPercent: 0,
+        totalTrades: 0,
+        maxDrawdownPercent: 0,
+        winRate: null,
+        filename: 'report_zero.md',
+      });
+      expect(zeroTradeRow).toBe(
+        '| 2026-10-17 14:00:00 | `ccc9adb` | `f8e53fab` | BTCUSDT / 1h / 6y | **0.00%** | 0 | 0.00% | N/A | [Report](history/report_zero.md) |'
+      );
+
+      const zeroWinRow = formatHistoryRow({
+        dateFormatted: '2026-10-17 14:00:00',
+        commitShort: 'ccc9adb',
+        confHash: '0ab7c791',
+        symIntPer: 'BTCUSDT / 1h / 6y',
+        netReturnPercent: -2.5,
+        totalTrades: 2,
+        maxDrawdownPercent: 3.1,
+        winRate: 0,
+        filename: 'report_loss.md',
+      });
+      expect(zeroWinRow).toBe(
+        '| 2026-10-17 14:00:00 | `ccc9adb` | `0ab7c791` | BTCUSDT / 1h / 6y | **-2.50%** | 2 | 3.10% | 0.0% | [Report](history/report_loss.md) |'
+      );
+    });
+  });
+
+  describe('7. Section J Breakdowns with Empty and Non-Empty Categories (Step 3)', () => {
+    it('should display N/A in Markdown and null in JSON for empty cloud and RSI categories', () => {
+      const insideTrade: Trade = {
+        side: 'long',
+        exitReason: 'signal',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[3].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 2,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[3].timestamp,
+        duration: 3,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 1,
+        entryDiagnostics: {
+          side: 'long',
+          priceVsCloud: 'inside',
+          tkCrossVsCloud: 'inside',
+          cloudThicknessPercent: 1.5,
+          rsiAtEntry: 55,
+          rsiHitValue: 35,
+          rsiHitAge: 2,
+          kijunSlope: 0.5,
+          atrPercentile: 50,
+          distanceFromKijunAtr: 0.2,
+          hourOfDayUtc: 12,
+          dayOfWeek: 1,
+        },
+      };
+
+      const input = makeReportInput([insideTrade], {
+        totalTrades: 1,
+        winningTrades: 1,
+        losingTrades: 0,
+        winRate: 1.0,
+        totalPnl: 500,
+        totalPnlPercent: 5.0,
+        averageWin: 5.0,
+        long: { totalTrades: 1, winningTrades: 1, losingTrades: 0, winRate: 1.0, totalPnl: 500, totalPnlPercent: 5.0 },
+        short: { totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0, totalPnl: 0, totalPnlPercent: 0 },
+      });
+
+      const output = buildBacktestReport(input);
+
+      // JSON Assertions
+      const breakdowns = output.json.breakdowns as {
+        priceVsCloud: Array<{
+          position: string;
+          count: number;
+          winRate: number | null;
+          avgPnl: number | null;
+          long: { count: number; winRate: number | null; totalPnl: number };
+          short: { count: number; winRate: number | null; totalPnl: number };
+        }>;
+        rsiBuckets: Array<{
+          bucket: string;
+          count: number;
+          winRate: number | null;
+          avgPnl: number | null;
+        }>;
+      };
+
+      const aboveCloud = breakdowns.priceVsCloud.find((c) => c.position === 'above')!;
+      expect(aboveCloud.count).toBe(0);
+      expect(aboveCloud.winRate).toBeNull();
+      expect(aboveCloud.avgPnl).toBeNull();
+      expect(aboveCloud.long.winRate).toBeNull();
+      expect(aboveCloud.short.winRate).toBeNull();
+
+      const insideCloud = breakdowns.priceVsCloud.find((c) => c.position === 'inside')!;
+      expect(insideCloud.count).toBe(1);
+      expect(insideCloud.winRate).toBe(100);
+      expect(insideCloud.avgPnl).toBe(5.0);
+      expect(insideCloud.long.winRate).toBe(100);
+
+      const emptyRsiBucket = breakdowns.rsiBuckets.find((b) => b.bucket === '[20, 30)')!;
+      expect(emptyRsiBucket.count).toBe(0);
+      expect(emptyRsiBucket.winRate).toBeNull();
+      expect(emptyRsiBucket.avgPnl).toBeNull();
+
+      const populatedRsiBucket = breakdowns.rsiBuckets.find((b) => b.bucket === '[50, 60)')!;
+      expect(populatedRsiBucket.count).toBe(1);
+      expect(populatedRsiBucket.winRate).toBe(100);
+      expect(populatedRsiBucket.avgPnl).toBe(5.0);
+
+      // Markdown Assertions
+      expect(output.markdown).toContain('| `above` | 0 | N/A | 0.00% | N/A | 0 / N/A / 0.00% | 0 / N/A / 0.00% |');
+      expect(output.markdown).toContain('| `below` | 0 | N/A | 0.00% | N/A | 0 / N/A / 0.00% | 0 / N/A / 0.00% |');
+      expect(output.markdown).toContain('| `inside` | 1 | 100% | +5.00% | +5.00% | 1 / 100% / +5.00% | 0 / N/A / 0.00% |');
+
+      expect(output.markdown).toContain('| `[20, 30)` | 0 | N/A | 0.00% | N/A |');
+      expect(output.markdown).toContain('| `[50, 60)` | 1 | 100% | +5.00% | +5.00% |');
+    });
+  });
+
+  describe('8. Section D Diagnostic Semantics Note (Step 4)', () => {
+    it('should include clear diagnostic semantics note in Section D', () => {
+      const strategy = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16 });
+      const engine = new BacktestEngine();
+      const backtestResult = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        collectTrace: true,
+      });
+
+      const output = buildBacktestReport({
+        backtestResult,
+        candles,
+        config: { symbol: 'BTCUSDT', interval: '1h' },
+      });
+
+      expect(output.markdown).toContain('Diagnostic Semantics:');
+      expect(output.markdown).toContain(
+        '**Crosses with RSI in Zone** reflects independent RSI lookback qualification across all candidate TK crossovers'
+      );
+      expect(output.markdown).toContain(
+        '"Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order'
+      );
     });
   });
 });

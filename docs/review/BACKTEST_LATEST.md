@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-17T14:27:43.868Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-17T14:47:13.645Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `7084729` (⚠️ dirty) |
+| **Git Commit** | `ccc9adb` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
 | **Total Candles** | 52,594 |
 | **Start Time (UTC)** | 2020-10-17T03:00:00Z |
@@ -48,6 +48,8 @@ Generated: **2026-10-17T14:27:43.868Z** | Config Hash: `f8e53fab`
 - 🚨 **[CRITICAL]** Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample.
 
 ## Section D: Signal Funnel
+> ℹ️ **Diagnostic Semantics:** **Crosses with RSI in Zone** reflects independent RSI lookback qualification across all candidate TK crossovers, regardless of upstream filter rejections. In contrast, "Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order (Cloud Filter → Kijun Slope Filter → RSI Zone → RSI Recovery Cap). Crosses that qualify for RSI may still be rejected earlier by Cloud or Kijun Slope filters.
+
 | Stage | Bullish (BUY) | Bearish (SELL) | Combined |
 |---|---|---|---|
 | **TK Crossover Events** | 1342 | 1343 | 2685 |
@@ -123,19 +125,19 @@ _No significant drawdown periods detected on the equity curve._
 ### 4. By Price vs Cloud at Entry
 | Price Location | Trades | Win Rate | Total Return % | Avg Return % | Long (Trades / WinRate / Ret%) | Short (Trades / WinRate / Ret%) |
 |---|---|---|---|---|---|---|
-| `above` | 0 | 0% | 0.00% | 0.00% | 0 / 0% / 0.00% | 0 / 0% / 0.00% |
-| `inside` | 0 | 0% | 0.00% | 0.00% | 0 / 0% / 0.00% | 0 / 0% / 0.00% |
-| `below` | 0 | 0% | 0.00% | 0.00% | 0 / 0% / 0.00% | 0 / 0% / 0.00% |
+| `above` | 0 | N/A | 0.00% | N/A | 0 / N/A / 0.00% | 0 / N/A / 0.00% |
+| `inside` | 0 | N/A | 0.00% | N/A | 0 / N/A / 0.00% | 0 / N/A / 0.00% |
+| `below` | 0 | N/A | 0.00% | N/A | 0 / N/A / 0.00% | 0 / N/A / 0.00% |
 
 ### 5. By Entry RSI Buckets
 | RSI Bucket | Trades | Win Rate | Total Return % | Avg Return % |
 |---|---|---|---|---|
-| `[20, 30)` | 0 | 0% | 0.00% | 0.00% |
-| `[30, 40)` | 0 | 0% | 0.00% | 0.00% |
-| `[40, 50)` | 0 | 0% | 0.00% | 0.00% |
-| `[50, 60)` | 0 | 0% | 0.00% | 0.00% |
-| `[60, 70)` | 0 | 0% | 0.00% | 0.00% |
-| `[70, 80]` | 0 | 0% | 0.00% | 0.00% |
+| `[20, 30)` | 0 | N/A | 0.00% | N/A |
+| `[30, 40)` | 0 | N/A | 0.00% | N/A |
+| `[40, 50)` | 0 | N/A | 0.00% | N/A |
+| `[50, 60)` | 0 | N/A | 0.00% | N/A |
+| `[60, 70)` | 0 | N/A | 0.00% | N/A |
+| `[70, 80]` | 0 | N/A | 0.00% | N/A |
 
 ## Section K: Invariant Self-Checks
 | Invariant Name | Status | Violations | Verification Details |

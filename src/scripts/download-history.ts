@@ -7,7 +7,7 @@ import {
   type CandleInterval,
   type Candle,
 } from '../data/models/candle';
-
+4
 // Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
