@@ -451,25 +451,50 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       ? roundTo(((lastCandle.close - firstCandle.close) / firstCandle.close) * 100, 2)
       : 0;
 
-  // Expectancy
+  // Expectancy & trade counts
+  const totalTradesCount = trades.length;
   const winRate = metrics.winRate; // 0-1
   const avgWin = metrics.averageWin;
   const avgLoss = Math.abs(metrics.averageLoss);
   const expectancy = roundTo(winRate * avgWin - (1 - winRate) * avgLoss, 2);
 
-  // Profit factor
+  const hasWins = trades.some((t) => (t.pnl || 0) > 0);
+  const hasLosses = trades.some((t) => (t.pnl || 0) < 0);
+
+  // Profit factor & 4 distinct trade situations
   const grossProfit = trades
     .filter((t) => (t.pnl || 0) > 0)
     .reduce((sum, t) => sum + (t.pnl || 0), 0);
   const grossLoss = Math.abs(
     trades.filter((t) => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0)
   );
-  const profitFactor =
-    grossLoss === 0
-      ? grossProfit > 0
-        ? 99.9
-        : 1.0
-      : roundTo(grossProfit / grossLoss, 2);
+
+  let profitFactorStr: string;
+  let profitFactorContext: string;
+  let profitFactorVal: number | null;
+
+  if (totalTradesCount === 0) {
+    profitFactorStr = 'N/A';
+    profitFactorContext = `Gross Profit: $0.00 / Gross Loss: $0.00 (no trades executed)`;
+    profitFactorVal = null;
+  } else if (grossLoss === 0 && grossProfit > 0) {
+    profitFactorStr = 'N/A';
+    profitFactorContext = `Gross Profit: ${formatCurrency(grossProfit)} / Gross Loss: $0.00 (zero gross losses; undefined)`;
+    profitFactorVal = null;
+  } else if (grossLoss > 0 && grossProfit === 0) {
+    profitFactorStr = '0.00';
+    profitFactorContext = `Gross Profit: $0.00 / Gross Loss: ${formatCurrency(grossLoss)} (zero gross profit)`;
+    profitFactorVal = 0;
+  } else if (grossLoss === 0 && grossProfit === 0) {
+    profitFactorStr = 'N/A';
+    profitFactorContext = `Gross Profit: $0.00 / Gross Loss: $0.00 (all trades flat)`;
+    profitFactorVal = null;
+  } else {
+    const pf = roundTo(grossProfit / grossLoss, 2);
+    profitFactorStr = pf.toFixed(2);
+    profitFactorContext = `Gross Profit: ${formatCurrency(grossProfit)} / Gross Loss: ${formatCurrency(grossLoss)}`;
+    profitFactorVal = pf;
+  }
 
   // Average bars
   const totalBarsHeld = trajectories.reduce((sum, tr) => sum + tr.barsHeld, 0);
@@ -478,7 +503,13 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   // --- SECTION C: Automated Warning Flags ---
   const flags: Array<{ level: 'CRITICAL' | 'WARNING' | 'NOTICE'; message: string }> = [];
 
-  if (expectancy < 0) {
+  if (totalTradesCount === 0) {
+    flags.push({
+      level: 'CRITICAL',
+      message:
+        'Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample.',
+    });
+  } else if (expectancy < 0) {
     flags.push({
       level: 'CRITICAL',
       message: `Negative Expectancy (${expectancy}% per trade). The strategy produces an average loss per trade.`,
@@ -573,22 +604,29 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   const computeSideStats = (list: Trade[]) => {
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
-    const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : 0;
+    const winRateVal = count > 0 ? `${roundTo((wins / count) * 100, 1)}%` : 'N/A';
     const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : 0;
+    const avgPnlVal = count > 0 ? `${formatPercent(roundTo(totalPnlVal / count, 2))}` : 'N/A';
     const grossW = list.filter((t) => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
     const grossL = Math.abs(list.filter((t) => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0));
-    const pfVal = grossL === 0 ? (grossW > 0 ? 99.9 : 1.0) : roundTo(grossW / grossL, 2);
+    const pfVal =
+      count === 0
+        ? 'N/A'
+        : grossL === 0
+          ? grossW > 0
+            ? 'N/A'
+            : '0.00'
+          : roundTo(grossW / grossL, 2).toFixed(2);
     const avgBars =
       count > 0
-        ? roundTo(
+        ? `${roundTo(
             list.reduce((sum, t) => {
               const idx = trades.indexOf(t);
               return sum + (trajectories[idx]?.barsHeld ?? 0);
             }, 0) / count,
             1
-          )
-        : 0;
+          )} bars`
+        : '0 bars';
     return { count, wins, winRate: winRateVal, totalPnl: totalPnlVal, avgPnl: avgPnlVal, pf: pfVal, avgBars };
   };
   const longStats = computeSideStats(longTrades);
@@ -820,6 +858,23 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(``);
 
   // Section B: Summary Metrics
+  const winRateDisplay = totalTradesCount > 0 ? `${(metrics.winRate * 100).toFixed(1)}%` : 'N/A';
+  const longWinRateDisplay = metrics.long.totalTrades > 0 ? `${(metrics.long.winRate * 100).toFixed(1)}%` : 'N/A';
+  const shortWinRateDisplay = metrics.short.totalTrades > 0 ? `${(metrics.short.winRate * 100).toFixed(1)}%` : 'N/A';
+
+  const avgWinDisplay = hasWins ? `+${metrics.averageWin.toFixed(2)}%` : 'N/A';
+  const avgLossDisplay = hasLosses ? `${metrics.averageLoss.toFixed(2)}%` : 'N/A';
+  const winLossRatioDisplay = hasWins && hasLosses && avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : 'N/A';
+
+  const expectancyDisplay =
+    totalTradesCount > 0
+      ? `${expectancy > 0 ? '+' : ''}${expectancy.toFixed(2)}% per trade`
+      : 'N/A';
+  const expectancyContext =
+    totalTradesCount > 0
+      ? 'Mathematical expectancy per executed trade'
+      : 'Undefined (zero executed trades)';
+
   lines.push(`## Section B: Summary Metrics`);
   lines.push(`| Metric | Value | Baseline / Context |`);
   lines.push(`|---|---|---|`);
@@ -827,10 +882,10 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| **Buy & Hold Return** | **${formatPercent(buyAndHoldReturn)}** | Market performance over same candle window |`);
   lines.push(`| **Max Drawdown** | **${metrics.maxDrawdownPercent.toFixed(2)}%** | Peak to trough depth on continuous equity |`);
   lines.push(`| **Total Trades** | **${metrics.totalTrades}** | Long: ${metrics.long.totalTrades} / Short: ${metrics.short.totalTrades} |`);
-  lines.push(`| **Win Rate** | **${(metrics.winRate * 100).toFixed(1)}%** | Long: ${(metrics.long.winRate * 100).toFixed(1)}% / Short: ${(metrics.short.winRate * 100).toFixed(1)}% |`);
-  lines.push(`| **Average Win / Loss** | **+${metrics.averageWin.toFixed(2)}%** / **${metrics.averageLoss.toFixed(2)}%** | Win/Loss Ratio: ${avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : 'N/A'} |`);
-  lines.push(`| **Trade Expectancy** | **${expectancy > 0 ? '+' : ''}${expectancy.toFixed(2)}%** per trade | Mathematical expectancy per executed trade |`);
-  lines.push(`| **Profit Factor** | **${profitFactor}** | Gross Profit: ${formatCurrency(grossProfit)} / Gross Loss: ${formatCurrency(grossLoss)} |`);
+  lines.push(`| **Win Rate** | **${winRateDisplay}** | Long: ${longWinRateDisplay} / Short: ${shortWinRateDisplay} |`);
+  lines.push(`| **Average Win / Loss** | **${avgWinDisplay}** / **${avgLossDisplay}** | Win/Loss Ratio: ${winLossRatioDisplay} |`);
+  lines.push(`| **Trade Expectancy** | **${expectancyDisplay}** | ${expectancyContext} |`);
+  lines.push(`| **Profit Factor** | **${profitFactorStr}** | ${profitFactorContext} |`);
   lines.push(`| **Total Fees Paid** | **${formatCurrency(metrics.totalFees)}** (${metrics.totalFeesPercent.toFixed(2)}% of capital) | Fee Drag: ${metrics.feeDragPercent.toFixed(2)}% |`);
   lines.push(`| **Avg Holding Duration** | **${avgBarsHeld} bars** | Total bars in positions: ${totalBarsHeld.toLocaleString()} |`);
   lines.push(`| **Time in Market** | **${marketExposurePercent}%** | ${candlesInMarket.toLocaleString()} of ${candles.length.toLocaleString()} candles |`);
@@ -850,35 +905,42 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
 
   // Section D: Signal Funnel
   lines.push(`## Section D: Signal Funnel`);
-  lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
-  lines.push(`|---|---|---|---|`);
-  lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
-  lines.push(`| **Crosses with RSI in Zone** | ${crossUpInZone} | ${crossDownInZone} | ${crossUpInZone + crossDownInZone} |`);
-  lines.push(`| **Signals Emitted** | ${buySignalsEmitted} | ${sellSignalsEmitted} | ${buySignalsEmitted + sellSignalsEmitted} |`);
-  lines.push(`| **Signals Executed (Trades)** | ${metrics.long.totalTrades} | ${metrics.short.totalTrades} | ${metrics.totalTrades} |`);
-  lines.push(``);
-
-  lines.push(`### Signal Attrition & Rejections`);
-  lines.push(`- **Rejected Crosses (Did Not Become Signals):** ${rejectedCrosses.length}`);
-  lines.push(`  - RSI out of zone within lookback: **${rsiOutOfZoneRejections}**`);
-  lines.push(`  - Rejected by Cloud Filter: **${cloudFilterRejections}**`);
-  lines.push(`  - Rejected by RSI Recovery Cap: **${rsiRecoveryCapRejections}**`);
-  lines.push(`  - Rejected by Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
-  lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
-  lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
-  lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
-  lines.push(``);
-
-  if (rejectedCrosses.length > 0) {
-    lines.push(`#### Sample of Rejected TK Crosses (First 8 Events)`);
-    lines.push(`| Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |`);
-    lines.push(`|---|---|---|---|---|`);
-    for (const r of rejectedCrosses.slice(0, 8)) {
-      lines.push(
-        `| ${formatDate(r.timestamp)} | \`${r.direction.toUpperCase()}\` | $${r.price.toFixed(2)} | ${r.rsi.toFixed(1)} | \`${r.filterRejection ?? 'rsiOutOfZone'}\` |`
-      );
-    }
+  if (!trace) {
+    lines.push(
+      `> ⚠️ **Notice:** Trace data was not collected for this backtest run (\`collectTrace: false\`). Funnel stage counts and rejection attribution are unavailable.`
+    );
     lines.push(``);
+  } else {
+    lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
+    lines.push(`|---|---|---|---|`);
+    lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
+    lines.push(`| **Crosses with RSI in Zone** | ${crossUpInZone} | ${crossDownInZone} | ${crossUpInZone + crossDownInZone} |`);
+    lines.push(`| **Signals Emitted** | ${buySignalsEmitted} | ${sellSignalsEmitted} | ${buySignalsEmitted + sellSignalsEmitted} |`);
+    lines.push(`| **Signals Executed (Trades)** | ${metrics.long.totalTrades} | ${metrics.short.totalTrades} | ${metrics.totalTrades} |`);
+    lines.push(``);
+
+    lines.push(`### Signal Attrition & Rejections`);
+    lines.push(`- **Rejected Crosses (Did Not Become Signals):** ${rejectedCrosses.length}`);
+    lines.push(`  - RSI out of zone within lookback: **${rsiOutOfZoneRejections}**`);
+    lines.push(`  - Rejected by Cloud Filter: **${cloudFilterRejections}**`);
+    lines.push(`  - Rejected by RSI Recovery Cap: **${rsiRecoveryCapRejections}**`);
+    lines.push(`  - Rejected by Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
+    lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
+    lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
+    lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
+    lines.push(``);
+
+    if (rejectedCrosses.length > 0) {
+      lines.push(`#### Sample of Rejected TK Crosses (First 8 Events)`);
+      lines.push(`| Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |`);
+      lines.push(`|---|---|---|---|---|`);
+      for (const r of rejectedCrosses.slice(0, 8)) {
+        lines.push(
+          `| ${formatDate(r.timestamp)} | \`${r.direction.toUpperCase()}\` | $${r.price.toFixed(2)} | ${r.rsi.toFixed(1)} | \`${r.filterRejection ?? 'rsiOutOfZone'}\` |`
+        );
+      }
+      lines.push(``);
+    }
   }
 
   // Section E: Compact Trades Table
@@ -1060,8 +1122,8 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`### 1. By Side (Long vs Short)`);
   lines.push(`| Side | Trades | Win Rate | Total Return % | Avg Return % | Profit Factor | Avg Duration |`);
   lines.push(`|---|---|---|---|---|---|---|`);
-  lines.push(`| **Long** | ${longStats.count} | ${longStats.winRate}% | ${formatPercent(longStats.totalPnl)} | ${formatPercent(longStats.avgPnl)} | ${longStats.pf} | ${longStats.avgBars} bars |`);
-  lines.push(`| **Short** | ${shortStats.count} | ${shortStats.winRate}% | ${formatPercent(shortStats.totalPnl)} | ${formatPercent(shortStats.avgPnl)} | ${shortStats.pf} | ${shortStats.avgBars} bars |`);
+  lines.push(`| **Long** | ${longStats.count} | ${longStats.winRate} | ${formatPercent(longStats.totalPnl)} | ${longStats.avgPnl} | ${longStats.pf} | ${longStats.avgBars} |`);
+  lines.push(`| **Short** | ${shortStats.count} | ${shortStats.winRate} | ${formatPercent(shortStats.totalPnl)} | ${shortStats.avgPnl} | ${shortStats.pf} | ${shortStats.avgBars} |`);
   lines.push(``);
 
   lines.push(`### 2. By Exit Reason`);
@@ -1135,11 +1197,13 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       buyAndHoldReturnPercent: buyAndHoldReturn,
       maxDrawdownPercent: metrics.maxDrawdownPercent,
       totalTrades: metrics.totalTrades,
-      winRate: metrics.winRate,
-      averageWinPercent: metrics.averageWin,
-      averageLossPercent: metrics.averageLoss,
-      expectancyPercent: expectancy,
-      profitFactor,
+      winRate: totalTradesCount > 0 ? metrics.winRate : null,
+      winRateDisplay,
+      averageWinPercent: hasWins ? metrics.averageWin : null,
+      averageLossPercent: hasLosses ? metrics.averageLoss : null,
+      expectancyPercent: totalTradesCount > 0 ? expectancy : null,
+      profitFactor: profitFactorVal,
+      profitFactorDisplay: profitFactorStr,
       totalFees: metrics.totalFees,
       totalFeesPercent: metrics.totalFeesPercent,
       feeDragPercent: metrics.feeDragPercent,
@@ -1149,27 +1213,29 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       short: metrics.short,
     },
     flags,
-    funnel: {
-      tkCrossUpCount,
-      tkCrossDownCount,
-      crossUpInZone,
-      crossDownInZone,
-      buySignalsEmitted,
-      sellSignalsEmitted,
-      executedTradesTotal: trades.length,
-      rejections: {
-        total: rejectedCrosses.length,
-        rsiOutOfZone: rsiOutOfZoneRejections,
-        cloudFilter: cloudFilterRejections,
-        rsiRecoveryCap: rsiRecoveryCapRejections,
-        kijunSlopeFilter: kijunSlopeFilterRejections,
-      },
-      ignoredSignals: {
-        total: ignoredSignals.length,
-        alreadyInPosition: ignoredAlreadyInPos,
-        longOnlyShortIgnored: ignoredLongOnlyShort,
-      },
-    },
+    funnel: trace
+      ? {
+          tkCrossUpCount,
+          tkCrossDownCount,
+          crossUpInZone,
+          crossDownInZone,
+          buySignalsEmitted,
+          sellSignalsEmitted,
+          executedTradesTotal: trades.length,
+          rejections: {
+            total: rejectedCrosses.length,
+            rsiOutOfZone: rsiOutOfZoneRejections,
+            cloudFilter: cloudFilterRejections,
+            rsiRecoveryCap: rsiRecoveryCapRejections,
+            kijunSlopeFilter: kijunSlopeFilterRejections,
+          },
+          ignoredSignals: {
+            total: ignoredSignals.length,
+            alreadyInPosition: ignoredAlreadyInPos,
+            longOnlyShortIgnored: ignoredLongOnlyShort,
+          },
+        }
+      : null,
     trades: trades.map((t, i) => ({
       index: i + 1,
       ...t,
@@ -1249,7 +1315,10 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
     const retPct = formatPercent(summary.netReturnPercent as number);
     const trCount = summary.totalTrades as number;
     const maxDd = `${(summary.maxDrawdownPercent as number).toFixed(2)}%`;
-    const wr = `${((summary.winRate as number) * 100).toFixed(1)}%`;
+    const wr =
+      typeof summary.winRate === 'number' && trCount > 0
+        ? `${(summary.winRate * 100).toFixed(1)}%`
+        : '0.0%';
     const relLink = `[Report](history/${output.filename})`;
 
     const tableHeader = `# Backtest Run History\n\n| Timestamp (UTC) | Git Commit | Config Hash | Symbol / Interval / Period | Return % | Trades | Max DD % | Win Rate % | Archive |\n|---|---|---|---|---|---|---|---|---|`;

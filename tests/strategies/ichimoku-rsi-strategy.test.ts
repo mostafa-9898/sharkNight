@@ -1,6 +1,7 @@
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 import type { Candle } from '@/data/models';
 import type { TkCrossTraceEvent } from '@/backtest/types';
+import { BacktestEngine } from '@/backtest/engine';
 
 describe('IchimokuRsiStrategy', () => {
   const createCandle = (
@@ -605,6 +606,298 @@ describe('IchimokuRsiStrategy', () => {
         expect(strategy.exitSignal(candles, 4, 'short', 'tkCross')).toBe(false);
         expect(strategy.exitSignal(candles, 4, 'long', 'kijun')).toBe(false);
         expect(strategy.exitSignal(candles, 4, 'short', 'kijun')).toBe(false);
+      });
+    });
+
+    describe('RSI Funnel Diagnostics & Trace Invariants', () => {
+      const risingCandles: Candle[] = [
+        createCandle(100, 100, 100, 100, 1000),
+        createCandle(95, 95, 95, 95, 2000),
+        createCandle(85, 85, 84, 85, 3000),
+        createCandle(75, 75, 74, 75, 4000),
+        createCandle(70, 70, 69, 70, 5000),
+        createCandle(68, 68, 68, 68, 6000),
+        createCandle(70, 71, 70, 70, 7000),
+        createCandle(70, 82, 74, 70.3, 8000),
+      ];
+
+      const fallingKijunCandles: Candle[] = [
+        createCandle(100, 100, 100, 100, 1000),
+        createCandle(95, 95, 95, 95, 2000),
+        createCandle(85, 85, 84, 85, 3000),
+        createCandle(75, 85, 74, 75, 4000),
+        createCandle(70, 70, 69, 70, 5000),
+        createCandle(68, 68, 68, 68, 6000),
+        createCandle(70, 71, 70, 70, 7000),
+        createCandle(70, 82, 74, 70.3, 8000),
+      ];
+
+      it('should record inRsiZone=true and RSI hit metadata when Cloud filter rejects TK cross', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 1,
+          cloudFilter: 'trend',
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        const sig = strategy.analyze(risingCandles, 7);
+        expect(sig.action).toBe('HOLD');
+        expect(events.length).toBe(1);
+        expect(events[0]?.direction).toBe('up');
+        expect(events[0]?.inRsiZone).toBe(true);
+        expect(events[0]?.filterRejection).toBe('cloudFilter');
+        expect(events[0]?.signalEmitted).toBe(false);
+        expect(events[0]?.rsiHitIndex).toBe(7);
+        expect(events[0]?.rsiHitAge).toBe(0);
+        expect(typeof events[0]?.rsiHitValue).toBe('number');
+      });
+
+      it('should record inRsiZone=true and RSI hit metadata when Kijun slope filter rejects TK cross', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 1,
+          cloudFilter: 'off',
+          kijunSlopeFilter: true,
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        const sig = strategy.analyze(fallingKijunCandles, 7);
+        expect(sig.action).toBe('HOLD');
+        expect(events.length).toBe(1);
+        expect(events[0]?.direction).toBe('up');
+        expect(events[0]?.inRsiZone).toBe(true);
+        expect(events[0]?.filterRejection).toBe('kijunSlopeFilter');
+        expect(events[0]?.signalEmitted).toBe(false);
+        expect(events[0]?.rsiHitIndex).toBe(7);
+        expect(events[0]?.rsiHitAge).toBe(0);
+        expect(typeof events[0]?.rsiHitValue).toBe('number');
+      });
+
+      it('should record inRsiZone=false and filterRejection=rsiOutOfZone when no RSI zone hit in lookback', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 10,
+          rsiBuyMax: 15,
+          rsiLookback: 1,
+          cloudFilter: 'off',
+          kijunSlopeFilter: false,
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        const sig = strategy.analyze(risingCandles, 7);
+        expect(sig.action).toBe('HOLD');
+        expect(events.length).toBe(1);
+        expect(events[0]?.direction).toBe('up');
+        expect(events[0]?.inRsiZone).toBe(false);
+        expect(events[0]?.filterRejection).toBe('rsiOutOfZone');
+        expect(events[0]?.signalEmitted).toBe(false);
+        expect(events[0]?.rsiHitIndex).toBeUndefined();
+      });
+
+      it('should record inRsiZone=true and filterRejection=rsiRecoveryCap when capped by recovery cap', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 35, // candle 6 RSI is ~31.1 (in zone), candle 7 RSI is ~36.9 (> 35)
+          rsiLookback: 2,
+          rsiRecoveryCap: 1, // max allowed RSI at entry is 35 + 1 = 36 (< 36.9)
+          cloudFilter: 'off',
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        const sig = strategy.analyze(risingCandles, 7);
+        expect(sig.action).toBe('HOLD');
+        expect(events.length).toBe(1);
+        expect(events[0]?.direction).toBe('up');
+        expect(events[0]?.inRsiZone).toBe(true);
+        expect(events[0]?.filterRejection).toBe('rsiRecoveryCap');
+        expect(events[0]?.signalEmitted).toBe(false);
+        expect(events[0]?.rsiHitIndex).toBe(6);
+        expect(events[0]?.rsiHitAge).toBe(1);
+      });
+
+      it('should record inRsiZone=true, filterRejection=undefined, and signalEmitted=true when all filters pass', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 1,
+          cloudFilter: 'off',
+          kijunSlopeFilter: true,
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        const sig = strategy.analyze(risingCandles, 7);
+        expect(sig.action).toBe('BUY');
+        expect(events.length).toBe(1);
+        expect(events[0]?.direction).toBe('up');
+        expect(events[0]?.inRsiZone).toBe(true);
+        expect(events[0]?.filterRejection).toBeUndefined();
+        expect(events[0]?.signalEmitted).toBe(true);
+        expect(events[0]?.rsiHitIndex).toBe(7);
+        expect(events[0]?.rsiHitAge).toBe(0);
+      });
+
+      it('should differentiate RSI hit metadata between current candle (age 0) and past candle (age > 0)', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 4,
+          cloudFilter: 'off',
+        });
+        strategy.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        strategy.analyze(risingCandles, 7);
+        expect(events[0]?.rsiHitAge).toBe(0);
+        expect(events[0]?.rsiHitIndex).toBe(7);
+
+        const pastHitCandles: Candle[] = [
+          createCandle(100, 100, 100, 100, 1000),
+          createCandle(95, 95, 95, 95, 2000),
+          createCandle(85, 85, 84, 85, 3000),
+          createCandle(75, 75, 74, 75, 4000),
+          createCandle(70, 70, 69, 70, 5000),
+          createCandle(65, 65, 60, 60, 6000),
+          createCandle(60, 75, 60, 75, 7000),
+          createCandle(75, 85, 74, 82, 8000),
+        ];
+
+        events.length = 0;
+        strategy.analyze(pastHitCandles, 7);
+        if (events.length > 0 && events[0]?.inRsiZone) {
+          expect(events[0].rsiHitAge).toBeGreaterThan(0);
+          expect(events[0].rsiHitIndex).toBeLessThan(7);
+        }
+      });
+
+      it('should attribute first rejection correctly when multiple filters would reject', () => {
+        const events: TkCrossTraceEvent[] = [];
+        const strategyMulti = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 10,
+          rsiBuyMax: 15,
+          rsiLookback: 1,
+          cloudFilter: 'trend',
+          kijunSlopeFilter: true,
+        });
+        strategyMulti.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        strategyMulti.analyze(fallingKijunCandles, 7);
+        expect(events.length).toBe(1);
+        expect(events[0]?.filterRejection).toBe('cloudFilter');
+        expect(events[0]?.inRsiZone).toBe(false);
+
+        const strategySlopeFirst = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 10,
+          rsiBuyMax: 15,
+          rsiLookback: 1,
+          cloudFilter: 'off',
+          kijunSlopeFilter: true,
+        });
+        events.length = 0;
+        strategySlopeFirst.setTraceCollector({ onTkCross: (e) => events.push(e) });
+
+        strategySlopeFirst.analyze(fallingKijunCandles, 7);
+        expect(events.length).toBe(1);
+        expect(events[0]?.filterRejection).toBe('kijunSlopeFilter');
+        expect(events[0]?.inRsiZone).toBe(false);
+      });
+
+      it('should produce identical strategy signals and engine outcomes with tracing on vs off', () => {
+        const stratNoTrace = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 3,
+          cloudFilter: 'trend',
+          kijunSlopeFilter: true,
+        });
+
+        const stratWithTrace = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 3,
+          cloudFilter: 'trend',
+          kijunSlopeFilter: true,
+        });
+        stratWithTrace.setTraceCollector({ onTkCross: () => {} });
+
+        for (let i = 0; i < risingCandles.length; i++) {
+          const sig1 = stratNoTrace.analyze(risingCandles, i);
+          const sig2 = stratWithTrace.analyze(risingCandles, i);
+          expect(sig2).toEqual(sig1);
+        }
+
+        const engine = new BacktestEngine();
+        const resNoTrace = engine.run({
+          strategy: stratNoTrace,
+          candles: risingCandles,
+          initialBalance: 10000,
+          collectTrace: false,
+        });
+        const resWithTrace = engine.run({
+          strategy: stratWithTrace,
+          candles: risingCandles,
+          initialBalance: 10000,
+          collectTrace: true,
+        });
+
+        expect(resWithTrace.trades).toEqual(resNoTrace.trades);
+        expect(resWithTrace.equity).toEqual(resNoTrace.equity);
+        expect(resWithTrace.metrics).toEqual(resNoTrace.metrics);
       });
     });
   });

@@ -330,8 +330,6 @@ export async function POST(request: Request) {
     let rsiSellZoneCount = 0;
     let tkCrossUpCount = 0;
     let tkCrossDownCount = 0;
-    let buySetupsCount = 0;
-    let sellSetupsCount = 0;
 
     const relation = new Int8Array(candles.length);
     for (let i = 0; i < candles.length; i++) {
@@ -387,34 +385,10 @@ export async function POST(request: Request) {
 
             if (isCrossUp) {
               tkCrossUpCount++;
-              const lookbackStart = Math.max(0, i - rsiLookback + 1);
-              let hasRsiInZone = false;
-              for (let k = i; k >= lookbackStart; k--) {
-                const v = rsiValues[k];
-                if (Number.isFinite(v) && v >= rsiBuyMin && v <= rsiBuyMax) {
-                  hasRsiInZone = true;
-                  break;
-                }
-              }
-              if (hasRsiInZone) {
-                buySetupsCount++;
-              }
             }
 
             if (isCrossDown) {
               tkCrossDownCount++;
-              const lookbackStart = Math.max(0, i - rsiLookback + 1);
-              let hasRsiInZone = false;
-              for (let k = i; k >= lookbackStart; k--) {
-                const v = rsiValues[k];
-                if (Number.isFinite(v) && v >= rsiSellMin && v <= rsiSellMax) {
-                  hasRsiInZone = true;
-                  break;
-                }
-              }
-              if (hasRsiInZone) {
-                sellSetupsCount++;
-              }
             }
           }
         }
@@ -424,12 +398,22 @@ export async function POST(request: Request) {
     const executedTradesLong = backtestResult.trades.filter((t) => t.side === 'long').length;
     const executedTradesShort = backtestResult.trades.filter((t) => t.side === 'short').length;
 
+    let buySignalsFallback = 0;
+    let sellSignalsFallback = 0;
+    if (!backtestResult.trace) {
+      for (let i = 0; i < candles.length; i++) {
+        const sig = strategy.analyze(candles, i);
+        if (sig.action === 'BUY') buySignalsFallback++;
+        else if (sig.action === 'SELL') sellSignalsFallback++;
+      }
+    }
+
     const buySetups = backtestResult.trace
       ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length
-      : buySetupsCount;
+      : buySignalsFallback;
     const sellSetups = backtestResult.trace
       ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length
-      : sellSetupsCount;
+      : sellSignalsFallback;
 
     const diagnostics = {
       rsiBuyZoneCandles: rsiBuyZoneCount,

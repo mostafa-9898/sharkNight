@@ -7,9 +7,13 @@ import { calculateRSI } from '../indicators/rsi';
 import { generateAndSaveBacktestReport } from '../backtest/report';
 import type { TradeMode, ExitMode, StopCheckMode, TrailingStopConfig } from '../backtest/types';
 
-function parseArg(key: string, defaultValue?: string): string | undefined {
+export function parseArg(
+  key: string,
+  defaultValue?: string,
+  argv: string[] = process.argv.slice(2)
+): string | undefined {
   const prefix = `--${key}=`;
-  for (const arg of process.argv.slice(2)) {
+  for (const arg of argv) {
     if (arg.startsWith(prefix)) {
       return arg.slice(prefix.length).trim();
     }
@@ -17,62 +21,74 @@ function parseArg(key: string, defaultValue?: string): string | undefined {
   return defaultValue;
 }
 
-function parseNumArg(key: string, defaultValue?: number): number | undefined {
-  const val = parseArg(key);
+export function parseNumArg(
+  key: string,
+  defaultValue?: number,
+  argv: string[] = process.argv.slice(2)
+): number | undefined {
+  const val = parseArg(key, undefined, argv);
   if (val !== undefined && val !== '') {
     const num = Number(val);
     if (Number.isFinite(num)) return num;
+    throw new Error(`Invalid numeric value for argument --${key}: "${val}".`);
   }
   return defaultValue;
 }
 
-function parseBoolArg(key: string, defaultValue = false): boolean {
+export function parseBoolArg(
+  key: string,
+  defaultValue = false,
+  argv: string[] = process.argv.slice(2)
+): boolean {
   const flag = `--${key}`;
   const prefix = `--${key}=`;
-  for (const arg of process.argv.slice(2)) {
+  for (const arg of argv) {
     if (arg === flag) {
       return true;
     }
     if (arg.startsWith(prefix)) {
-      const val = arg.slice(prefix.length).trim().toLowerCase();
+      const rawVal = arg.slice(prefix.length).trim();
+      const val = rawVal.toLowerCase();
       if (val === 'true' || val === '1' || val === 'yes') return true;
       if (val === 'false' || val === '0' || val === 'no') return false;
-      return true;
+      throw new Error(
+        `Invalid boolean value for argument --${key}: "${rawVal}". Expected true, false, 1, 0, yes, or no.`
+      );
     }
   }
   return defaultValue;
 }
 
-async function runCli(): Promise<void> {
-  const symbol = (parseArg('symbol', 'BTCUSDT') ?? 'BTCUSDT').toUpperCase();
-  const interval = (parseArg('interval', '1h') ?? '1h') as CandleInterval;
-  const period = (parseArg('period', '6y') ?? '6y').toLowerCase();
+export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
+  const symbol = (parseArg('symbol', 'BTCUSDT', argv) ?? 'BTCUSDT').toUpperCase();
+  const interval = (parseArg('interval', '1h', argv) ?? '1h') as CandleInterval;
+  const period = (parseArg('period', '6y', argv) ?? '6y').toLowerCase();
 
   // Strategy params
-  const tenkan = parseNumArg('tenkan', 9)!;
-  const kijun = parseNumArg('kijun', 26)!;
-  const senkouB = parseNumArg('senkouB', 52)!;
-  const displacement = parseNumArg('displacement', 26)!;
-  const rsiPeriod = parseNumArg('rsiPeriod', 14)!;
-  const rsiBuyMin = parseNumArg('rsiBuyMin', 20)!;
-  const rsiBuyMax = parseNumArg('rsiBuyMax', 40)!;
-  const rsiSellMin = parseNumArg('rsiSellMin', 60)!;
-  const rsiSellMax = parseNumArg('rsiSellMax', 80)!;
-  const rsiLookback = parseNumArg('rsiLookback', 10)!;
-  const cloudFilter = (parseArg('cloudFilter', 'off') ?? 'off') as CloudFilter;
-  const rsiRecoveryCap = parseNumArg('rsiRecoveryCap');
-  const kijunSlopeFilter = parseBoolArg('kijunSlopeFilter', false);
+  const tenkan = parseNumArg('tenkan', 9, argv)!;
+  const kijun = parseNumArg('kijun', 26, argv)!;
+  const senkouB = parseNumArg('senkouB', 52, argv)!;
+  const displacement = parseNumArg('displacement', 26, argv)!;
+  const rsiPeriod = parseNumArg('rsiPeriod', 14, argv)!;
+  const rsiBuyMin = parseNumArg('rsiBuyMin', 20, argv)!;
+  const rsiBuyMax = parseNumArg('rsiBuyMax', 40, argv)!;
+  const rsiSellMin = parseNumArg('rsiSellMin', 60, argv)!;
+  const rsiSellMax = parseNumArg('rsiSellMax', 80, argv)!;
+  const rsiLookback = parseNumArg('rsiLookback', 10, argv)!;
+  const cloudFilter = (parseArg('cloudFilter', 'off', argv) ?? 'off') as CloudFilter;
+  const rsiRecoveryCap = parseNumArg('rsiRecoveryCap', undefined, argv);
+  const kijunSlopeFilter = parseBoolArg('kijunSlopeFilter', false, argv);
 
   // Engine params
-  const tradeMode = (parseArg('tradeMode', 'long-short') ?? 'long-short') as TradeMode;
-  const exitMode = (parseArg('exitMode', 'reverse') ?? 'reverse') as ExitMode;
-  const maxBarsInTrade = parseNumArg('maxBarsInTrade');
-  const initialBalance = parseNumArg('initialBalance', 10000)!;
-  const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1)!;
-  const positionSizePercent = parseNumArg('positionSizePercent', 20)!;
-  const riskPerTradePercent = parseNumArg('riskPerTradePercent', 1);
-  const slippagePercent = parseNumArg('slippagePercent', 0)!;
-  const stopCheckMode = (parseArg('stopCheckMode', 'intrabar') ?? 'intrabar') as StopCheckMode;
+  const tradeMode = (parseArg('tradeMode', 'long-short', argv) ?? 'long-short') as TradeMode;
+  const exitMode = (parseArg('exitMode', 'reverse', argv) ?? 'reverse') as ExitMode;
+  const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
+  const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
+  const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
+  const positionSizePercent = parseNumArg('positionSizePercent', 20, argv)!;
+  const riskPerTradePercent = parseNumArg('riskPerTradePercent', 1, argv)!;
+  const slippagePercent = parseNumArg('slippagePercent', 0, argv)!;
+  const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
 
   // Trailing stop
   let trailingStop: TrailingStopConfig | undefined = {
@@ -80,7 +96,7 @@ async function runCli(): Promise<void> {
     stepPercent: 10,
     raisePercent: 5,
   };
-  const trailingArg = parseArg('trailingStop');
+  const trailingArg = parseArg('trailingStop', undefined, argv);
   if (trailingArg === 'false' || trailingArg === 'off' || trailingArg === '0') {
     trailingStop = undefined;
   } else if (trailingArg && trailingArg.includes('/')) {
@@ -94,8 +110,72 @@ async function runCli(): Promise<void> {
     }
   }
 
-  const stopLossPercent = parseNumArg('stopLossPercent');
-  const takeProfitPercent = parseNumArg('takeProfitPercent');
+  const stopLossPercent = parseNumArg('stopLossPercent', undefined, argv);
+  const takeProfitPercent = parseNumArg('takeProfitPercent', undefined, argv);
+
+  return {
+    symbol,
+    interval,
+    period,
+    tenkan,
+    kijun,
+    senkouB,
+    displacement,
+    rsiPeriod,
+    rsiBuyMin,
+    rsiBuyMax,
+    rsiSellMin,
+    rsiSellMax,
+    rsiLookback,
+    cloudFilter,
+    rsiRecoveryCap,
+    kijunSlopeFilter,
+    tradeMode,
+    exitMode,
+    maxBarsInTrade,
+    initialBalance,
+    tradeFeePercent,
+    positionSizePercent,
+    riskPerTradePercent,
+    slippagePercent,
+    stopCheckMode,
+    trailingStop,
+    stopLossPercent,
+    takeProfitPercent,
+  };
+}
+
+export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+  const {
+    symbol,
+    interval,
+    period,
+    tenkan,
+    kijun,
+    senkouB,
+    displacement,
+    rsiPeriod,
+    rsiBuyMin,
+    rsiBuyMax,
+    rsiSellMin,
+    rsiSellMax,
+    rsiLookback,
+    cloudFilter,
+    rsiRecoveryCap,
+    kijunSlopeFilter,
+    tradeMode,
+    exitMode,
+    maxBarsInTrade,
+    initialBalance,
+    tradeFeePercent,
+    positionSizePercent,
+    riskPerTradePercent,
+    slippagePercent,
+    stopCheckMode,
+    trailingStop,
+    stopLossPercent,
+    takeProfitPercent,
+  } = parseCliArgs(argv);
 
   console.log(`\n======================================================`);
   console.log(`🤖 Starting Headless Backtest Report Generator`);
@@ -258,8 +338,10 @@ async function runCli(): Promise<void> {
   console.log(`======================================================\n`);
 }
 
-runCli().catch((err) => {
-  console.error('Fatal CLI Error:', err);
-  process.exit(1);
-});
+if (process.env.NODE_ENV !== 'test') {
+  runCli().catch((err) => {
+    console.error('Fatal CLI Error:', err);
+    process.exit(1);
+  });
+}
 

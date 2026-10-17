@@ -1,15 +1,15 @@
 {
   "meta": {
-    "generatedAt": "2026-10-17T13:25:29.926Z",
+    "generatedAt": "2026-10-17T14:27:43.868Z",
     "configHash": "f8e53fab",
-    "gitCommit": "a4450ea",
+    "gitCommit": "7084729",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "1h",
     "period": "6y",
     "dataSource": "cache",
-    "candleCount": 52595,
-    "startTime": 1602900000000,
+    "candleCount": 52594,
+    "startTime": 1602903600000,
     "endTime": 1792238400000,
     "config": {
       "symbol": "BTCUSDT",
@@ -49,14 +49,16 @@
     "finalBalance": 10000,
     "netReturnPercent": 0,
     "netReturnDollar": 0,
-    "buyAndHoldReturnPercent": 618.95,
+    "buyAndHoldReturnPercent": 617.83,
     "maxDrawdownPercent": 0,
     "totalTrades": 0,
-    "winRate": 0,
-    "averageWinPercent": 0,
-    "averageLossPercent": 0,
-    "expectancyPercent": 0,
-    "profitFactor": 1,
+    "winRate": null,
+    "winRateDisplay": "N/A",
+    "averageWinPercent": null,
+    "averageLossPercent": null,
+    "expectancyPercent": null,
+    "profitFactor": null,
+    "profitFactorDisplay": "N/A",
     "totalFees": 0,
     "totalFeesPercent": 0,
     "feeDragPercent": 0,
@@ -79,12 +81,17 @@
       "totalPnlPercent": 0
     }
   },
-  "flags": [],
+  "flags": [
+    {
+      "level": "CRITICAL",
+      "message": "Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample."
+    }
+  ],
   "funnel": {
     "tkCrossUpCount": 1342,
     "tkCrossDownCount": 1343,
-    "crossUpInZone": 4,
-    "crossDownInZone": 6,
+    "crossUpInZone": 89,
+    "crossDownInZone": 131,
     "buySignalsEmitted": 0,
     "sellSignalsEmitted": 0,
     "executedTradesTotal": 0,
@@ -108,20 +115,20 @@
       "long": {
         "count": 0,
         "wins": 0,
-        "winRate": 0,
+        "winRate": "N/A",
         "totalPnl": 0,
-        "avgPnl": 0,
-        "pf": 1,
-        "avgBars": 0
+        "avgPnl": "N/A",
+        "pf": "N/A",
+        "avgBars": "0 bars"
       },
       "short": {
         "count": 0,
         "wins": 0,
-        "winRate": 0,
+        "winRate": "N/A",
         "totalPnl": 0,
-        "avgPnl": 0,
-        "pf": 1,
-        "avgBars": 0
+        "avgPnl": "N/A",
+        "pf": "N/A",
+        "avgBars": "0 bars"
       }
     },
     "exitReason": [],

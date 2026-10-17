@@ -292,6 +292,40 @@ export class IchimokuRsiStrategy implements Strategy {
 
     const candle = candles[currentIndex];
 
+    // Independently calculate RSI lookback qualification and hit metadata for the crossover
+    const lookbackStart = Math.max(0, currentIndex - this.rsiLookback + 1);
+    let rsiHitIndex = -1;
+    let rsiHitValue = NaN;
+
+    if (crossUp) {
+      for (let k = currentIndex; k >= lookbackStart; k--) {
+        const val = rsi[k];
+        if (Number.isFinite(val) && val >= this.rsiBuyMin && val <= this.rsiBuyMax) {
+          rsiHitIndex = k;
+          rsiHitValue = val;
+          break;
+        }
+      }
+    } else {
+      for (let k = currentIndex; k >= lookbackStart; k--) {
+        const val = rsi[k];
+        if (Number.isFinite(val) && val >= this.rsiSellMin && val <= this.rsiSellMax) {
+          rsiHitIndex = k;
+          rsiHitValue = val;
+          break;
+        }
+      }
+    }
+
+    const inRsiZone = rsiHitIndex !== -1;
+    const rsiHitMetadata = inRsiZone
+      ? {
+          rsiHitIndex,
+          rsiHitValue: roundTo(rsiHitValue, 2),
+          rsiHitAge: currentIndex - rsiHitIndex,
+        }
+      : {};
+
     // Cloud at currentIndex (plotted at this candle, from displacement candles ago)
     const spanA = senkouA[currentIndex];
     const spanB = senkouB[currentIndex];
@@ -309,9 +343,10 @@ export class IchimokuRsiStrategy implements Strategy {
             direction: crossUp ? 'up' : 'down',
             price: candle.close,
             rsi: roundTo(currentRsi, 2),
-            inRsiZone: false,
+            inRsiZone,
             filterRejection: 'cloudFilter',
             signalEmitted: false,
+            ...rsiHitMetadata,
           });
         }
         return defaultSignal; // Insufficient history to determine cloud
@@ -326,9 +361,10 @@ export class IchimokuRsiStrategy implements Strategy {
               direction: 'up',
               price: candle.close,
               rsi: roundTo(currentRsi, 2),
-              inRsiZone: false,
+              inRsiZone,
               filterRejection: 'cloudFilter',
               signalEmitted: false,
+              ...rsiHitMetadata,
             });
           }
           return defaultSignal;
@@ -341,9 +377,10 @@ export class IchimokuRsiStrategy implements Strategy {
               direction: 'down',
               price: candle.close,
               rsi: roundTo(currentRsi, 2),
-              inRsiZone: false,
+              inRsiZone,
               filterRejection: 'cloudFilter',
               signalEmitted: false,
+              ...rsiHitMetadata,
             });
           }
           return defaultSignal;
@@ -357,9 +394,10 @@ export class IchimokuRsiStrategy implements Strategy {
               direction: 'up',
               price: candle.close,
               rsi: roundTo(currentRsi, 2),
-              inRsiZone: false,
+              inRsiZone,
               filterRejection: 'cloudFilter',
               signalEmitted: false,
+              ...rsiHitMetadata,
             });
           }
           return defaultSignal;
@@ -372,9 +410,10 @@ export class IchimokuRsiStrategy implements Strategy {
               direction: 'down',
               price: candle.close,
               rsi: roundTo(currentRsi, 2),
-              inRsiZone: false,
+              inRsiZone,
               filterRejection: 'cloudFilter',
               signalEmitted: false,
+              ...rsiHitMetadata,
             });
           }
           return defaultSignal;
@@ -396,9 +435,10 @@ export class IchimokuRsiStrategy implements Strategy {
             direction: 'up',
             price: candle.close,
             rsi: roundTo(currentRsi, 2),
-            inRsiZone: false,
+            inRsiZone,
             filterRejection: 'kijunSlopeFilter',
             signalEmitted: false,
+            ...rsiHitMetadata,
           });
         }
         return defaultSignal;
@@ -412,127 +452,18 @@ export class IchimokuRsiStrategy implements Strategy {
             direction: 'down',
             price: candle.close,
             rsi: roundTo(currentRsi, 2),
-            inRsiZone: false,
+            inRsiZone,
             filterRejection: 'kijunSlopeFilter',
             signalEmitted: false,
+            ...rsiHitMetadata,
           });
         }
         return defaultSignal;
       }
     }
 
-    const lookbackStart = Math.max(0, currentIndex - this.rsiLookback + 1);
-
     if (crossUp) {
-      let rsiHitIndex = -1;
-      let rsiHitValue = NaN;
-
-      for (let k = currentIndex; k >= lookbackStart; k--) {
-        const val = rsi[k];
-        if (Number.isFinite(val) && val >= this.rsiBuyMin && val <= this.rsiBuyMax) {
-          rsiHitIndex = k;
-          rsiHitValue = val;
-          break;
-        }
-      }
-
-      if (rsiHitIndex !== -1) {
-        if (this.rsiRecoveryCap !== undefined && currentRsi > this.rsiBuyMax + this.rsiRecoveryCap) {
-          if (this.traceCollector?.onTkCross) {
-            this.traceCollector.onTkCross({
-              index: currentIndex,
-              timestamp: candle.timestamp,
-              direction: 'up',
-              price: candle.close,
-              rsi: roundTo(currentRsi, 2),
-              inRsiZone: true,
-              filterRejection: 'rsiRecoveryCap',
-              signalEmitted: false,
-              rsiHitIndex,
-              rsiHitValue: roundTo(rsiHitValue, 2),
-              rsiHitAge: currentIndex - rsiHitIndex,
-            });
-          }
-          return defaultSignal;
-        }
-
-        const priceVsCloud = !hasCloud
-          ? 'inside'
-          : candle.close > cloudTop
-            ? 'above'
-            : candle.close < cloudBottom
-              ? 'below'
-              : 'inside';
-        const tkCrossVsCloud = !hasCloud
-          ? 'inside'
-          : currentTenkan > cloudTop && currentKijun > cloudTop
-            ? 'above'
-            : currentTenkan < cloudBottom && currentKijun < cloudBottom
-              ? 'below'
-              : 'inside';
-        const cloudThicknessPercent =
-          hasCloud && candle.close > 0
-            ? roundTo((Math.abs(cloudTop - cloudBottom) / candle.close) * 100, 2)
-            : 0;
-        const kijunSlope =
-          currentIndex >= 10 && Number.isFinite(kijun[currentIndex - 10]) && kijun[currentIndex - 10] > 0
-            ? roundTo(((currentKijun - kijun[currentIndex - 10]) / kijun[currentIndex - 10]) * 100, 2)
-            : 0;
-        const currentAtr = atr[currentIndex];
-        const atrPercentile = roundTo(atrPercentiles[currentIndex] ?? 50, 1);
-        const distanceFromKijunAtr =
-          Number.isFinite(currentAtr) && currentAtr > 0
-            ? roundTo((candle.close - currentKijun) / currentAtr, 2)
-            : 0;
-        const date = new Date(candle.timestamp);
-        const hourOfDayUtc = date.getUTCHours();
-        const dayOfWeek = date.getUTCDay();
-
-        const entryDiagnostics: EntryDiagnostics = {
-          side: 'long',
-          priceVsCloud,
-          tkCrossVsCloud,
-          cloudThicknessPercent,
-          rsiAtEntry: roundTo(currentRsi, 2),
-          rsiHitValue: roundTo(rsiHitValue, 2),
-          rsiHitAge: currentIndex - rsiHitIndex,
-          kijunSlope,
-          atrPercentile,
-          distanceFromKijunAtr,
-          hourOfDayUtc,
-          dayOfWeek,
-        };
-
-        if (this.traceCollector?.onTkCross) {
-          this.traceCollector.onTkCross({
-            index: currentIndex,
-            timestamp: candle.timestamp,
-            direction: 'up',
-            price: candle.close,
-            rsi: roundTo(currentRsi, 2),
-            inRsiZone: true,
-            signalEmitted: true,
-            rsiHitIndex,
-            rsiHitValue: roundTo(rsiHitValue, 2),
-            rsiHitAge: currentIndex - rsiHitIndex,
-          });
-        }
-
-        return {
-          action: 'BUY',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `Ichimoku TK cross up + RSI ${rsiHitValue.toFixed(1)} in [${this.rsiBuyMin}-${this.rsiBuyMax}]`,
-          metadata: {
-            tenkan: currentTenkan,
-            kijun: currentKijun,
-            rsi: currentRsi,
-            rsiHitIndex,
-            rsiHitValue,
-            entryDiagnostics,
-          },
-        };
-      } else {
+      if (!inRsiZone) {
         if (this.traceCollector?.onTkCross) {
           this.traceCollector.onTkCross({
             index: currentIndex,
@@ -545,117 +476,102 @@ export class IchimokuRsiStrategy implements Strategy {
             signalEmitted: false,
           });
         }
+        return defaultSignal;
       }
+
+      if (this.rsiRecoveryCap !== undefined && currentRsi > this.rsiBuyMax + this.rsiRecoveryCap) {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'up',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: true,
+            filterRejection: 'rsiRecoveryCap',
+            signalEmitted: false,
+            ...rsiHitMetadata,
+          });
+        }
+        return defaultSignal;
+      }
+
+      const priceVsCloud = !hasCloud
+        ? 'inside'
+        : candle.close > cloudTop
+          ? 'above'
+          : candle.close < cloudBottom
+            ? 'below'
+            : 'inside';
+      const tkCrossVsCloud = !hasCloud
+        ? 'inside'
+        : currentTenkan > cloudTop && currentKijun > cloudTop
+          ? 'above'
+          : currentTenkan < cloudBottom && currentKijun < cloudBottom
+            ? 'below'
+            : 'inside';
+      const cloudThicknessPercent =
+        hasCloud && candle.close > 0
+          ? roundTo((Math.abs(cloudTop - cloudBottom) / candle.close) * 100, 2)
+          : 0;
+      const kijunSlope =
+        currentIndex >= 10 && Number.isFinite(kijun[currentIndex - 10]) && kijun[currentIndex - 10] > 0
+          ? roundTo(((currentKijun - kijun[currentIndex - 10]) / kijun[currentIndex - 10]) * 100, 2)
+          : 0;
+      const currentAtr = atr[currentIndex];
+      const atrPercentile = roundTo(atrPercentiles[currentIndex] ?? 50, 1);
+      const distanceFromKijunAtr =
+        Number.isFinite(currentAtr) && currentAtr > 0
+          ? roundTo((candle.close - currentKijun) / currentAtr, 2)
+          : 0;
+      const date = new Date(candle.timestamp);
+      const hourOfDayUtc = date.getUTCHours();
+      const dayOfWeek = date.getUTCDay();
+
+      const entryDiagnostics: EntryDiagnostics = {
+        side: 'long',
+        priceVsCloud,
+        tkCrossVsCloud,
+        cloudThicknessPercent,
+        rsiAtEntry: roundTo(currentRsi, 2),
+        rsiHitValue: roundTo(rsiHitValue, 2),
+        rsiHitAge: currentIndex - rsiHitIndex,
+        kijunSlope,
+        atrPercentile,
+        distanceFromKijunAtr,
+        hourOfDayUtc,
+        dayOfWeek,
+      };
+
+      if (this.traceCollector?.onTkCross) {
+        this.traceCollector.onTkCross({
+          index: currentIndex,
+          timestamp: candle.timestamp,
+          direction: 'up',
+          price: candle.close,
+          rsi: roundTo(currentRsi, 2),
+          inRsiZone: true,
+          signalEmitted: true,
+          ...rsiHitMetadata,
+        });
+      }
+
+      return {
+        action: 'BUY',
+        timestamp: candle.timestamp,
+        price: candle.close,
+        reason: `Ichimoku TK cross up + RSI ${rsiHitValue.toFixed(1)} in [${this.rsiBuyMin}-${this.rsiBuyMax}]`,
+        metadata: {
+          tenkan: currentTenkan,
+          kijun: currentKijun,
+          rsi: currentRsi,
+          rsiHitIndex,
+          rsiHitValue,
+          entryDiagnostics,
+        },
+      };
     } else if (crossDown) {
-      let rsiHitIndex = -1;
-      let rsiHitValue = NaN;
-
-      for (let k = currentIndex; k >= lookbackStart; k--) {
-        const val = rsi[k];
-        if (Number.isFinite(val) && val >= this.rsiSellMin && val <= this.rsiSellMax) {
-          rsiHitIndex = k;
-          rsiHitValue = val;
-          break;
-        }
-      }
-
-      if (rsiHitIndex !== -1) {
-        if (this.rsiRecoveryCap !== undefined && currentRsi < this.rsiSellMin - this.rsiRecoveryCap) {
-          if (this.traceCollector?.onTkCross) {
-            this.traceCollector.onTkCross({
-              index: currentIndex,
-              timestamp: candle.timestamp,
-              direction: 'down',
-              price: candle.close,
-              rsi: roundTo(currentRsi, 2),
-              inRsiZone: true,
-              filterRejection: 'rsiRecoveryCap',
-              signalEmitted: false,
-              rsiHitIndex,
-              rsiHitValue: roundTo(rsiHitValue, 2),
-              rsiHitAge: currentIndex - rsiHitIndex,
-            });
-          }
-          return defaultSignal;
-        }
-
-        const priceVsCloud = !hasCloud
-          ? 'inside'
-          : candle.close > cloudTop
-            ? 'above'
-            : candle.close < cloudBottom
-              ? 'below'
-              : 'inside';
-        const tkCrossVsCloud = !hasCloud
-          ? 'inside'
-          : currentTenkan > cloudTop && currentKijun > cloudTop
-            ? 'above'
-            : currentTenkan < cloudBottom && currentKijun < cloudBottom
-              ? 'below'
-              : 'inside';
-        const cloudThicknessPercent =
-          hasCloud && candle.close > 0
-            ? roundTo((Math.abs(cloudTop - cloudBottom) / candle.close) * 100, 2)
-            : 0;
-        const kijunSlope =
-          currentIndex >= 10 && Number.isFinite(kijun[currentIndex - 10]) && kijun[currentIndex - 10] > 0
-            ? roundTo(((currentKijun - kijun[currentIndex - 10]) / kijun[currentIndex - 10]) * 100, 2)
-            : 0;
-        const currentAtr = atr[currentIndex];
-        const atrPercentile = roundTo(atrPercentiles[currentIndex] ?? 50, 1);
-        const distanceFromKijunAtr =
-          Number.isFinite(currentAtr) && currentAtr > 0
-            ? roundTo((candle.close - currentKijun) / currentAtr, 2)
-            : 0;
-        const date = new Date(candle.timestamp);
-        const hourOfDayUtc = date.getUTCHours();
-        const dayOfWeek = date.getUTCDay();
-
-        const entryDiagnostics: EntryDiagnostics = {
-          side: 'short',
-          priceVsCloud,
-          tkCrossVsCloud,
-          cloudThicknessPercent,
-          rsiAtEntry: roundTo(currentRsi, 2),
-          rsiHitValue: roundTo(rsiHitValue, 2),
-          rsiHitAge: currentIndex - rsiHitIndex,
-          kijunSlope,
-          atrPercentile,
-          distanceFromKijunAtr,
-          hourOfDayUtc,
-          dayOfWeek,
-        };
-
-        if (this.traceCollector?.onTkCross) {
-          this.traceCollector.onTkCross({
-            index: currentIndex,
-            timestamp: candle.timestamp,
-            direction: 'down',
-            price: candle.close,
-            rsi: roundTo(currentRsi, 2),
-            inRsiZone: true,
-            signalEmitted: true,
-            rsiHitIndex,
-            rsiHitValue: roundTo(rsiHitValue, 2),
-            rsiHitAge: currentIndex - rsiHitIndex,
-          });
-        }
-
-        return {
-          action: 'SELL',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `Ichimoku TK cross down + RSI ${rsiHitValue.toFixed(1)} in [${this.rsiSellMin}-${this.rsiSellMax}]`,
-          metadata: {
-            tenkan: currentTenkan,
-            kijun: currentKijun,
-            rsi: currentRsi,
-            rsiHitIndex,
-            rsiHitValue,
-            entryDiagnostics,
-          },
-        };
-      } else {
+      if (!inRsiZone) {
         if (this.traceCollector?.onTkCross) {
           this.traceCollector.onTkCross({
             index: currentIndex,
@@ -668,7 +584,100 @@ export class IchimokuRsiStrategy implements Strategy {
             signalEmitted: false,
           });
         }
+        return defaultSignal;
       }
+
+      if (this.rsiRecoveryCap !== undefined && currentRsi < this.rsiSellMin - this.rsiRecoveryCap) {
+        if (this.traceCollector?.onTkCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'down',
+            price: candle.close,
+            rsi: roundTo(currentRsi, 2),
+            inRsiZone: true,
+            filterRejection: 'rsiRecoveryCap',
+            signalEmitted: false,
+            ...rsiHitMetadata,
+          });
+        }
+        return defaultSignal;
+      }
+
+      const priceVsCloud = !hasCloud
+        ? 'inside'
+        : candle.close > cloudTop
+          ? 'above'
+          : candle.close < cloudBottom
+            ? 'below'
+            : 'inside';
+      const tkCrossVsCloud = !hasCloud
+        ? 'inside'
+        : currentTenkan > cloudTop && currentKijun > cloudTop
+          ? 'above'
+          : currentTenkan < cloudBottom && currentKijun < cloudBottom
+            ? 'below'
+            : 'inside';
+      const cloudThicknessPercent =
+        hasCloud && candle.close > 0
+          ? roundTo((Math.abs(cloudTop - cloudBottom) / candle.close) * 100, 2)
+          : 0;
+      const kijunSlope =
+        currentIndex >= 10 && Number.isFinite(kijun[currentIndex - 10]) && kijun[currentIndex - 10] > 0
+          ? roundTo(((currentKijun - kijun[currentIndex - 10]) / kijun[currentIndex - 10]) * 100, 2)
+          : 0;
+      const currentAtr = atr[currentIndex];
+      const atrPercentile = roundTo(atrPercentiles[currentIndex] ?? 50, 1);
+      const distanceFromKijunAtr =
+        Number.isFinite(currentAtr) && currentAtr > 0
+          ? roundTo((candle.close - currentKijun) / currentAtr, 2)
+          : 0;
+      const date = new Date(candle.timestamp);
+      const hourOfDayUtc = date.getUTCHours();
+      const dayOfWeek = date.getUTCDay();
+
+      const entryDiagnostics: EntryDiagnostics = {
+        side: 'short',
+        priceVsCloud,
+        tkCrossVsCloud,
+        cloudThicknessPercent,
+        rsiAtEntry: roundTo(currentRsi, 2),
+        rsiHitValue: roundTo(rsiHitValue, 2),
+        rsiHitAge: currentIndex - rsiHitIndex,
+        kijunSlope,
+        atrPercentile,
+        distanceFromKijunAtr,
+        hourOfDayUtc,
+        dayOfWeek,
+      };
+
+      if (this.traceCollector?.onTkCross) {
+        this.traceCollector.onTkCross({
+          index: currentIndex,
+          timestamp: candle.timestamp,
+          direction: 'down',
+          price: candle.close,
+          rsi: roundTo(currentRsi, 2),
+          inRsiZone: true,
+          signalEmitted: true,
+          ...rsiHitMetadata,
+        });
+      }
+
+      return {
+        action: 'SELL',
+        timestamp: candle.timestamp,
+        price: candle.close,
+        reason: `Ichimoku TK cross down + RSI ${rsiHitValue.toFixed(1)} in [${this.rsiSellMin}-${this.rsiSellMax}]`,
+        metadata: {
+          tenkan: currentTenkan,
+          kijun: currentKijun,
+          rsi: currentRsi,
+          rsiHitIndex,
+          rsiHitValue,
+          entryDiagnostics,
+        },
+      };
     }
 
     return defaultSignal;

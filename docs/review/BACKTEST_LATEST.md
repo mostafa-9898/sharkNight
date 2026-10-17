@@ -1,13 +1,13 @@
 # Automated Backtest Review Report
-Generated: **2026-10-17T13:25:29.926Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-17T14:27:43.868Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `a4450ea` (⚠️ dirty) |
+| **Git Commit** | `7084729` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
-| **Total Candles** | 52,595 |
-| **Start Time (UTC)** | 2020-10-17T02:00:00Z |
+| **Total Candles** | 52,594 |
+| **Start Time (UTC)** | 2020-10-17T03:00:00Z |
 | **End Time (UTC)** | 2026-10-17T12:00:00Z |
 | **Data Source** | `cache` ✅ |
 | **Config Hash** | `f8e53fab` |
@@ -33,25 +33,25 @@ Generated: **2026-10-17T13:25:29.926Z** | Config Hash: `f8e53fab`
 | Metric | Value | Baseline / Context |
 |---|---|---|
 | **Net Return** | **0.00%** ($0.00) | Initial: $10000.00 → Final: $10000.00 |
-| **Buy & Hold Return** | **+618.95%** | Market performance over same candle window |
+| **Buy & Hold Return** | **+617.83%** | Market performance over same candle window |
 | **Max Drawdown** | **0.00%** | Peak to trough depth on continuous equity |
 | **Total Trades** | **0** | Long: 0 / Short: 0 |
-| **Win Rate** | **0.0%** | Long: 0.0% / Short: 0.0% |
-| **Average Win / Loss** | **+0.00%** / **0.00%** | Win/Loss Ratio: N/A |
-| **Trade Expectancy** | **0.00%** per trade | Mathematical expectancy per executed trade |
-| **Profit Factor** | **1** | Gross Profit: $0.00 / Gross Loss: $0.00 |
+| **Win Rate** | **N/A** | Long: N/A / Short: N/A |
+| **Average Win / Loss** | **N/A** / **N/A** | Win/Loss Ratio: N/A |
+| **Trade Expectancy** | **N/A** | Undefined (zero executed trades) |
+| **Profit Factor** | **N/A** | Gross Profit: $0.00 / Gross Loss: $0.00 (no trades executed) |
 | **Total Fees Paid** | **$0.00** (0.00% of capital) | Fee Drag: 0.00% |
 | **Avg Holding Duration** | **0 bars** | Total bars in positions: 0 |
-| **Time in Market** | **0%** | 0 of 52,595 candles |
+| **Time in Market** | **0%** | 0 of 52,594 candles |
 
 ## Section C: Automated Warning Flags
-✅ **No critical warning flags triggered.**
+- 🚨 **[CRITICAL]** Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample.
 
 ## Section D: Signal Funnel
 | Stage | Bullish (BUY) | Bearish (SELL) | Combined |
 |---|---|---|---|
 | **TK Crossover Events** | 1342 | 1343 | 2685 |
-| **Crosses with RSI in Zone** | 4 | 6 | 10 |
+| **Crosses with RSI in Zone** | 89 | 131 | 220 |
 | **Signals Emitted** | 0 | 0 | 0 |
 | **Signals Executed (Trades)** | 0 | 0 | 0 |
 
@@ -68,10 +68,10 @@ Generated: **2026-10-17T13:25:29.926Z** | Config Hash: `f8e53fab`
 #### Sample of Rejected TK Crosses (First 8 Events)
 | Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |
 |---|---|---|---|---|
-| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.7 | `cloudFilter` |
-| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.7 | `cloudFilter` |
-| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.3 | `cloudFilter` |
-| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.3 | `cloudFilter` |
+| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.5 | `cloudFilter` |
+| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.5 | `cloudFilter` |
+| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.2 | `cloudFilter` |
+| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.2 | `cloudFilter` |
 | 2020-10-22T17:00:00Z | `DOWN` | $13043.40 | 64.9 | `cloudFilter` |
 | 2020-10-22T19:00:00Z | `UP` | $13071.80 | 66.1 | `kijunSlopeFilter` |
 | 2020-10-23T08:00:00Z | `DOWN` | $12920.60 | 51.2 | `cloudFilter` |
@@ -109,8 +109,8 @@ _No significant drawdown periods detected on the equity curve._
 ### 1. By Side (Long vs Short)
 | Side | Trades | Win Rate | Total Return % | Avg Return % | Profit Factor | Avg Duration |
 |---|---|---|---|---|---|---|
-| **Long** | 0 | 0% | 0.00% | 0.00% | 1 | 0 bars |
-| **Short** | 0 | 0% | 0.00% | 0.00% | 1 | 0 bars |
+| **Long** | 0 | N/A | 0.00% | N/A | N/A | 0 bars |
+| **Short** | 0 | N/A | 0.00% | N/A | N/A | 0 bars |
 
 ### 2. By Exit Reason
 | Exit Reason | Trades | Win Rate | Total Return % | Avg Return % | Avg Duration |
