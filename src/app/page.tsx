@@ -6,7 +6,7 @@ import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import type { BacktestMetrics, Trade, TradeMode, StopCheckMode } from '@/backtest/types';
+import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode } from '@/backtest/types';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -37,6 +37,10 @@ interface BacktestResultData {
   rsiSellMax: number;
   rsiLookback: number;
   tradeMode: TradeMode;
+  exitMode?: ExitMode;
+  maxBarsInTrade?: number;
+  rsiRecoveryCap?: number;
+  period?: string;
   positionSizePercent?: number;
   riskPerTradePercent?: number;
   cloudFilter?: string;
@@ -69,7 +73,11 @@ interface BacktestResultData {
       sellMax: number;
     };
     rsiLookback?: number;
+    rsiRecoveryCap?: number;
     tradeMode?: TradeMode;
+    exitMode?: ExitMode;
+    maxBarsInTrade?: number;
+    period?: string;
     takeProfitPercent?: number;
     stopLossPercent?: number;
     trailingStop?: {
@@ -94,6 +102,7 @@ export default function DashboardPage() {
   // --- 1. Top Backtest Configuration Box State ---
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
   const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
+  const [btPeriod, setBtPeriod] = useState<string>('all');
   const [btLimit, setBtLimit] = useState<string>('all');
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
   const [btTradeFeePercent, setBtTradeFeePercent] = useState(0.1);
@@ -111,9 +120,12 @@ export default function DashboardPage() {
   const [rsiSellMin, setRsiSellMin] = useState(60);
   const [rsiSellMax, setRsiSellMax] = useState(80);
   const [rsiLookback, setRsiLookback] = useState(10);
+  const [rsiRecoveryCap, setRsiRecoveryCap] = useState<string>('');
 
   // Trade Mode & Risk Management
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
+  const [exitMode, setExitMode] = useState<ExitMode>('reverse');
+  const [maxBarsInTrade, setMaxBarsInTrade] = useState<string>('');
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
   const [stopLossEnabled, setStopLossEnabled] = useState(false);
@@ -197,6 +209,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           symbol: btSymbol,
           interval: btInterval,
+          period: btPeriod,
           limit: btLimit === 'all' ? undefined : Number(btLimit),
           initialBalance: btInitialBalance,
           tradeFeePercent: btTradeFeePercent,
@@ -213,7 +226,10 @@ export default function DashboardPage() {
           rsiSellMin,
           rsiSellMax,
           rsiLookback,
+          rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
           tradeMode,
+          exitMode,
+          maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
           takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
           stopLossPercent: stopLossEnabled && !trailingStopEnabled ? stopLossPercent : undefined,
           trailingStopEnabled,
@@ -234,10 +250,14 @@ export default function DashboardPage() {
       const result: BacktestResultData = {
         symbol: btSymbol,
         interval: btInterval,
+        period: btPeriod,
         dataSource: data.dataSource,
         positionSizePercent,
         riskPerTradePercent,
         cloudFilter,
+        exitMode,
+        maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
+        rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
         ichimokuTenkan,
         ichimokuKijun,
         ichimokuSenkouB,
@@ -471,6 +491,30 @@ export default function DashboardPage() {
                   {int}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Period */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Period</label>
+            <select
+              value={btPeriod}
+              onChange={(e) => setBtPeriod(e.target.value)}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#38bdf8',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              <option value="all">All Cached</option>
+              <option value="6y">Last 6 Years</option>
+              <option value="3y">Last 3 Years</option>
+              <option value="2y">Last 2 Years</option>
+              <option value="1y">Last 1 Year</option>
             </select>
           </div>
 
@@ -887,6 +931,29 @@ export default function DashboardPage() {
               />
               <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
             </div>
+
+            {/* Stale-RSI Guard (Cap) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>RSI Cap:</label>
+              <input
+                type="number"
+                min={0}
+                placeholder="Off"
+                value={rsiRecoveryCap}
+                onChange={(e) => setRsiRecoveryCap(e.target.value)}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#c084fc',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>pts</span>
+            </div>
           </div>
 
           {/* Line 3: Risk Management (TP / SL) */}
@@ -952,6 +1019,50 @@ export default function DashboardPage() {
                 }}
               />
               <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+            </div>
+
+            {/* Exit Mode */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Exit Mode:</label>
+              <select
+                value={exitMode}
+                onChange={(e) => setExitMode(e.target.value as ExitMode)}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#38bdf8',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                <option value="reverse">Reverse on Signal (Default)</option>
+                <option value="tkCross">Opposite TK Cross</option>
+                <option value="kijun">Opposite Kijun Cross</option>
+              </select>
+            </div>
+
+            {/* Time Stop */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Time Stop:</span>
+              <input
+                type="number"
+                min={1}
+                placeholder="Off"
+                value={maxBarsInTrade}
+                onChange={(e) => setMaxBarsInTrade(e.target.value)}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#e6edf3',
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '60px',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>bars</span>
             </div>
 
             {/* Take Profit % */}

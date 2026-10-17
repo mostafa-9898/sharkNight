@@ -3,7 +3,17 @@ import type { Strategy } from '../strategies/types';
 
 export type TradeMode = 'long-short' | 'long-only';
 export type TradeSide = 'long' | 'short';
-export type ExitReason = 'signal' | 'reverse' | 'takeProfit' | 'stopLoss' | 'trailingStop' | 'end';
+export type ExitReason =
+  | 'signal'
+  | 'reverse'
+  | 'takeProfit'
+  | 'stopLoss'
+  | 'trailingStop'
+  | 'end'
+  | 'tkCrossExit'
+  | 'kijunExit'
+  | 'timeStop';
+export type ExitMode = 'reverse' | 'tkCross' | 'kijun';
 export type StopCheckMode = 'intrabar' | 'close';
 
 export interface TrailingStopConfig {
@@ -21,6 +31,7 @@ export interface EntryDiagnostics {
   cloudThicknessPercent: number;
   rsiAtEntry: number;
   rsiHitValue: number;
+  rsiHitAge: number;
   kijunSlope: number;
   atrPercentile: number;
   distanceFromKijunAtr: number;
@@ -36,6 +47,8 @@ export interface BacktestConfig {
   positionSizePercent?: number;   // e.g., 100 for 100% of balance (or cap when riskPerTradePercent is set)
   riskPerTradePercent?: number;   // e.g., 1 for 1% risk of account on initial stop
   tradeMode?: TradeMode;          // DEFAULT: 'long-short'
+  exitMode?: ExitMode;            // DEFAULT: 'reverse'
+  maxBarsInTrade?: number;        // time stop in candles (optional)
   takeProfitPercent?: number;     // e.g., 5 for 5% TP
   stopLossPercent?: number;       // e.g., 3 for 3% SL
   trailingStop?: TrailingStopConfig;

@@ -7,6 +7,7 @@ import { roundTo } from '../utils/math';
 interface ActiveTradeState {
   side: TradeSide;
   entryPrice: number;
+  entryIndex: number;
   highestHigh: number;
   lowestLow: number;
   stopPrice: number | null;
@@ -27,6 +28,8 @@ export class BacktestEngine {
       positionSizePercent = 100,
       riskPerTradePercent,
       tradeMode = 'long-short',
+      exitMode = 'reverse',
+      maxBarsInTrade,
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
@@ -36,6 +39,10 @@ export class BacktestEngine {
 
     if (!candles || candles.length === 0) {
       throw new Error('Backtest requires at least one candle to execute');
+    }
+
+    if (maxBarsInTrade !== undefined && (!Number.isInteger(maxBarsInTrade) || maxBarsInTrade <= 0)) {
+      throw new Error('maxBarsInTrade must be a positive integer');
     }
 
     if (initialBalance <= 0) {
@@ -102,6 +109,7 @@ export class BacktestEngine {
     const initTradeState = (
       side: TradeSide,
       entryPrice: number,
+      entryIndex: number,
       entryDiagnostics?: EntryDiagnostics
     ): ActiveTradeState => {
       let initialStop: number | null = null;
@@ -120,6 +128,7 @@ export class BacktestEngine {
       return {
         side,
         entryPrice,
+        entryIndex,
         highestHigh: entryPrice,
         lowestLow: entryPrice,
         stopPrice: initialStop,
@@ -343,6 +352,63 @@ export class BacktestEngine {
         }
       }
 
+      // 2b. Check time stop (maxBarsInTrade) and exit variants (exitMode)
+      if (portfolio.hasOpenPosition() && tradeState) {
+        const currentPos = portfolio.getOpenPosition()!;
+        const barsHeld = i - tradeState.entryIndex;
+
+        let shouldExit = false;
+        let exitReason: ExitReason | null = null;
+        let exitDescription = '';
+
+        if (maxBarsInTrade !== undefined && barsHeld >= maxBarsInTrade) {
+          shouldExit = true;
+          exitReason = 'timeStop';
+          exitDescription = `Time stop reached (${barsHeld} bars in trade >= max ${maxBarsInTrade})`;
+        } else if (exitMode !== 'reverse') {
+          if (exitMode === 'tkCross') {
+            if (strategy.exitSignal?.(candles, i, currentPos.side, 'tkCross')) {
+              shouldExit = true;
+              exitReason = 'tkCrossExit';
+              exitDescription = `Opposite TK cross exit (${currentPos.side})`;
+            }
+          } else if (exitMode === 'kijun') {
+            if (strategy.exitSignal?.(candles, i, currentPos.side, 'kijun')) {
+              shouldExit = true;
+              exitReason = 'kijunExit';
+              exitDescription = `Kijun cross exit (${currentPos.side})`;
+            }
+          }
+        }
+
+        if (shouldExit && exitReason) {
+          const mfe =
+            currentPos.side === 'long'
+              ? ((tradeState.highestHigh - currentPos.entryPrice) / currentPos.entryPrice) * 100
+              : ((currentPos.entryPrice - tradeState.lowestLow) / currentPos.entryPrice) * 100;
+          const mae =
+            currentPos.side === 'long'
+              ? ((currentPos.entryPrice - tradeState.lowestLow) / currentPos.entryPrice) * 100
+              : ((tradeState.highestHigh - currentPos.entryPrice) / currentPos.entryPrice) * 100;
+
+          const exitSig: TradeSignal = {
+            action: currentPos.side === 'long' ? 'SELL' : 'BUY',
+            timestamp: candle.timestamp,
+            price: candle.close,
+            reason: exitDescription,
+          };
+
+          portfolio.closePosition(exitSig, candle.close, candle.timestamp, exitReason, {
+            maxFavorablePercent: mfe,
+            maxAdversePercent: mae,
+            stopPrice: tradeState.stopPrice ?? undefined,
+            ratchetSteps: tradeState.ratchetSteps,
+            entryDiagnostics: tradeState.entryDiagnostics,
+          });
+          tradeState = null;
+        }
+      }
+
       // 3. Process strategy signal at candle close (even after stop-out)
       const signal = strategy.analyze(candles, i);
       const activePos = portfolio.getOpenPosition();
@@ -352,7 +418,7 @@ export class BacktestEngine {
         if (signal.action === 'BUY') {
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
-            tradeState = initTradeState('long', candle.close, entryDiag);
+            tradeState = initTradeState('long', candle.close, i, entryDiag);
           } else if (activePos.side === 'short') {
             const mfe = tradeState
               ? ((activePos.entryPrice - tradeState.lowestLow) / activePos.entryPrice) * 100
@@ -368,12 +434,12 @@ export class BacktestEngine {
               entryDiagnostics: tradeState?.entryDiagnostics,
             });
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
-            tradeState = initTradeState('long', candle.close, entryDiag);
+            tradeState = initTradeState('long', candle.close, i, entryDiag);
           }
         } else if (signal.action === 'SELL') {
           if (!activePos) {
             portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
-            tradeState = initTradeState('short', candle.close, entryDiag);
+            tradeState = initTradeState('short', candle.close, i, entryDiag);
           } else if (activePos.side === 'long') {
             const mfe = tradeState
               ? ((tradeState.highestHigh - activePos.entryPrice) / activePos.entryPrice) * 100
@@ -389,7 +455,7 @@ export class BacktestEngine {
               entryDiagnostics: tradeState?.entryDiagnostics,
             });
             portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
-            tradeState = initTradeState('short', candle.close, entryDiag);
+            tradeState = initTradeState('short', candle.close, i, entryDiag);
           }
         }
       } else {
@@ -397,7 +463,7 @@ export class BacktestEngine {
         if (signal.action === 'BUY') {
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent());
-            tradeState = initTradeState('long', candle.close, entryDiag);
+            tradeState = initTradeState('long', candle.close, i, entryDiag);
           }
         } else if (signal.action === 'SELL') {
           if (activePos && activePos.side === 'long') {

@@ -2,6 +2,7 @@ import { BacktestEngine } from '@/backtest/engine';
 import { SMACrossoverStrategy } from '@/strategies/sma-crossover';
 import type { Strategy } from '@/strategies/types';
 import type { Candle, TradeSignal } from '@/data/models';
+import type { ExitMode } from '@/backtest/types';
 
 describe('BacktestEngine', () => {
   const createCandle = (close: number, timestamp = 1600000000000): Candle => ({
@@ -784,6 +785,126 @@ describe('BacktestEngine', () => {
 
       expect(result.trades).toHaveLength(1);
       expect(result.trades[0].quantity).toBeCloseTo(20, 4);
+    });
+  });
+
+  describe('Exit Variants and Time Stop (Part 6)', () => {
+    it('should exit on maxBarsInTrade time stop', () => {
+      const engine = new BacktestEngine();
+      // Buy at candle 0, hold through candles 1 and 2, at candle 3 (barsHeld = 3 >= 3) trigger timeStop
+      const candles = generateCandles([100, 101, 102, 103, 104]);
+      const result = engine.run({
+        strategy: new MockActionStrategy({ 0: 'BUY' }),
+        candles,
+        initialBalance: 1000,
+        tradeMode: 'long-only',
+        maxBarsInTrade: 3,
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitReason).toBe('timeStop');
+      expect(result.trades[0].exitPrice).toBe(103);
+    });
+
+    it('should exit on tkCrossExit when exitMode is tkCross', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 102, 101, 99]);
+
+      class MockTkCrossExitStrategy implements Strategy {
+        name = 'MockTkCross';
+        description = 'test';
+        requiredCandles = 1;
+        analyze(_c: readonly Candle[], index: number): TradeSignal {
+          if (index === 0) return { action: 'BUY', price: 100, timestamp: 0, reason: 'BUY' };
+          return { action: 'HOLD', price: 100, timestamp: index, reason: 'HOLD' };
+        }
+        exitSignal(_c: readonly Candle[], index: number, side: 'long' | 'short', mode?: ExitMode): boolean {
+          if (mode === 'tkCross' && side === 'long' && index === 2) {
+            return true;
+          }
+          return false;
+        }
+      }
+
+      const result = engine.run({
+        strategy: new MockTkCrossExitStrategy(),
+        candles,
+        initialBalance: 1000,
+        tradeMode: 'long-only',
+        exitMode: 'tkCross',
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitReason).toBe('tkCrossExit');
+      expect(result.trades[0].exitPrice).toBe(101);
+    });
+
+    it('should exit on kijunExit when exitMode is kijun', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 105, 98, 95]);
+
+      class MockKijunExitStrategy implements Strategy {
+        name = 'MockKijun';
+        description = 'test';
+        requiredCandles = 1;
+        analyze(_c: readonly Candle[], index: number): TradeSignal {
+          if (index === 0) return { action: 'BUY', price: 100, timestamp: 0, reason: 'BUY' };
+          return { action: 'HOLD', price: 100, timestamp: index, reason: 'HOLD' };
+        }
+        exitSignal(_c: readonly Candle[], index: number, side: 'long' | 'short', mode?: ExitMode): boolean {
+          if (mode === 'kijun' && side === 'long' && index === 2) {
+            return true;
+          }
+          return false;
+        }
+      }
+
+      const result = engine.run({
+        strategy: new MockKijunExitStrategy(),
+        candles,
+        initialBalance: 1000,
+        tradeMode: 'long-only',
+        exitMode: 'kijun',
+      });
+
+      expect(result.trades).toHaveLength(1);
+      expect(result.trades[0].exitReason).toBe('kijunExit');
+      expect(result.trades[0].exitPrice).toBe(98);
+    });
+
+    it('should preserve cash conservation identity with exitMode and timeStop', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 102, 101, 104, 99, 95]);
+
+      class MockMultiExitStrategy implements Strategy {
+        name = 'MockMultiExit';
+        description = 'test';
+        requiredCandles = 1;
+        analyze(_c: readonly Candle[], index: number): TradeSignal {
+          if (index === 0) return { action: 'BUY', price: 100, timestamp: 0, reason: 'BUY' };
+          if (index === 3) return { action: 'SELL', price: 104, timestamp: 3, reason: 'SELL' };
+          return { action: 'HOLD', price: 100, timestamp: index, reason: 'HOLD' };
+        }
+        exitSignal(_c: readonly Candle[], index: number, side: 'long' | 'short', mode?: ExitMode): boolean {
+          if (mode === 'tkCross' && side === 'long' && index === 2) return true;
+          return false;
+        }
+      }
+
+      const result = engine.run({
+        strategy: new MockMultiExitStrategy(),
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-short',
+        exitMode: 'tkCross',
+        tradeFeePercent: 0.1,
+        positionSizePercent: 20,
+      });
+
+      const sumPnl = result.trades.reduce((s, t) => s + t.pnl, 0);
+      const unroundedFinalBal = result.equity[result.equity.length - 1];
+      expect(Math.abs(10000 + sumPnl - unroundedFinalBal)).toBeLessThan(1e-6);
+      expect(Math.abs(10000 + sumPnl - result.metrics.finalBalance)).toBeLessThan(0.01);
     });
   });
 });

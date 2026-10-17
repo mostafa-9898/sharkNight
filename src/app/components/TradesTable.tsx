@@ -195,6 +195,12 @@ export default function TradesTable({ trades }: TradesTableProps) {
         return { label: 'Stop Loss', bg: 'rgba(248, 81, 73, 0.15)', color: '#f85149', border: '#f85149' };
       case 'reverse':
         return { label: 'Reversal', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: '#a855f7' };
+      case 'tkCrossExit':
+        return { label: 'TK Cross', bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '#0284c7' };
+      case 'kijunExit':
+        return { label: 'Kijun Cross', bg: 'rgba(249, 115, 22, 0.15)', color: '#fb923c', border: '#ea580c' };
+      case 'timeStop':
+        return { label: 'Time Stop', bg: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '#ca8a04' };
       case 'end':
         return { label: 'End of Data', bg: 'rgba(139, 148, 158, 0.15)', color: '#8b949e', border: '#30363d' };
       case 'signal':

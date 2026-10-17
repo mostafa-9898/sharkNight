@@ -61,12 +61,13 @@ async function download() {
           const lastCandle = existing[existing.length - 1];
           const cachedSpan = lastCandle.timestamp - firstCandle.timestamp;
 
-          // Coverage check: must cover at least requested span minus one interval and have >= 85% of expected candles
-          const coversRequestedSpan = cachedSpan >= requestedSpan - intervalMs;
+          // Coverage check: must cover at least requested span minus 2 intervals and have >= 85% of expected candles
+          const coversRequestedSpan = cachedSpan >= requestedSpan - 2 * intervalMs;
           const hasSufficientCount = existing.length >= Math.floor(expectedCandles * 0.85);
 
           if (coversRequestedSpan && hasSufficientCount) {
             const sanity = performCandleSanityCheck(existing, interval);
+            const isLate = firstCandle.timestamp > requestedStartTime + 2 * intervalMs;
             console.log(
               `  ✔ ${symbol} ${interval}: Already cached with full coverage (${existing.length.toLocaleString()} candles).`
             );
@@ -74,8 +75,14 @@ async function download() {
               `    Span: ${new Date(sanity.firstTimestamp!).toISOString()} -> ${new Date(sanity.lastTimestamp!).toISOString()}`
             );
             console.log(
-              `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}\n`
+              `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}`
             );
+            if (isLate) {
+              console.log(
+                `    ⚠ FLAG: First candle (${new Date(firstCandle.timestamp).toISOString()}) is later than requested (${new Date(requestedStartTime).toISOString()}).`
+              );
+            }
+            console.log('');
             continue;
           } else {
             console.log(
@@ -129,6 +136,8 @@ async function download() {
         const filePath = await storage.saveCandles(symbol, interval, candles);
         const elapsedSec = ((Date.now() - fetchStart) / 1000).toFixed(1);
         const sanity = performCandleSanityCheck(candles, interval);
+        const firstC = candles[0];
+        const isLate = firstC.timestamp > requestedStartTime + 2 * intervalMs;
 
         console.log(
           `  ✔ Saved ${candles.length.toLocaleString()} candles via ${usedProvider} to ${filePath} (${elapsedSec}s)`
@@ -137,8 +146,14 @@ async function download() {
           `    Span: ${new Date(sanity.firstTimestamp!).toISOString()} -> ${new Date(sanity.lastTimestamp!).toISOString()}`
         );
         console.log(
-          `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}\n`
+          `    Close range: $${sanity.minClose} - $${sanity.maxClose} | Gaps (>1.5x interval): ${sanity.gapCount}`
         );
+        if (isLate) {
+          console.log(
+            `    ⚠ FLAG: First candle (${new Date(firstC.timestamp).toISOString()}) is later than requested (${new Date(requestedStartTime).toISOString()}). Exchange max history reached.`
+          );
+        }
+        console.log('');
       } else {
         console.error(
           `  ❌ Failed to download ${symbol} ${interval}: Both KuCoin and Binance returned no data. Check internet/network connectivity.\n`

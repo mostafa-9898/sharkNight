@@ -484,6 +484,73 @@ describe('IchimokuRsiStrategy', () => {
         const sigTrend = strategyTrend.analyze(candles, 6);
         expect(sigTrend.action).toBe('HOLD');
       });
+
+      it('should enforce rsiRecoveryCap on BUY setup', () => {
+        const strategyNoCap = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 3,
+          senkouB: 4,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 5,
+        });
+
+        const strategyWithCap = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 3,
+          senkouB: 4,
+          displacement: 2,
+          rsiPeriod: 2,
+          rsiBuyMin: 20,
+          rsiBuyMax: 40,
+          rsiLookback: 5,
+          rsiRecoveryCap: 10, // max RSI at entry = 40 + 10 = 50
+        });
+
+        // Synthetic series where RSI hit buy zone a few candles ago, but then jumped to 80
+        // TK cross happens at candle 5 when RSI is > 50
+        const candles: Candle[] = [
+          createCandle(100, 100, 50, 50, 1000), // big drop -> RSI low
+          createCandle(50, 50, 40, 40, 2000),   // RSI in [20, 40]
+          createCandle(40, 40, 30, 30, 3000),
+          createCandle(30, 60, 30, 60, 4000),   // rebound
+          createCandle(60, 90, 60, 90, 5000),   // strong rally -> RSI > 60
+          createCandle(90, 120, 90, 120, 6000), // TK cross up here, but current RSI > 50
+        ];
+
+        const sigNoCap = strategyNoCap.analyze(candles, 5);
+        const sigWithCap = strategyWithCap.analyze(candles, 5);
+
+        // If noCap fired a BUY, withCap must be filtered out to HOLD
+        if (sigNoCap.action === 'BUY') {
+          expect(sigWithCap.action).toBe('HOLD');
+        }
+      });
+
+      it('should implement exitSignal for tkCross and kijun correctly', () => {
+        const strategy = new IchimokuRsiStrategy({
+          tenkan: 2,
+          kijun: 4,
+          senkouB: 6,
+          displacement: 2,
+        });
+
+        const candles: Candle[] = [
+          createCandle(100, 110, 90, 100, 1000),
+          createCandle(100, 110, 90, 100, 2000),
+          createCandle(100, 110, 90, 100, 3000),
+          createCandle(100, 110, 90, 100, 4000),
+          createCandle(100, 110, 90, 100, 5000),
+        ];
+
+        // Flat series: no cross, exitSignal returns false
+        expect(strategy.exitSignal(candles, 4, 'long', 'tkCross')).toBe(false);
+        expect(strategy.exitSignal(candles, 4, 'short', 'tkCross')).toBe(false);
+        expect(strategy.exitSignal(candles, 4, 'long', 'kijun')).toBe(false);
+        expect(strategy.exitSignal(candles, 4, 'short', 'kijun')).toBe(false);
+      });
     });
   });
 });

@@ -1,6 +1,6 @@
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from './types';
-import type { EntryDiagnostics } from '../backtest/types';
+import type { EntryDiagnostics, ExitMode } from '../backtest/types';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { roundTo } from '../utils/math';
@@ -19,6 +19,7 @@ export interface IchimokuRsiConfig {
   rsiSellMax?: number;       // default 80
   rsiLookback?: number;      // default 10
   cloudFilter?: CloudFilter; // default 'off'
+  rsiRecoveryCap?: number;   // default undefined (off)
 }
 
 interface CachedIndicators {
@@ -112,6 +113,7 @@ export class IchimokuRsiStrategy implements Strategy {
   readonly rsiSellMax: number;
   readonly rsiLookback: number;
   readonly cloudFilter: CloudFilter;
+  readonly rsiRecoveryCap?: number;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
 
@@ -127,6 +129,10 @@ export class IchimokuRsiStrategy implements Strategy {
     this.rsiSellMax = config?.rsiSellMax ?? 80;
     this.rsiLookback = config?.rsiLookback ?? 10;
     this.cloudFilter = config?.cloudFilter ?? 'off';
+    this.rsiRecoveryCap =
+      config?.rsiRecoveryCap !== undefined && Number.isFinite(config.rsiRecoveryCap) && config.rsiRecoveryCap >= 0
+        ? config.rsiRecoveryCap
+        : undefined;
 
     // Validation
     if (
@@ -323,6 +329,10 @@ export class IchimokuRsiStrategy implements Strategy {
       }
 
       if (rsiHitIndex !== -1) {
+        if (this.rsiRecoveryCap !== undefined && currentRsi > this.rsiBuyMax + this.rsiRecoveryCap) {
+          return defaultSignal;
+        }
+
         const priceVsCloud = !hasCloud
           ? 'inside'
           : candle.close > cloudTop
@@ -362,6 +372,7 @@ export class IchimokuRsiStrategy implements Strategy {
           cloudThicknessPercent,
           rsiAtEntry: roundTo(currentRsi, 2),
           rsiHitValue: roundTo(rsiHitValue, 2),
+          rsiHitAge: currentIndex - rsiHitIndex,
           kijunSlope,
           atrPercentile,
           distanceFromKijunAtr,
@@ -398,6 +409,10 @@ export class IchimokuRsiStrategy implements Strategy {
       }
 
       if (rsiHitIndex !== -1) {
+        if (this.rsiRecoveryCap !== undefined && currentRsi < this.rsiSellMin - this.rsiRecoveryCap) {
+          return defaultSignal;
+        }
+
         const priceVsCloud = !hasCloud
           ? 'inside'
           : candle.close > cloudTop
@@ -437,6 +452,7 @@ export class IchimokuRsiStrategy implements Strategy {
           cloudThicknessPercent,
           rsiAtEntry: roundTo(currentRsi, 2),
           rsiHitValue: roundTo(rsiHitValue, 2),
+          rsiHitAge: currentIndex - rsiHitIndex,
           kijunSlope,
           atrPercentile,
           distanceFromKijunAtr,
@@ -515,5 +531,67 @@ export class IchimokuRsiStrategy implements Strategy {
       tkCrossDownCount,
       tkCrossEqualityStartCount,
     };
+  }
+
+  /**
+   * Evaluates whether an active position should exit based on exitMode.
+   * Stateless, look-ahead free.
+   */
+  exitSignal(
+    candles: readonly Candle[],
+    currentIndex: number,
+    side: 'long' | 'short',
+    mode: ExitMode = 'tkCross'
+  ): boolean {
+    if (currentIndex < 1 || currentIndex >= candles.length) {
+      return false;
+    }
+
+    const indicators = this.getIndicators(candles);
+    const { tenkan, kijun, relation } = indicators;
+
+    const currentTenkan = tenkan[currentIndex];
+    const currentKijun = kijun[currentIndex];
+    if (!Number.isFinite(currentTenkan) || !Number.isFinite(currentKijun)) {
+      return false;
+    }
+
+    if (mode === 'kijun') {
+      const prevKijun = kijun[currentIndex - 1];
+      if (!Number.isFinite(prevKijun)) return false;
+      const currentClose = candles[currentIndex].close;
+      const prevClose = candles[currentIndex - 1].close;
+
+      if (side === 'long') {
+        // Exit long when close crosses below Kijun
+        return prevClose >= prevKijun && currentClose < currentKijun;
+      } else {
+        // Exit short when close crosses above Kijun
+        return prevClose <= prevKijun && currentClose > currentKijun;
+      }
+    }
+
+    // Default: 'tkCross' (ANY opposite TK cross, no RSI condition required)
+    const currentRelation = relation[currentIndex];
+    if (currentRelation === 0) return false;
+
+    let lastNonZero = 0;
+    for (let k = currentIndex - 1; k >= 0; k--) {
+      const t = tenkan[k];
+      const kj = kijun[k];
+      if (!Number.isFinite(t) || !Number.isFinite(kj)) break;
+      if (relation[k] !== 0) {
+        lastNonZero = relation[k];
+        break;
+      }
+    }
+
+    if (side === 'long') {
+      // Opposite cross for long is down cross
+      return currentRelation === -1 && lastNonZero === 1;
+    } else {
+      // Opposite cross for short is up cross
+      return currentRelation === 1 && lastNonZero === -1;
+    }
   }
 }

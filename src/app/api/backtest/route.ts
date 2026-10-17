@@ -3,9 +3,9 @@ import { BinancePublicProvider } from '@/data/providers/binance-public';
 import { KucoinPublicProvider } from '@/data/providers/kucoin-public';
 import { JsonStorage } from '@/data/storage/json-storage';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import { performCandleSanityCheck } from '@/data/models/candle';
+import { performCandleSanityCheck, getIntervalMs } from '@/data/models/candle';
 import { BacktestEngine } from '@/backtest/engine';
-import type { TradeMode, StopCheckMode, TrailingStopConfig } from '@/backtest/types';
+import type { TradeMode, StopCheckMode, TrailingStopConfig, ExitMode } from '@/backtest/types';
 import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
@@ -50,8 +50,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const symbol = (body.symbol ?? 'BTCUSDT').toString().trim().toUpperCase();
     const interval = (body.interval ?? '1h') as CandleInterval;
+    const period = (body.period ?? 'all').toString().trim().toLowerCase();
     const rawLimit = body.limit;
     const isAll =
+      period !== 'all' ||
       rawLimit === 'all' ||
       rawLimit === 0 ||
       rawLimit === '0' ||
@@ -72,9 +74,26 @@ export async function POST(request: Request) {
     const rsiSellMin = Math.max(rsiBuyMax + 1, Number(body.rsiSellMin ?? 60));
     const rsiSellMax = Math.max(rsiSellMin + 1, Math.min(99, Number(body.rsiSellMax ?? 80)));
     const rsiLookback = Math.max(1, Math.min(50, Number(body.rsiLookback ?? 10)));
+    const rsiRecoveryCap =
+      body.rsiRecoveryCap !== undefined &&
+      body.rsiRecoveryCap !== null &&
+      body.rsiRecoveryCap !== '' &&
+      Number(body.rsiRecoveryCap) >= 0
+        ? Number(body.rsiRecoveryCap)
+        : undefined;
 
     // Trade Mode & Risk Management
     const tradeMode: TradeMode = body.tradeMode === 'long-only' ? 'long-only' : 'long-short';
+    const exitMode: ExitMode =
+      body.exitMode === 'tkCross' || body.exitMode === 'kijun' ? body.exitMode : 'reverse';
+    const maxBarsInTrade =
+      body.maxBarsInTrade !== undefined &&
+      body.maxBarsInTrade !== null &&
+      body.maxBarsInTrade !== '' &&
+      Number(body.maxBarsInTrade) > 0
+        ? Math.floor(Number(body.maxBarsInTrade))
+        : undefined;
+
     const takeProfitPercent =
       body.takeProfitPercent !== undefined &&
       body.takeProfitPercent !== null &&
@@ -230,6 +249,30 @@ export async function POST(request: Request) {
       dataSource = 'cache';
     }
 
+    if (period !== 'all') {
+      const yearsMap: Record<string, number> = {
+        '1y': 1,
+        '2y': 2,
+        '3y': 3,
+        '6y': 6,
+      };
+      const years = yearsMap[period];
+      if (years) {
+        const intervalMs = getIntervalMs(interval);
+        const requiredStartTime = Date.now() - Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
+        if (!candles || candles.length === 0 || candles[0].timestamp > requiredStartTime + 2 * intervalMs) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Cached data for ${symbol} ${interval} does not cover the requested ${period} window. Run: npm run download -- --years=${years} --symbols=${symbol} --intervals=${interval}`,
+            },
+            { status: 400 }
+          );
+        }
+        candles = candles.filter((c) => c.timestamp >= requiredStartTime);
+      }
+    }
+
     if (!isAll && candles.length > limit) {
       candles = candles.slice(-limit);
     }
@@ -247,6 +290,7 @@ export async function POST(request: Request) {
       rsiSellMax,
       rsiLookback,
       cloudFilter,
+      rsiRecoveryCap,
     });
 
     const engine = new BacktestEngine();
@@ -258,6 +302,8 @@ export async function POST(request: Request) {
       positionSizePercent,
       riskPerTradePercent,
       tradeMode,
+      exitMode,
+      maxBarsInTrade,
       takeProfitPercent,
       stopLossPercent: trailingStopEnabled ? undefined : stopLossPercent,
       trailingStop,
@@ -439,6 +485,10 @@ export async function POST(request: Request) {
         slippagePercent,
         stopCheckMode,
         cloudFilter,
+        rsiRecoveryCap,
+        exitMode,
+        maxBarsInTrade,
+        period,
         positionSizePercent,
         riskPerTradePercent,
       },
