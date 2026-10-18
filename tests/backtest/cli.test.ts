@@ -130,7 +130,7 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
     it('correctly maps default CLI arguments', () => {
       const opts = parseCliArgs([]);
       expect(opts.symbol).toBe('BTCUSDT');
-      expect(opts.interval).toBe('1h');
+      expect(opts.interval).toBe('4h');
       expect(opts.period).toBe('6y');
       expect(opts.startTime).toBeUndefined();
       expect(opts.endTime).toBeUndefined();
@@ -139,7 +139,7 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
       expect(opts.kijun).toBe(26);
       expect(opts.senkouB).toBe(52);
       expect(opts.kijunSlopeFilter).toBe(false);
-      expect(opts.cloudFilter).toBe('off');
+      expect(opts.cloudFilter).toBe('trend');
     });
 
     it('correctly parses --startTime, --endTime, and --asOf options', () => {

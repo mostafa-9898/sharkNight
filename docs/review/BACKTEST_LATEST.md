@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-18T06:03:08.439Z** | Config Hash: `44b6f9c5`
+Generated: **2026-10-18T07:21:42.367Z** | Config Hash: `44b6f9c5`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `22ab039` (⚠️ dirty) |
+| **Git Commit** | `c77ce6a` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `ETHUSDT` / `4h` / `6y` |
 | **Total Candles** | 13,149 |
 | **Start Time (UTC)** | 2020-10-17T04:00:00Z |

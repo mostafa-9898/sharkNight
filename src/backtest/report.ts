@@ -17,6 +17,7 @@ export interface SaveReportPaths {
   latestJsonPath: string;
   historyMdPath: string;
   historyIndexUpdated: boolean;
+  diagnosticsMdPath?: string;
 }
 
 export interface BacktestReportConfig {
@@ -136,6 +137,7 @@ export interface BacktestReportOutput {
   configHash: string;
   timestampStr: string;
   filename: string;
+  diagnosticsMarkdown?: string;
 }
 
 function getGitMetadata(): { commit: string; isDirty: boolean } {
@@ -1426,13 +1428,475 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     invariants: invariantResults,
   };
 
+  const diagnosticsMarkdown = buildTradeDiagnosticsReport({
+    input,
+    trajectories,
+    drawdowns,
+    datasetFingerprint,
+    configHash,
+    flags,
+    invariantResults,
+    gitCommit: gitInfo.commit,
+    isDirty: gitInfo.isDirty,
+  });
+
   return {
     markdown,
     json: jsonReport,
     configHash,
     timestampStr,
     filename,
+    diagnosticsMarkdown,
   };
+}
+
+export interface TradeDiagnosticsInput {
+  input: BacktestReportInput;
+  trajectories: TradeTrajectory[];
+  drawdowns: DrawdownPeriod[];
+  datasetFingerprint: string;
+  configHash: string;
+  flags: Array<{ level: string; message: string }>;
+  invariantResults: InvariantResult[];
+  gitCommit: string;
+  isDirty: boolean;
+}
+
+export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): string {
+  const {
+    input,
+    trajectories,
+    drawdowns,
+    datasetFingerprint,
+    configHash,
+    flags,
+    invariantResults,
+    gitCommit,
+    isDirty,
+  } = params;
+
+  const { backtestResult, candles, config } = input;
+  const { trades, metrics } = backtestResult;
+  const initialBalance = config.initialBalance ?? 10000;
+  const firstCandle = candles[0];
+  const lastCandle = candles[candles.length - 1];
+
+  const initialStopPercent =
+    config.trailingStop !== undefined
+      ? config.trailingStop.initialStopPercent
+      : (config.stopLossPercent ?? 5);
+
+  const evalType =
+    config.period === 'all' || config.period === '6y'
+      ? 'In-Sample Baseline (6y Historical Window)'
+      : config.period === '1y'
+      ? 'Out-of-Sample / 1-Year Holdout Window'
+      : `${config.period ?? 'Standard'} Evaluation Window`;
+
+  const completedTrades = trades.filter((t) => t.exitReason !== 'end');
+  const openTrade = trades.find((t) => t.exitReason === 'end');
+
+  // Trade duration in bar counts
+  const tradeDurationBars = new Map<Trade, number>();
+  for (let i = 0; i < trades.length; i++) {
+    const tr = trajectories[i];
+    const bars = tr ? tr.barsHeld : 0;
+    tradeDurationBars.set(trades[i], bars);
+  }
+
+  // Loss streaks
+  let maxConsecutiveLosses = 0;
+  let currentLosses = 0;
+  let maxLossDurationBars = 0;
+  let currentLossDurationBars = 0;
+  let maxLossDurationMs = 0;
+  let currentLossDurationMs = 0;
+
+  for (const t of completedTrades) {
+    const bars = tradeDurationBars.get(t) ?? 0;
+    if ((t.pnl || 0) < 0) {
+      currentLosses++;
+      currentLossDurationBars += bars;
+      const ms = (t.exitTime ?? 0) - (t.entryTime ?? 0);
+      currentLossDurationMs += ms > 0 ? ms : 0;
+      if (currentLosses > maxConsecutiveLosses) {
+        maxConsecutiveLosses = currentLosses;
+        maxLossDurationBars = currentLossDurationBars;
+        maxLossDurationMs = currentLossDurationMs;
+      }
+    } else {
+      currentLosses = 0;
+      currentLossDurationBars = 0;
+      currentLossDurationMs = 0;
+    }
+  }
+  const maxLossDurationDays = (maxLossDurationMs / (1000 * 60 * 60 * 24)).toFixed(1);
+
+  // Durations (in bars)
+  const durations = completedTrades.map((t) => tradeDurationBars.get(t) ?? 0).sort((a, b) => a - b);
+  const avgDuration =
+    durations.length > 0 ? roundTo(durations.reduce((a, b) => a + b, 0) / durations.length, 1) : 0;
+  const medianDuration = durations.length > 0 ? durations[Math.floor(durations.length / 2)] : 0;
+  const maxDuration = durations.length > 0 ? durations[durations.length - 1] : 0;
+
+  // Exposure
+  const totalBarsHeld = completedTrades.reduce((acc, t) => acc + (tradeDurationBars.get(t) ?? 0), 0);
+  const exposurePct = candles.length > 0 ? roundTo((totalBarsHeld / candles.length) * 100, 2) : 0;
+
+  // Trailing stats
+  const trailingTriggeredTrades = completedTrades.filter((t) => (t.ratchetSteps ?? 0) > 0);
+  const trailingTriggeredPct =
+    completedTrades.length > 0
+      ? roundTo((trailingTriggeredTrades.length / completedTrades.length) * 100, 1)
+      : 0;
+
+  // Total giveback
+  const totalGivebackDollar = completedTrades.reduce((acc, t) => {
+    const mfe = t.maxFavorablePercent ?? 0;
+    const pnlPct = t.pnlPercent ?? 0;
+    const gbPct = Math.max(0, mfe - Math.max(0, pnlPct));
+    return acc + (gbPct / 100) * (t.quantity * t.entryPrice);
+  }, 0);
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`# Trade Diagnostics Report — Latest Backtest Run`);
+  lines.push(``);
+  lines.push(
+    `> **Canonical Diagnostic Log** | Generated: \`${new Date().toISOString()}\` | Git: \`${gitCommit}\` (${isDirty ? 'dirty' : 'clean'}) | Config Hash: \`${configHash}\``
+  );
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+
+  // Section 1: Run Identity & Reproducibility
+  lines.push(`## Section 1: Run Identity & Reproducibility`);
+  lines.push(`| Parameter | Value | Specification Details |`);
+  lines.push(`|---|---|---|`);
+  lines.push(`| **Run Timestamp (UTC)** | \`${new Date().toISOString()}\` | Deterministic backtest execution |`);
+  lines.push(`| **Git Revision** | \`${gitCommit}\` | Working tree: \`${isDirty ? 'DIRTY' : 'CLEAN'}\` |`);
+  lines.push(`| **Symbol & Timeframe** | \`${config.symbol}\` / \`${config.interval}\` | Higher-timeframe context |`);
+  lines.push(`| **Evaluation Type** | **${evalType}** | Out-of-sample / In-sample protocol |`);
+  lines.push(
+    `| **Effective Data Window** | \`${formatDate(firstCandle?.timestamp)}\` → \`${formatDate(lastCandle?.timestamp)}\` | Period: \`${config.period ?? 'all'}\` |`
+  );
+  lines.push(
+    `| **Candle Dataset** | **${candles.length.toLocaleString()}** candles | Fingerprint: \`${datasetFingerprint}\` |`
+  );
+  lines.push(
+    `| **Strategy Indicators** | Ichimoku (${config.tenkan ?? 9}, ${config.kijun ?? 26}, ${config.senkouB ?? 52}, ${config.displacement ?? 26}) | RSI (${config.rsiPeriod ?? 14}, Zones: [${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}] / [${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}], Lookback: ${config.rsiLookback ?? 20}) |`
+  );
+  lines.push(
+    `| **Filters Applied** | Cloud: \`${config.cloudFilter ?? 'off'}\` | Kijun Slope: \`${config.kijunSlopeFilter ? 'ON' : 'OFF'}\`, RSI Cap: \`${config.rsiRecoveryCap ?? 'N/A'}\` |`
+  );
+  lines.push(
+    `| **Execution & Trade Mode** | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` | Intrabar stop checking: \`${config.stopCheckMode ?? 'intrabar'}\` |`
+  );
+  lines.push(
+    `| **Position Sizing & Risk** | Size: **${config.positionSizePercent ?? 20}%** | Risk per trade: **${config.riskPerTradePercent ?? 1}%** (Initial Capital: $${initialBalance.toLocaleString()}) |`
+  );
+  lines.push(
+    `| **Cost Model** | Fee: **${config.tradeFeePercent ?? 0.1}%** per side | Adverse exit slippage: **${config.slippagePercent ?? 0}%** |`
+  );
+  lines.push(
+    `| **Stop Loss Policy** | **${initialStopPercent.toFixed(1)}%** initial stop | Type: ${config.trailingStop ? 'Stepped Trailing' : 'Fixed Stop Loss'} |`
+  );
+  lines.push(
+    `| **Trailing Stop Policy** | ${config.trailingStop ? `Step: **${config.trailingStop.stepPercent}%**, Raise: **${config.trailingStop.raisePercent}%**` : '`DISABLED` (N/A)'} | ${config.trailingStop ? 'Activates on favorable price movement' : 'Requires --trailingStop to enable'} |`
+  );
+  lines.push(
+    `| **Take Profit Target** | ${config.takeProfitPercent ? `${config.takeProfitPercent}%` : '`DISABLED` (N/A)'} | Uncapped trend-following mode |`
+  );
+  lines.push(``);
+
+  // Section 2: Executive Summary & Capital Preservation Diagnostics
+  lines.push(`## Section 2: Executive Summary & Capital Preservation Diagnostics`);
+  const netDollar = metrics.totalPnl;
+  const netPct = metrics.totalPnlPercent;
+  const maxDd = metrics.maxDrawdownPercent;
+  const winRateStr = metrics.totalTrades > 0 ? `${(metrics.winRate * 100).toFixed(1)}%` : 'N/A';
+  const pfStr =
+    metrics.losingTrades === 0
+      ? metrics.winningTrades > 0
+        ? '∞'
+        : 'N/A'
+      : (
+          Math.abs(metrics.averageWin * metrics.winningTrades) /
+          Math.abs(metrics.averageLoss * metrics.losingTrades || 1)
+        ).toFixed(2);
+  const expectancy =
+    metrics.totalTrades > 0 ? roundTo(metrics.totalPnlPercent / metrics.totalTrades, 2) : 0;
+  const winLossRatio =
+    metrics.averageLoss !== 0
+      ? Math.abs(metrics.averageWin / metrics.averageLoss).toFixed(2)
+      : 'N/A';
+
+  lines.push(`| Performance Metric | Recorded Value | Capital Preservation & Risk Metric | Recorded Value |`);
+  lines.push(`|---|---|---|---|`);
+  lines.push(
+    `| **Initial Account Equity** | ${formatCurrency(initialBalance)} | **Maximum Equity Drawdown** | **${maxDd.toFixed(2)}%** |`
+  );
+  lines.push(
+    `| **Final Account Equity** | ${formatCurrency(metrics.finalBalance)} | **Max Drawdown ($)** | ${formatCurrency(initialBalance * (maxDd / 100))} |`
+  );
+  lines.push(
+    `| **Net Return ($ / %)** | **${formatCurrency(netDollar)}** (**${formatPercent(netPct)}**) | **Loss Streak (Max Consecutive)** | **${maxConsecutiveLosses}** trades (${maxLossDurationBars} bars / ~${maxLossDurationDays} days) |`
+  );
+  lines.push(
+    `| **Realized Closed PnL** | ${formatCurrency(netDollar)} | **Market Exposure Ratio** | **${exposurePct}%** of total period |`
+  );
+  lines.push(
+    `| **Unrealized Open PnL** | ${openTrade ? `${formatCurrency(openTrade.pnl)} (${formatPercent(openTrade.pnlPercent)})` : '$0.00 (No open position)'} | **Total Fees Paid** | ${formatCurrency(metrics.totalFees)} (${metrics.feeDragPercent.toFixed(2)}% fee drag) |`
+  );
+  lines.push(
+    `| **Total Completed Trades** | **${completedTrades.length}** (Long: ${metrics.long.totalTrades} / Short: ${metrics.short.totalTrades}) | **Average Trade Holding Time** | **${avgDuration}** bars (Median: **${medianDuration}**, Max: **${maxDuration}**) |`
+  );
+  lines.push(
+    `| **Win Rate** | **${winRateStr}** (${metrics.winningTrades}W / ${metrics.losingTrades}L) | **Total Profit Given Back** | ${formatCurrency(totalGivebackDollar)} (from peak MFE) |`
+  );
+  lines.push(
+    `| **Profit Factor** | **${pfStr}** | **Trailing Stop Trigger Rate** | **${trailingTriggeredPct}%** (${trailingTriggeredTrades.length}/${completedTrades.length || 1} trades) |`
+  );
+  lines.push(
+    `| **Trade Expectancy** | **${formatPercent(expectancy)}** per trade | **Average Win / Average Loss** | **+${metrics.averageWin.toFixed(2)}%** / **${metrics.averageLoss.toFixed(2)}%** (Ratio: **${winLossRatio}**) |`
+  );
+  lines.push(``);
+
+  // Section 3: Every Completed Trade
+  lines.push(`## Section 3: Every Completed Trade (Chronological Log)`);
+  lines.push(`> ℹ️ **Table Conventions:**`);
+  lines.push(`> - **Risk ($):** Initial cash risk budget at trade entry (\`positionValue × initialStopPercent\`).`);
+  lines.push(`> - **MFE / MAE in R:** Maximum favorable/adverse excursion divided by initial stop distance.`);
+  lines.push(`> - **Giveback:** Difference between peak unrealized gain (MFE) and final realized return.`);
+  lines.push(``);
+  lines.push(`| ID | Side | Entry Time (UTC) | Entry Price | Exit Time (UTC) | Exit Price | Qty | Pos Value | Risk ($) | Init Stop | Exit Reason | Gross PnL | Fee | Net PnL | Return % | MFE (R) | MAE (R) | Giveback % | Trailing Status |`);
+  lines.push(`|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|`);
+
+  completedTrades.forEach((t, i) => {
+    const id = `TR-${String(i + 1).padStart(3, '0')}`;
+    const side = `\`${t.side.toUpperCase()}\``;
+    const entryTime = formatDate(t.entryTime);
+    const entryPrice = `$${t.entryPrice.toFixed(2)}`;
+    const exitTime = formatDate(t.exitTime);
+    const exitPrice = `$${t.exitPrice.toFixed(2)}`;
+    const qty = t.quantity.toFixed(4);
+    const posVal = `$${(t.quantity * t.entryPrice).toFixed(2)}`;
+    const riskDollar = `$${((t.quantity * t.entryPrice) * (initialStopPercent / 100)).toFixed(2)}`;
+    const initStop = `$${(t.side === 'long' ? t.entryPrice * (1 - initialStopPercent / 100) : t.entryPrice * (1 + initialStopPercent / 100)).toFixed(2)}`;
+    const reason = `\`${t.exitReason}\``;
+    const grossPnlVal = t.side === 'long' ? (t.exitPrice - t.entryPrice) * t.quantity : (t.entryPrice - t.exitPrice) * t.quantity;
+    const grossPnl = formatCurrency(roundTo(grossPnlVal, 2));
+    const fee = `$${t.fee.toFixed(2)}`;
+    const netPnl = formatCurrency(t.pnl);
+    const retPct = `**${formatPercent(t.pnlPercent)}**`;
+    const mfe = t.maxFavorablePercent ?? 0;
+    const mae = t.maxAdversePercent ?? 0;
+    const mfeR = (mfe / initialStopPercent).toFixed(2);
+    const maeR = (mae / initialStopPercent).toFixed(2);
+    const mfeStr = `+${mfe.toFixed(1)}% (+${mfeR}R)`;
+    const maeStr = `-${mae.toFixed(1)}% (-${maeR}R)`;
+    const givebackPct = roundTo(Math.max(0, mfe - Math.max(0, t.pnlPercent ?? 0)), 1);
+    const givebackStr = givebackPct > 0 ? `${givebackPct.toFixed(1)}%` : '0.0%';
+
+    let trailingStatus = 'Disabled';
+    if (config.trailingStop) {
+      if ((t.ratchetSteps ?? 0) > 0) {
+        trailingStatus = `Active (step ${t.ratchetSteps})`;
+      } else {
+        trailingStatus = `No (req: +${config.trailingStop.stepPercent}%)`;
+      }
+    }
+
+    lines.push(
+      `| ${id} | ${side} | ${entryTime} | ${entryPrice} | ${exitTime} | ${exitPrice} | ${qty} | ${posVal} | ${riskDollar} | ${initStop} | ${reason} | ${grossPnl} | ${fee} | ${netPnl} | ${retPct} | ${mfeStr} | ${maeStr} | ${givebackStr} | ${trailingStatus} |`
+    );
+  });
+  lines.push(``);
+
+  // Open position subsection
+  lines.push(`### Open Position at Backtest Conclusion`);
+  if (openTrade) {
+    lines.push(`> ⚠️ **OPEN POSITION IDENTIFIED AT DATA END:**`);
+    lines.push(`| Attribute | Value | Analysis |`);
+    lines.push(`|---|---|---|`);
+    lines.push(`| **Position ID** | \`TR-${trades.length}\` | Active at final candle |`);
+    lines.push(`| **Direction** | \`${openTrade.side.toUpperCase()}\` | Position opened during run |`);
+    lines.push(
+      `| **Entry Timestamp / Price** | \`${formatDate(openTrade.entryTime)}\` / $${openTrade.entryPrice.toFixed(2)} | Original entry execution |`
+    );
+    lines.push(`| **Final Historical Price** | $${openTrade.exitPrice.toFixed(2)} | Evaluated at final candle close |`);
+    lines.push(
+      `| **Position Size / Value** | ${openTrade.quantity.toFixed(4)} ($${(openTrade.quantity * openTrade.entryPrice).toFixed(2)}) | Capital in trade |`
+    );
+    lines.push(
+      `| **Unrealized Net PnL** | **${formatCurrency(openTrade.pnl)}** (**${formatPercent(openTrade.pnlPercent)}**) | Marked-to-market at close |`
+    );
+    lines.push(
+      `| **Accounting Status** | **UNCLOSED POSITION** | **Excluded from closed realized trade statistics** |`
+    );
+  } else {
+    lines.push(`> ℹ️ **Status:** No open position remained at backtest conclusion. All trades completed natural exits.`);
+  }
+  lines.push(``);
+
+  // Section 4: Risk, Drawdown & Exposure Diagnostics
+  lines.push(`## Section 4: Risk, Drawdown & Exposure Diagnostics`);
+  lines.push(`### 1. Top Drawdown Periods`);
+  if (drawdowns.length === 0) {
+    lines.push(`> No drawdowns exceeding 0.1% were detected.`);
+  } else {
+    lines.push(
+      `| # | Peak Date | Peak Equity | Trough Date | Trough Equity | Max Depth % | Bars to Trough | Recovery Date | Recovery Status |`
+    );
+    lines.push(`|---|---|---|---|---|---|---|---|---|`);
+    drawdowns.forEach((dd, idx) => {
+      const peakDate = formatDate(dd.peakTime);
+      const troughDate = formatDate(dd.troughTime);
+      const recDate = dd.recoveryTime ? formatDate(dd.recoveryTime) : 'Unrecovered';
+      const status = dd.isRecovered ? '✅ Recovered' : '⚠️ Active Drawdown';
+      lines.push(
+        `| ${idx + 1} | ${peakDate} | $${dd.peakEquity.toFixed(2)} | ${troughDate} | $${dd.troughEquity.toFixed(2)} | **${dd.depthPercent.toFixed(2)}%** | ${dd.barsToTrough} bars | ${recDate} | ${status} |`
+      );
+    });
+  }
+  lines.push(``);
+
+  // Exit Reason Distribution
+  lines.push(`### 2. Exit Reason Distribution`);
+  const exitGroups = new Map<string, { count: number; netPnl: number; retPctSum: number; durationSum: number }>();
+  for (const t of completedTrades) {
+    const reason = t.exitReason || 'unknown';
+    const entry = exitGroups.get(reason) ?? { count: 0, netPnl: 0, retPctSum: 0, durationSum: 0 };
+    entry.count++;
+    entry.netPnl += t.pnl || 0;
+    entry.retPctSum += t.pnlPercent || 0;
+    entry.durationSum += tradeDurationBars.get(t) ?? 0;
+    exitGroups.set(reason, entry);
+  }
+  lines.push(
+    `| Exit Reason | Trade Count | Percentage | Cumulative Net PnL | Cumulative Return % | Avg Return % | Avg Holding Bars |`
+  );
+  lines.push(`|---|---|---|---|---|---|---|`);
+  for (const [reason, g] of exitGroups.entries()) {
+    const share = roundTo((g.count / (completedTrades.length || 1)) * 100, 1);
+    const avgRet = roundTo(g.retPctSum / g.count, 2);
+    const avgDur = roundTo(g.durationSum / g.count, 1);
+    lines.push(
+      `| \`${reason}\` | ${g.count} | ${share}% | ${formatCurrency(roundTo(g.netPnl, 2))} | ${formatPercent(roundTo(g.retPctSum, 2))} | ${formatPercent(avgRet)} | ${avgDur} bars |`
+    );
+  }
+  lines.push(``);
+
+  // Yearly Breakdown
+  lines.push(`### 3. Yearly Performance Breakdown`);
+  const yearGroups = new Map<number, { count: number; wins: number; pnl: number; retPct: number }>();
+  for (const t of completedTrades) {
+    const yr = t.entryTime ? new Date(t.entryTime).getUTCFullYear() : 0;
+    const entry = yearGroups.get(yr) ?? { count: 0, wins: 0, pnl: 0, retPct: 0 };
+    entry.count++;
+    if ((t.pnl || 0) > 0) entry.wins++;
+    entry.pnl += t.pnl || 0;
+    entry.retPct += t.pnlPercent || 0;
+    yearGroups.set(yr, entry);
+  }
+  lines.push(`| Calendar Year | Trade Count | Win Rate | Net PnL ($) | Cumulative Return % | Avg Return % |`);
+  lines.push(`|---|---|---|---|---|---|`);
+  const sortedYears = Array.from(yearGroups.keys()).sort((a, b) => a - b);
+  for (const yr of sortedYears) {
+    const g = yearGroups.get(yr)!;
+    const wr = `${roundTo((g.wins / g.count) * 100, 1)}%`;
+    const avgRet = roundTo(g.retPct / g.count, 2);
+    lines.push(
+      `| **${yr || 'N/A'}** | ${g.count} | ${wr} | ${formatCurrency(roundTo(g.pnl, 2))} | ${formatPercent(roundTo(g.retPct, 2))} | ${formatPercent(avgRet)} |`
+    );
+  }
+  lines.push(``);
+
+  // Section 5: Decision & Signal Funnel Diagnostics
+  lines.push(`## Section 5: Decision & Signal Funnel Diagnostics`);
+  const trace = backtestResult.trace;
+  if (!trace) {
+    lines.push(`> ℹ️ Passive signal tracing was not enabled for this backtest run (\`collectTrace: false\`).`);
+  } else {
+    const tkCrossEvents = trace.tkCrossEvents ?? [];
+    const ignoredSignals = trace.ignoredSignals ?? [];
+
+    const tkCrossUpCount = tkCrossEvents.filter((e) => e.direction === 'up').length;
+    const tkCrossDownCount = tkCrossEvents.filter((e) => e.direction === 'down').length;
+    const crossUpInZone = tkCrossEvents.filter((e) => e.direction === 'up' && e.inRsiZone).length;
+    const crossDownInZone = tkCrossEvents.filter((e) => e.direction === 'down' && e.inRsiZone).length;
+    const buySignalsEmitted = tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length;
+    const sellSignalsEmitted = tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length;
+
+    const rejectedCrosses = tkCrossEvents.filter((e) => !e.signalEmitted);
+    const cloudFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'cloudFilter').length;
+    const rsiOutOfZoneRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiOutOfZone').length;
+    const rsiRecoveryCapRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiRecoveryCap').length;
+    const kijunSlopeFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'kijunSlopeFilter').length;
+
+    const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
+    const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
+
+    lines.push(`### 1. Signal Funnel`);
+    lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
+    lines.push(`|---|---|---|---|`);
+    lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
+    lines.push(`| **Crosses with RSI in Zone** | ${crossUpInZone} | ${crossDownInZone} | ${crossUpInZone + crossDownInZone} |`);
+    lines.push(`| **Signals Emitted by Strategy** | ${buySignalsEmitted} | ${sellSignalsEmitted} | ${buySignalsEmitted + sellSignalsEmitted} |`);
+    lines.push(`| **Signals Executed into Trades** | ${metrics.long.totalTrades} | ${metrics.short.totalTrades} | ${metrics.totalTrades} |`);
+    lines.push(``);
+
+    lines.push(`### 2. Filter Rejection Attribution`);
+    lines.push(`- **Rejected Crossovers (Did Not Emit Signal):** ${rejectedCrosses.length}`);
+    lines.push(`  - Cloud Trend Filter (\`close vs Cloud\`): **${cloudFilterRejections}**`);
+    lines.push(`  - RSI Out of Zone at Cross & Lookback: **${rsiOutOfZoneRejections}**`);
+    lines.push(`  - RSI Recovery Cap Exceeded: **${rsiRecoveryCapRejections}**`);
+    lines.push(`  - Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
+    lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
+    lines.push(`  - Position Already Open in Same Direction: **${ignoredAlreadyInPos}**`);
+    lines.push(`  - Long-Only Filter Ignored Short: **${ignoredLongOnlyShort}**`);
+    lines.push(``);
+  }
+
+  // Warnings
+  lines.push(`### 3. Execution & Behavioral Warnings`);
+  if (flags.length === 0) {
+    lines.push(`> No critical execution warnings were triggered during this run.`);
+  } else {
+    for (const flag of flags) {
+      lines.push(`- [${flag.level}] ${flag.message}`);
+    }
+  }
+  lines.push(``);
+
+  // Invariant Self-Checks
+  lines.push(`### 4. Invariant Self-Checks`);
+  lines.push(`| Invariant Name | Status | Violations | Verification Details |`);
+  lines.push(`|---|---|---|---|`);
+  for (const inv of invariantResults) {
+    let iconText: string;
+    if (inv.status === 'PASS') iconText = '✅ PASS';
+    else if (inv.status === 'FAIL') iconText = '❌ FAIL';
+    else if (inv.status === 'INCOMPLETE') iconText = '⚠️ INCOMPLETE';
+    else iconText = '⚪ N/A';
+    lines.push(`| **${inv.name}** | ${iconText} | ${inv.violations} | ${inv.details} |`);
+  }
+  lines.push(``);
+
+  // Section 6: Reproduction & Maintenance
+  lines.push(`## Section 6: Reproduction & Report Lifecycle`);
+  lines.push(`- **Canonical Diagnostics Report:** \`docs/review/TRADE_DIAGNOSTICS_LATEST.md\``);
+  lines.push(`- **Automatic Regeneration:** This report automatically refreshes after every supported backtest run:`);
+  lines.push(`  \`\`\`bash`);
+  lines.push(`  npx tsx src/scripts/backtest-report.ts --symbol=${config.symbol} --period=${config.period ?? '6y'}`);
+  lines.push(`  \`\`\``);
+  lines.push(
+    `- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint \`${datasetFingerprint}\` and config hash \`${configHash}\`.`
+  );
+  lines.push(``);
+
+  return lines.join('\n');
 }
 
 export function formatHistoryWinRate(
@@ -1468,6 +1932,7 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
   latestJsonPath: string;
   historyMdPath: string;
   historyIndexUpdated: boolean;
+  diagnosticsMdPath?: string;
 }> {
   const rootDir = process.cwd();
   const reviewDir = path.join(rootDir, 'docs', 'review');
@@ -1478,6 +1943,7 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
   const latestMdPath = path.join(reviewDir, 'BACKTEST_LATEST.md');
   const latestJsonPath = path.join(reviewDir, 'backtest-latest.json');
   const historyMdPath = path.join(historyDir, output.filename);
+  const diagnosticsMdPath = path.join(reviewDir, 'TRADE_DIAGNOSTICS_LATEST.md');
 
   // 1. Write BACKTEST_LATEST.md & backtest-latest.json
   await fs.writeFile(latestMdPath, output.markdown, 'utf-8');
@@ -1485,6 +1951,11 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
 
   // 2. Write archive file in history/
   await fs.writeFile(historyMdPath, output.markdown, 'utf-8');
+
+  // 2b. Write TRADE_DIAGNOSTICS_LATEST.md
+  if (output.diagnosticsMarkdown) {
+    await fs.writeFile(diagnosticsMdPath, output.diagnosticsMarkdown, 'utf-8');
+  }
 
   // 3. Prune history: keep only the latest 30 runs
   try {
@@ -1569,6 +2040,7 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
     latestJsonPath,
     historyMdPath,
     historyIndexUpdated,
+    diagnosticsMdPath,
   };
 }
 

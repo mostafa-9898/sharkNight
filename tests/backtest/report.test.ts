@@ -2,6 +2,8 @@ import { BacktestEngine } from '@/backtest/engine';
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 import {
   buildBacktestReport,
+  buildTradeDiagnosticsReport,
+  saveBacktestReport,
   computeDatasetFingerprint,
   computeDrawdownPeriods,
   computeTradeTrajectories,
@@ -1914,6 +1916,89 @@ describe('Backtest Report Builder & Tracing', () => {
             expect(output.markdown).toContain(expectedRow);
           }
         }
+      });
+    });
+
+    describe('TRADE_DIAGNOSTICS_LATEST.md Generation & Integrity', () => {
+      it('generates all canonical sections in buildTradeDiagnosticsReport', () => {
+        const output = buildBacktestReport(makeCustomReportInput(
+          createTestTrade({
+            side: 'long',
+            exitReason: 'tkCrossExit',
+            entryPrice: 100,
+            exitPrice: 110,
+            pnl: 10,
+            pnlPercent: 10,
+            maxFavorablePercent: 15,
+            maxAdversePercent: 2,
+          }),
+          { symbol: 'BTCUSDT', interval: '4h', period: '6y', trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 } }
+        ));
+
+        expect(output.diagnosticsMarkdown).toBeDefined();
+        const diag = output.diagnosticsMarkdown!;
+
+        expect(diag).toContain('# Trade Diagnostics Report — Latest Backtest Run');
+        expect(diag).toContain('## Section 1: Run Identity & Reproducibility');
+        expect(diag).toContain('## Section 2: Executive Summary & Capital Preservation Diagnostics');
+        expect(diag).toContain('## Section 3: Every Completed Trade (Chronological Log)');
+        expect(diag).toContain('## Section 4: Risk, Drawdown & Exposure Diagnostics');
+        expect(diag).toContain('## Section 5: Decision & Signal Funnel Diagnostics');
+        expect(diag).toContain('## Section 6: Reproduction & Report Lifecycle');
+        expect(diag).toContain('TRADE_DIAGNOSTICS_LATEST.md');
+        expect(diag).toContain('TR-001');
+        expect(diag).toContain('`LONG`');
+        expect(diag).toContain('tkCrossExit');
+      });
+
+      it('separates unclosed positions at conclusion from completed trades', () => {
+        const output = buildBacktestReport(makeCustomReportInput(
+          createTestTrade({
+            side: 'short',
+            exitReason: 'end',
+            entryPrice: 100,
+            exitPrice: 95,
+            pnl: 5,
+            pnlPercent: 5,
+          }),
+          { symbol: 'ETHUSDT', interval: '4h' }
+        ));
+
+        const diag = output.diagnosticsMarkdown!;
+        expect(diag).toContain('### Open Position at Backtest Conclusion');
+        expect(diag).toContain('OPEN POSITION IDENTIFIED AT DATA END');
+        expect(diag).toContain('UNCLOSED POSITION');
+        expect(diag).toContain('Excluded from closed realized trade statistics');
+      });
+
+      it('saves TRADE_DIAGNOSTICS_LATEST.md during saveBacktestReport', async () => {
+        const report = buildBacktestReport(makeCustomReportInput(
+          createTestTrade({ side: 'long', exitReason: 'stopLoss', entryPrice: 100, exitPrice: 95 }),
+          { symbol: 'BTCUSDT', interval: '4h' }
+        ));
+
+        const paths = await saveBacktestReport(report);
+        expect(paths.diagnosticsMdPath).toBeDefined();
+        expect(paths.diagnosticsMdPath).toContain('TRADE_DIAGNOSTICS_LATEST.md');
+      });
+
+      it('calls buildTradeDiagnosticsReport directly with parameters', () => {
+        const customInput = makeCustomReportInput(
+          createTestTrade({ side: 'long', exitReason: 'stopLoss', entryPrice: 100, exitPrice: 95 }),
+          { symbol: 'BTCUSDT', interval: '4h' }
+        );
+        const diag = buildTradeDiagnosticsReport({
+          input: customInput,
+          trajectories: [],
+          drawdowns: [],
+          datasetFingerprint: 'mockhash123',
+          configHash: 'hash123',
+          flags: [],
+          invariantResults: [],
+          gitCommit: 'commit123',
+          isDirty: false,
+        });
+        expect(diag).toContain('# Trade Diagnostics Report — Latest Backtest Run');
       });
     });
   });

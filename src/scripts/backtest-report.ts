@@ -552,6 +552,7 @@ export interface CliSummaryParams {
     latestJsonPath: string;
     historyMdPath: string;
     historyIndexUpdated: boolean;
+    diagnosticsMdPath?: string;
   };
   flags?: Array<{ level: string; message: string }>;
 }
@@ -566,6 +567,7 @@ export function formatCliSummary(params: CliSummaryParams): string {
     `   - Latest Markdown: ${paths.latestMdPath}`,
     `   - Latest JSON:     ${paths.latestJsonPath}`,
     `   - History Archive: ${paths.historyMdPath}`,
+    ...(paths.diagnosticsMdPath ? [`   - Diagnostics MD:  ${paths.diagnosticsMdPath}`] : []),
     `   - Index Table:     docs/review/HISTORY.md (${paths.historyIndexUpdated ? 'updated' : 'unchanged'})`,
     ``,
     `📈 Performance Summary:`,
