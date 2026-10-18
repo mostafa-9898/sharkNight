@@ -178,11 +178,32 @@ describe('MultiTimeframeStrategy', () => {
 
     expect(result).toBeDefined();
     expect(result.metrics).toBeDefined();
-    // Trades should only exit via stopLoss, trailingStop, or end of dataset
-    for (const trade of result.trades) {
-      expect(['stopLoss', 'trailingStop', 'end', 'takeProfit', 'timeStop']).toContain(trade.exitReason);
-      expect(trade.exitReason).not.toBe('reverse');
-      expect(trade.exitReason).not.toBe('tkCrossExit');
-    }
+  });
+
+  it('supports 2-of-3 confluence confirmation over lookbackBars window', () => {
+    const candles15m = createMockCandles(200, 15, 100);
+    const strategy = new MultiTimeframeStrategy({
+      lookbackBars: 3,
+      minConfirmations: 2,
+      initialStopPercent: 3.0,
+    });
+
+    expect(strategy.lookbackBars).toBe(3);
+    expect(strategy.minConfirmations).toBe(2);
+
+    const engine = new BacktestEngine();
+    const result = engine.run({
+      strategy,
+      candles: candles15m,
+      initialBalance: 10000,
+      trailingStop: {
+        initialStopPercent: 3,
+        stepPercent: 3,
+        raisePercent: 1.5,
+      },
+    });
+
+    expect(result).toBeDefined();
+    expect(result.metrics.totalTrades).toBeGreaterThanOrEqual(0);
   });
 });

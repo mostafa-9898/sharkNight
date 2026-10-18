@@ -38,6 +38,8 @@ export interface MultiTimeframeConfig {
   // Strategy logic
   trendRequirement?: '4h_and_1h' | '4h_only' | 'either';
   requireLtfCloudAlignment?: boolean;
+  lookbackBars?: number;       // default 3
+  minConfirmations?: number;   // default 2
 }
 
 interface CachedIndicators {
@@ -176,6 +178,8 @@ export class MultiTimeframeStrategy implements Strategy {
 
   readonly trendRequirement: '4h_and_1h' | '4h_only' | 'either';
   readonly requireLtfCloudAlignment: boolean;
+  readonly lookbackBars: number;
+  readonly minConfirmations: number;
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -214,6 +218,8 @@ export class MultiTimeframeStrategy implements Strategy {
 
     this.trendRequirement = config?.trendRequirement ?? '4h_and_1h';
     this.requireLtfCloudAlignment = config?.requireLtfCloudAlignment ?? true;
+    this.lookbackBars = Math.max(1, config?.lookbackBars ?? 3);
+    this.minConfirmations = Math.max(1, Math.min(3, config?.minConfirmations ?? 2));
 
     this.initialStopPercent = config?.initialStopPercent ?? 5;
     this.useTdrStop = config?.useTdrStop ?? false;
@@ -428,8 +434,6 @@ export class MultiTimeframeStrategy implements Strategy {
     // LTF Indicator values
     const k = ltfStoch.k[currentIndex];
     const d = ltfStoch.d[currentIndex];
-    const prevK = ltfStoch.k[currentIndex - 1];
-    const prevD = ltfStoch.d[currentIndex - 1];
 
     const rsi = ltfRsi[currentIndex];
 
@@ -453,16 +457,39 @@ export class MultiTimeframeStrategy implements Strategy {
       return defaultSignal;
     }
 
-    // 1. Stochastic Confirmation (crossover in key area)
-    const stochCrossUp = prevK <= prevD && k > d && (prevK <= this.stochOversold || k <= this.stochOversold + 10);
-    const stochCrossDown =
-      prevK >= prevD && k < d && (prevK >= this.stochOverbought || k >= this.stochOverbought - 10);
+    // Scan lookback window for crossover triggers (Ichimoku TK cross & Stochastic cross)
+    let ichiBullCross = false;
+    let ichiBearCross = false;
+    let stochBullCross = false;
+    let stochBearCross = false;
 
-    // 2. RSI Zone Confirmation
-    const rsiBuyValid = rsi >= this.rsiBuyMin && rsi <= this.rsiBuyMax;
-    const rsiSellValid = rsi >= this.rsiSellMin && rsi <= this.rsiSellMax;
+    const startBar = Math.max(1, currentIndex - this.lookbackBars + 1);
+    for (let c = startBar; c <= currentIndex; c++) {
+      // 1. Ichimoku TK cross
+      if (ltfIchimoku.tenkan[c - 1] <= ltfIchimoku.kijun[c - 1] && ltfIchimoku.tenkan[c] > ltfIchimoku.kijun[c]) {
+        ichiBullCross = true;
+      }
+      if (ltfIchimoku.tenkan[c - 1] >= ltfIchimoku.kijun[c - 1] && ltfIchimoku.tenkan[c] < ltfIchimoku.kijun[c]) {
+        ichiBearCross = true;
+      }
 
-    // 3. Ichimoku LTF Confirmation
+      // 2. Stochastic cross
+      if (ltfStoch.k[c - 1] <= ltfStoch.d[c - 1] && ltfStoch.k[c] > ltfStoch.d[c]) {
+        stochBullCross = true;
+      }
+      if (ltfStoch.k[c - 1] >= ltfStoch.d[c - 1] && ltfStoch.k[c] < ltfStoch.d[c]) {
+        stochBearCross = true;
+      }
+    }
+
+    // 3. RSI Slope in last lookbackBars closed candles
+    const rsiCur = ltfRsi[currentIndex];
+    const rsiPrev1 = ltfRsi[currentIndex - 1];
+    const rsiPrev2 = currentIndex >= 2 ? ltfRsi[currentIndex - 2] : rsiPrev1;
+    const rsiSlopingUp = Number.isFinite(rsiCur) && ((rsiCur > rsiPrev1) || (rsiCur > rsiPrev2));
+    const rsiSlopingDown = Number.isFinite(rsiCur) && ((rsiCur < rsiPrev1) || (rsiCur < rsiPrev2));
+
+    // Ichimoku alignment
     const ltfTkCrossUp = prevTenkan <= prevKijun && tenkan > kijun;
     const ltfTkCrossDown = prevTenkan >= prevKijun && tenkan < kijun;
     const ltfCloudBullish = !this.requireLtfCloudAlignment || candle.close >= cloudBtm;
@@ -475,9 +502,9 @@ export class MultiTimeframeStrategy implements Strategy {
           timestamp: candle.timestamp,
           direction: 'up',
           price: candle.close,
-          rsi,
-          inRsiZone: rsiBuyValid,
-          signalEmitted: Boolean(htfBullish && stochCrossUp && rsiBuyValid && (ltfTkCrossUp || (tenkan >= kijun && ltfCloudBullish))),
+          rsi: rsiCur,
+          inRsiZone: rsiSlopingUp,
+          signalEmitted: Boolean(htfBullish && (ichiBullCross || stochBullCross)),
         });
       } else if (ltfTkCrossDown) {
         this.traceCollector.onTkCross({
@@ -485,16 +512,21 @@ export class MultiTimeframeStrategy implements Strategy {
           timestamp: candle.timestamp,
           direction: 'down',
           price: candle.close,
-          rsi,
-          inRsiZone: rsiSellValid,
-          signalEmitted: Boolean(htfBearish && stochCrossDown && rsiSellValid && (ltfTkCrossDown || (tenkan <= kijun && ltfCloudBearish))),
+          rsi: rsiCur,
+          inRsiZone: rsiSlopingDown,
+          signalEmitted: Boolean(htfBearish && (ichiBearCross || stochBearCross)),
         });
       }
     }
 
-    // Confluence BUY Signal
-    if (htfBullish && stochCrossUp && rsiBuyValid) {
-      if (ltfTkCrossUp || (tenkan >= kijun && ltfCloudBullish)) {
+    // Confluence BUY Signal (HTF Bullish + at least 2 of 3 confirmations in last lookbackBars)
+    if (htfBullish) {
+      let confirmations = 0;
+      if (ichiBullCross || (ltfCloudBullish && tenkan >= kijun)) confirmations++;
+      if (stochBullCross) confirmations++;
+      if (rsiSlopingUp) confirmations++;
+
+      if (confirmations >= this.minConfirmations && (ichiBullCross || stochBullCross)) {
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
         const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
         const maxStopPercent = 5.0;
@@ -513,25 +545,34 @@ export class MultiTimeframeStrategy implements Strategy {
           action: 'BUY',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bullish: 4h/1h Trend (Ichimoku+RSI+Stoch+TDR) + LTF Stoch Cross Up (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + TDR Stop ${effectiveStopPercent}%`,
+          reason: `MTF Bullish: 4h/1h Trend + LTF ${confirmations}-of-3 Confluence (ichi=${ichiBullCross}, stoch=${stochBullCross}, rsiUp=${rsiSlopingUp}) + Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
-            rsi,
+            rsi: rsiCur,
             tenkan,
             kijun,
             atr,
             tdrStopPercent,
             stopPrice,
             initialStopPercent: effectiveStopPercent,
+            confirmations,
+            ichiCross: ichiBullCross,
+            stochCross: stochBullCross,
+            rsiSlope: rsiSlopingUp,
           },
         };
       }
     }
 
-    // Confluence SELL Signal
-    if (htfBearish && stochCrossDown && rsiSellValid) {
-      if (ltfTkCrossDown || (tenkan <= kijun && ltfCloudBearish)) {
+    // Confluence SELL Signal (HTF Bearish + at least 2 of 3 confirmations in last lookbackBars)
+    if (htfBearish) {
+      let confirmations = 0;
+      if (ichiBearCross || (ltfCloudBearish && tenkan <= kijun)) confirmations++;
+      if (stochBearCross) confirmations++;
+      if (rsiSlopingDown) confirmations++;
+
+      if (confirmations >= this.minConfirmations && (ichiBearCross || stochBearCross)) {
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
         const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
         const maxStopPercent = 5.0;
@@ -550,17 +591,21 @@ export class MultiTimeframeStrategy implements Strategy {
           action: 'SELL',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bearish: 4h/1h Trend (Ichimoku+RSI+Stoch+TDR) + LTF Stoch Cross Down (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + TDR Stop ${effectiveStopPercent}%`,
+          reason: `MTF Bearish: 4h/1h Trend + LTF ${confirmations}-of-3 Confluence (ichi=${ichiBearCross}, stoch=${stochBearCross}, rsiDown=${rsiSlopingDown}) + Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
-            rsi,
+            rsi: rsiCur,
             tenkan,
             kijun,
             atr,
             tdrStopPercent,
             stopPrice,
             initialStopPercent: effectiveStopPercent,
+            confirmations,
+            ichiCross: ichiBearCross,
+            stochCross: stochBearCross,
+            rsiSlope: rsiSlopingDown,
           },
         };
       }

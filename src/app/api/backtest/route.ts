@@ -190,6 +190,8 @@ export async function POST(request: Request) {
         : body.trendRequirement === 'either'
           ? 'either'
           : '4h_and_1h';
+    const lookbackBars = Math.max(1, Number(body.lookbackBars ?? 3));
+    const minConfirmations = Math.max(1, Math.min(3, Number(body.minConfirmations ?? 2)));
 
     // Position Sizing & Risk
     const positionSizePercent =
@@ -344,6 +346,8 @@ export async function POST(request: Request) {
           stochOversold,
           stochOverbought,
           trendRequirement,
+          lookbackBars,
+          minConfirmations,
           initialStopPercent: trailingStopEnabled ? (trailingStop?.initialStopPercent ?? 5) : (stopLossPercent ?? 5),
           useTdrStop,
           tdrMultiplier,

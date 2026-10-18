@@ -171,12 +171,14 @@ export default function DashboardPage() {
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
 
-  // Trailing Stop & Execution Mode (1.5% initial stop, 1.0% trigger, 0.8% trail calibrated for 15m swings)
+  // Trailing Stop & Execution Mode (Calibrated for trend riding: 3% initial stop, 3% trigger, 1.5% trail)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
   const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
-  const [initialStopPercent, setInitialStopPercent] = useState(1.5);
-  const [trailStepPercent, setTrailStepPercent] = useState(1.0);
-  const [trailRaisePercent, setTrailRaisePercent] = useState(0.8);
+  const [initialStopPercent, setInitialStopPercent] = useState(3.0);
+  const [trailStepPercent, setTrailStepPercent] = useState(3.0);
+  const [trailRaisePercent, setTrailRaisePercent] = useState(1.5);
+  const [lookbackBars, setLookbackBars] = useState(3);
+  const [minConfirmations, setMinConfirmations] = useState(2);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -273,6 +275,8 @@ export default function DashboardPage() {
           stochOverbought,
           useTdrStop,
           tdrMultiplier,
+          lookbackBars,
+          minConfirmations,
           trailingStopEnabled,
           trailingMode: trailingStopEnabled ? trailingMode : undefined,
           initialStopPercent: trailingStopEnabled ? initialStopPercent : undefined,
@@ -379,6 +383,8 @@ export default function DashboardPage() {
     initialStopPercent,
     trailStepPercent,
     trailRaisePercent,
+    lookbackBars,
+    minConfirmations,
     slippagePercent,
     stopCheckMode,
   ]);
@@ -1169,6 +1175,60 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {/* Confluence Lookback & Confirmations Box */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderLeft: '1px solid rgba(234, 179, 8, 0.3)',
+                paddingLeft: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>Lookback:</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={lookbackBars}
+                  onChange={(e) => setLookbackBars(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#a78bfa',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                    width: '45px',
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: '#8b949e' }}>bars</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>Confluence:</label>
+                <select
+                  value={minConfirmations}
+                  onChange={(e) => setMinConfirmations(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#a78bfa',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <option value={2}>2 of 3 Confirmations</option>
+                  <option value={3}>3 of 3 (Strict All)</option>
+                  <option value={1}>1 of 3 (Aggressive)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Line 3: Risk Management (TP / SL) */}
@@ -1441,15 +1501,24 @@ export default function DashboardPage() {
                   fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Tahoma, sans-serif',
                 }}
               >
+                <div style={{ marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px dashed #30363d' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a78bfa', fontWeight: 700, marginBottom: '2px' }}>
+                    <span>🎯 سیگنال ورود مولتی تایم‌فریم (۲ تایید از ۳ در ۳ کندل اخیر):</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#8b949e' }}>
+                    روند ماکرو در تایم‌فریم ۴h و ۱h با ایچیموکو، استوکستیک و RSI تشخیص داده می‌شود. در تایم ۱۵ دقیقه، با وقوع حداقل ۲ تایید از ۳ شرط (کراس ایچیموکو، کراس استوکستیک، شیب رو به بالا/پایین RSI) در نهایتاً ۳ کندل بسته شده اخیر، پوزیشن ورود صادر می‌گردد.
+                  </div>
+                </div>
+
                 {trailingMode === 'trend' ? (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 700, marginBottom: '2px' }}>
                       <span>🌊 تعقیب دقیق و لحظه‌ای قله روند (Trend Follow):</span>
                     </div>
                     <div>
-                      • <strong style={{ color: '#f0f6fc' }}>حفظ سرمایه (ریسک‌فری):</strong> با رسیدن سود به <span style={{ color: '#eab308', fontWeight: 700 }}>%{initialStopPercent}</span>، استاپ بلافاصله به نقطه ورود می‌آید تا از اصل سرمایه محافظت شود.
+                      • <strong style={{ color: '#f0f6fc' }}>حفظ سرمایه (ریسک‌فری):</strong> با رسیدن سود به <span style={{ color: '#eab308', fontWeight: 700 }}>%{initialStopPercent}</span>، استاپ سریعاً به نقطه ورود می‌آید تا ریسک معامله به صفر برسد.
                       <br />
-                      • <strong style={{ color: '#f0f6fc' }}>تریگر و قفل سود:</strong> با عبور سود از تریگر <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailStepPercent}</span>، حداقل <span style={{ color: '#3fb950', fontWeight: 700 }}>%{trailRaisePercent}</span> سود قطعی قفل شده و از آن پس، استاپ با فاصله دقیق <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailRaisePercent}</span> پشت قله‌های صعودی (یا کف‌های نزولی) لحظه به لحظه پیش می‌رود.
+                      • <strong style={{ color: '#f0f6fc' }}>افزایش سودآوری و فضای تنفس:</strong> با تنظیم تریگر روی <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailStepPercent}</span> و فاصله تریل روی <span style={{ color: '#3fb950', fontWeight: 700 }}>%{trailRaisePercent}</span>، معامله در نوسانات عادی خفه نمی‌شود و اجازه دارد روندهای پرقدرت را تا بالاترین سقف ممکن شکار کند.
                       <br />
                       • <strong style={{ color: '#38bdf8' }}>قانون بدون بازگشت:</strong> استاپ فقط در جهت سود پیشروی می‌کند و در هیچ اصلاح یا نوسانی عقب‌نشینی نمی‌کند.
                     </div>

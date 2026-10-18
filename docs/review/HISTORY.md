@@ -72,6 +72,13 @@
 | 2026-10-18 11:23:46 | `20bde23` | `1afbcb7f` | BTCUSDT / 15m / all | **-12.97%** | 382 | 14.36% | 58.9% | [Report](history/20261018_112346_BTCUSDT_15m_1afbcb7f.md) |
 | 2026-10-18 11:32:17 | `20bde23` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_113217_BTCUSDT_4h_656c8de8.md) |
 | 2026-10-18 11:39:26 | `20bde23` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_113926_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 11:53:49 | `cb0a094` | `1afbcb7f` | BTCUSDT / 15m / all | **-12.97%** | 382 | 14.36% | 58.9% | [Report](history/20261018_115348_BTCUSDT_15m_1afbcb7f.md) |
+| 2026-10-18 12:02:53 | `cb0a094` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_120253_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 12:03:45 | `cb0a094` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_120345_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 12:05:32 | `cb0a094` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_120532_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 12:07:09 | `cb0a094` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_120709_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 12:08:02 | `cb0a094` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_120802_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 12:09:47 | `cb0a094` | `533ef66e` | BTCUSDT / 15m / all | **-43.32%** | 1252 | 46.73% | 49.4% | [Report](history/20261018_120947_BTCUSDT_15m_533ef66e.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).
