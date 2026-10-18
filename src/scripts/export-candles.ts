@@ -35,6 +35,12 @@ const TARGETS: TargetConfig[] = [
   { symbol: 'ETHUSDT', interval: '1h' },
   { symbol: 'ETHUSDT', interval: '4h' },
   { symbol: 'ETHUSDT', interval: '1d' },
+  { symbol: 'BTCUSDT', interval: '15m' },
+  { symbol: 'ETHUSDT', interval: '15m' },
+  { symbol: 'BTCUSDT', interval: '5m' },
+  { symbol: 'ETHUSDT', interval: '5m' },
+  { symbol: 'BTCUSDT', interval: '1m' },
+  { symbol: 'ETHUSDT', interval: '1m' },
 ];
 
 async function main(): Promise<void> {

@@ -46,5 +46,53 @@
     "firstTimestamp": 1602979200000,
     "lastTimestamp": 1792195200000,
     "sha256": "4678f85eaa3c1ad51fcc5c13b7acdeaab647d02b6a0a59515a4eeaaaad557366"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "interval": "15m",
+    "rows": 210384,
+    "firstTimestamp": 1602959400000,
+    "lastTimestamp": 1792304100000,
+    "sha256": "9b0e78ffc0fc6e79148f18feb06871a6793ce159e2d2e6ce99616c2dde83d080"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "interval": "15m",
+    "rows": 210384,
+    "firstTimestamp": 1602959400000,
+    "lastTimestamp": 1792304100000,
+    "sha256": "9f16b1dab8e471b8250a20319878f502fb658fad4d805e54ab7e46bd777af055"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "interval": "5m",
+    "rows": 315576,
+    "firstTimestamp": 1697632500000,
+    "lastTimestamp": 1792305000000,
+    "sha256": "2e846d9e8ead26d51b9119147933d71cf02cfcad0f0a4de57419e830e7440c4b"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "interval": "5m",
+    "rows": 315576,
+    "firstTimestamp": 1697632500000,
+    "lastTimestamp": 1792305000000,
+    "sha256": "92fdc9039bdcafb851e44870ea04a2955ef1600339ea41e469487726fa9d9610"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "interval": "1m",
+    "rows": 525960,
+    "firstTimestamp": 1760747820000,
+    "lastTimestamp": 1792305360000,
+    "sha256": "c9196bef83e5be68feefaea3dd02553a29229dd3ee8c946caba36ad263a22f71"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "interval": "1m",
+    "rows": 525958,
+    "firstTimestamp": 1760747820000,
+    "lastTimestamp": 1792305360000,
+    "sha256": "fcb2a19ba08170beee8a617eb344d52f79f8b3161b0395d9c8858b4346c04958"
   }
 ]
