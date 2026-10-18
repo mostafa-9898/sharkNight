@@ -9,7 +9,9 @@ import type { TradeMode, StopCheckMode, TrailingStopConfig, ExitMode } from '@/b
 import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
+import { calculateStochastic } from '@/indicators/stochastic';
 import { IchimokuRsiStrategy, type CloudFilter } from '@/strategies/ichimoku-rsi-strategy';
+import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
 import { generateAndSaveBacktestReport } from '@/backtest/report';
 
 /**
@@ -158,6 +160,27 @@ export async function POST(request: Request) {
         ? body.cloudFilter
         : 'off';
 
+    // Strategy selection: MTF or Single Timeframe
+    const strategyType = (body.strategyType ?? (body.mtfEnabled ? 'mtf' : 'single')).toString().toLowerCase();
+    const mtfEnabled = Boolean(body.mtfEnabled || strategyType === 'mtf');
+
+    // Stochastic Parameters
+    const stochKPeriod = Math.max(2, Number(body.stochKPeriod ?? 14));
+    const stochDPeriod = Math.max(1, Number(body.stochDPeriod ?? 3));
+    const stochSmooth = Math.max(1, Number(body.stochSmooth ?? 3));
+    const stochOversold = Math.max(1, Math.min(50, Number(body.stochOversold ?? 30)));
+    const stochOverbought = Math.max(50, Math.min(99, Number(body.stochOverbought ?? 70)));
+
+    // TDR Stop Parameters
+    const useTdrStop = Boolean(body.useTdrStop);
+    const tdrMultiplier = Math.max(0.5, Number(body.tdrMultiplier ?? 1.5));
+    const trendRequirement =
+      body.trendRequirement === '4h_only'
+        ? '4h_only'
+        : body.trendRequirement === 'either'
+          ? 'either'
+          : '4h_and_1h';
+
     // Position Sizing & Risk
     const positionSizePercent =
       body.positionSizePercent !== undefined &&
@@ -279,22 +302,57 @@ export async function POST(request: Request) {
       candles = candles.slice(-limit);
     }
 
-    // Run Strategy Backtest using IchimokuRsiStrategy
-    const strategy = new IchimokuRsiStrategy({
-      tenkan: ichimokuTenkan,
-      kijun: ichimokuKijun,
-      senkouB: ichimokuSenkouB,
-      displacement: ichimokuDisplacement,
-      rsiPeriod,
-      rsiBuyMin,
-      rsiBuyMax,
-      rsiSellMin,
-      rsiSellMax,
-      rsiLookback,
-      cloudFilter,
-      rsiRecoveryCap,
-      kijunSlopeFilter,
-    });
+    // Pre-load HTF candles if in MTF mode
+    let htf4hCandles: Candle[] | undefined;
+    let htf1hCandles: Candle[] | undefined;
+    if (mtfEnabled) {
+      try {
+        htf4hCandles = (await storage.loadCandles(symbol, '4h')) ?? undefined;
+        htf1hCandles = (await storage.loadCandles(symbol, '1h')) ?? undefined;
+      } catch {
+        // Will fallback to auto-aggregation in MultiTimeframeStrategy
+      }
+    }
+
+    // Run Strategy Backtest using MultiTimeframeStrategy or IchimokuRsiStrategy
+    const strategy = mtfEnabled
+      ? new MultiTimeframeStrategy({
+          htf4hCandles,
+          htf1hCandles,
+          tenkan: ichimokuTenkan,
+          kijun: ichimokuKijun,
+          senkouB: ichimokuSenkouB,
+          displacement: ichimokuDisplacement,
+          rsiPeriod,
+          rsiBuyMin,
+          rsiBuyMax,
+          rsiSellMin,
+          rsiSellMax,
+          stochKPeriod,
+          stochDPeriod,
+          stochSmooth,
+          stochOversold,
+          stochOverbought,
+          trendRequirement,
+          initialStopPercent: trailingStopEnabled ? (trailingStop?.initialStopPercent ?? 5) : (stopLossPercent ?? 5),
+          useTdrStop,
+          tdrMultiplier,
+        })
+      : new IchimokuRsiStrategy({
+          tenkan: ichimokuTenkan,
+          kijun: ichimokuKijun,
+          senkouB: ichimokuSenkouB,
+          displacement: ichimokuDisplacement,
+          rsiPeriod,
+          rsiBuyMin,
+          rsiBuyMax,
+          rsiSellMin,
+          rsiSellMax,
+          rsiLookback,
+          cloudFilter,
+          rsiRecoveryCap,
+          kijunSlopeFilter,
+        });
 
     const engine = new BacktestEngine();
     const backtestResult = engine.run({
@@ -324,6 +382,11 @@ export async function POST(request: Request) {
     });
     const closePrices = candles.map((c) => c.close);
     const rsiValues = calculateRSI(closePrices, rsiPeriod);
+    const stochData = calculateStochastic(candles, {
+      kPeriod: stochKPeriod,
+      dPeriod: stochDPeriod,
+      smooth: stochSmooth,
+    });
 
     // Diagnostics calculation over entire candle series
     let rsiBuyZoneCount = 0;
@@ -509,6 +572,26 @@ export async function POST(request: Request) {
           buyMax: rsiBuyMax,
           sellMin: rsiSellMin,
           sellMax: rsiSellMax,
+        },
+        stochastic: {
+          k: stochData.k,
+          d: stochData.d,
+          params: {
+            kPeriod: stochKPeriod,
+            dPeriod: stochDPeriod,
+            smooth: stochSmooth,
+            oversold: stochOversold,
+            overbought: stochOverbought,
+          },
+        },
+        mtf: {
+          enabled: mtfEnabled,
+          strategyType,
+          useTdrStop,
+          tdrMultiplier,
+          trendRequirement,
+          htf4hCandlesCount: htf4hCandles?.length ?? 0,
+          htf1hCandlesCount: htf1hCandles?.length ?? 0,
         },
         rsiLookback,
         tradeMode,

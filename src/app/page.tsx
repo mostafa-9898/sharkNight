@@ -44,6 +44,14 @@ interface BacktestResultData {
   positionSizePercent?: number;
   riskPerTradePercent?: number;
   cloudFilter?: string;
+  strategyType?: string;
+  stochKPeriod?: number;
+  stochDPeriod?: number;
+  stochSmooth?: number;
+  stochOversold?: number;
+  stochOverbought?: number;
+  useTdrStop?: boolean;
+  tdrMultiplier?: number;
   initialBalance: number;
   metrics: BacktestMetrics;
   trades: Trade[];
@@ -72,6 +80,26 @@ interface BacktestResultData {
       sellMin: number;
       sellMax: number;
     };
+    stochastic?: {
+      k: number[];
+      d: number[];
+      params: {
+        kPeriod: number;
+        dPeriod: number;
+        smooth: number;
+        oversold: number;
+        overbought: number;
+      };
+    };
+    mtf?: {
+      enabled: boolean;
+      strategyType?: string;
+      useTdrStop?: boolean;
+      tdrMultiplier?: number;
+      trendRequirement?: string;
+      htf4hCandlesCount?: number;
+      htf1hCandlesCount?: number;
+    };
     rsiLookback?: number;
     rsiRecoveryCap?: number;
     tradeMode?: TradeMode;
@@ -99,9 +127,10 @@ interface BacktestResultData {
 }
 
 export default function DashboardPage() {
-  // --- 1. Top Backtest Configuration Box State ---
+  // Strategy Mode & Engine
+  const [strategyType, setStrategyType] = useState<'mtf' | 'single'>('mtf');
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
-  const [btInterval, setBtInterval] = useState<CandleInterval>('4h');
+  const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
   const [btPeriod, setBtPeriod] = useState<string>('all');
   const [btLimit, setBtLimit] = useState<string>('all');
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
@@ -116,11 +145,22 @@ export default function DashboardPage() {
   // RSI Parameters
   const [rsiPeriod, setRsiPeriod] = useState(14);
   const [rsiBuyMin, setRsiBuyMin] = useState(20);
-  const [rsiBuyMax, setRsiBuyMax] = useState(40);
-  const [rsiSellMin, setRsiSellMin] = useState(60);
+  const [rsiBuyMax, setRsiBuyMax] = useState(50);
+  const [rsiSellMin, setRsiSellMin] = useState(50);
   const [rsiSellMax, setRsiSellMax] = useState(80);
   const [rsiLookback, setRsiLookback] = useState(20);
   const [rsiRecoveryCap, setRsiRecoveryCap] = useState<string>('');
+
+  // Stochastic Parameters (LTF Confirmation)
+  const [stochKPeriod, setStochKPeriod] = useState(14);
+  const [stochDPeriod, setStochDPeriod] = useState(3);
+  const [stochSmooth, setStochSmooth] = useState(3);
+  const [stochOversold, setStochOversold] = useState(30);
+  const [stochOverbought, setStochOverbought] = useState(70);
+
+  // TDR Stop Loss
+  const [useTdrStop, setUseTdrStop] = useState(false);
+  const [tdrMultiplier, setTdrMultiplier] = useState(1.5);
 
   // Trade Mode & Risk Management
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
@@ -136,11 +176,11 @@ export default function DashboardPage() {
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
 
-  // Trailing Stop & Execution Mode
-  const [trailingStopEnabled, setTrailingStopEnabled] = useState(false);
+  // Trailing Stop & Execution Mode (5% initial stop, 9% step, 3% raise per user request)
+  const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
   const [initialStopPercent, setInitialStopPercent] = useState(5);
-  const [trailStepPercent, setTrailStepPercent] = useState(10);
-  const [trailRaisePercent, setTrailRaisePercent] = useState(5);
+  const [trailStepPercent, setTrailStepPercent] = useState(9);
+  const [trailRaisePercent, setTrailRaisePercent] = useState(3);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -230,6 +270,14 @@ export default function DashboardPage() {
           tradeMode,
           exitMode,
           maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
+          strategyType,
+          stochKPeriod,
+          stochDPeriod,
+          stochSmooth,
+          stochOversold,
+          stochOverbought,
+          useTdrStop,
+          tdrMultiplier,
           takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
           stopLossPercent: stopLossEnabled && !trailingStopEnabled ? stopLossPercent : undefined,
           trailingStopEnabled,
@@ -255,6 +303,14 @@ export default function DashboardPage() {
         positionSizePercent,
         riskPerTradePercent,
         cloudFilter,
+        strategyType,
+        stochKPeriod,
+        stochDPeriod,
+        stochSmooth,
+        stochOversold,
+        stochOverbought,
+        useTdrStop,
+        tdrMultiplier,
         exitMode,
         maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
         rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
@@ -305,6 +361,14 @@ export default function DashboardPage() {
     positionSizePercent,
     riskPerTradePercent,
     cloudFilter,
+    strategyType,
+    stochKPeriod,
+    stochDPeriod,
+    stochSmooth,
+    stochOversold,
+    stochOverbought,
+    useTdrStop,
+    tdrMultiplier,
     ichimokuTenkan,
     ichimokuKijun,
     ichimokuSenkouB,
@@ -454,6 +518,27 @@ export default function DashboardPage() {
             alignItems: 'flex-end',
           }}
         >
+          {/* Strategy Engine */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Strategy Engine</label>
+            <select
+              value={strategyType}
+              onChange={(e) => setStrategyType(e.target.value as 'mtf' | 'single')}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#38bdf8',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 700,
+              }}
+            >
+              <option value="mtf">🌐 Multi-Timeframe (4h/1h Trend + 15m/5m Entry)</option>
+              <option value="single">☁️ Single Timeframe (Ichimoku + RSI)</option>
+            </select>
+          </div>
+
           {/* Symbol */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Symbol</label>
@@ -963,6 +1048,139 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Line 2.5: Stochastic Oscillator Box (LTF Confirmation) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              backgroundColor: 'rgba(234, 179, 8, 0.05)',
+              border: '1px solid rgba(234, 179, 8, 0.35)',
+              borderRadius: '6px',
+              padding: '10px 14px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '240px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc' }}>
+                🌊 Stochastic Oscillator (%K / %D)
+              </span>
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                (LTF Reversal Confirmation)
+              </span>
+            </div>
+
+            {/* %K Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>%K Period:</label>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                value={stochKPeriod}
+                onChange={(e) => setStochKPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#eab308',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+            </div>
+
+            {/* %D Period */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>%D Period:</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={stochDPeriod}
+                onChange={(e) => setStochDPeriod(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#eab308',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+            </div>
+
+            {/* Smooth */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Smooth:</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={stochSmooth}
+                onChange={(e) => setStochSmooth(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#eab308',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+            </div>
+
+            {/* Oversold */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Oversold (Buy):</label>
+              <input
+                type="number"
+                min={5}
+                max={50}
+                value={stochOversold}
+                onChange={(e) => setStochOversold(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#3fb950',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+            </div>
+
+            {/* Overbought */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Overbought (Sell):</label>
+              <input
+                type="number"
+                min={50}
+                max={95}
+                value={stochOverbought}
+                onChange={(e) => setStochOverbought(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#f85149',
+                  fontWeight: 600,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+            </div>
+          </div>
+
           {/* Line 3: Risk Management (TP / SL) */}
           <div
             style={{
@@ -1120,6 +1338,57 @@ export default function DashboardPage() {
                   }}
                 />
                 <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+              </div>
+            </div>
+
+            {/* TDR Dynamic Stop Loss */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={useTdrStop}
+                  onChange={(e) => setUseTdrStop(e.target.checked)}
+                  style={{ accentColor: '#38bdf8', width: '14px', height: '14px', cursor: 'pointer' }}
+                />
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: useTdrStop ? '#e6edf3' : '#8b949e',
+                    fontWeight: 600,
+                  }}
+                >
+                  📐 TDR Dynamic Stop:
+                </span>
+              </label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: useTdrStop ? 1 : 0.4,
+                }}
+              >
+                <input
+                  type="number"
+                  min={0.5}
+                  max={5}
+                  step={0.1}
+                  disabled={!useTdrStop}
+                  value={tdrMultiplier}
+                  onChange={(e) => setTdrMultiplier(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 700,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    width: '60px',
+                    cursor: useTdrStop ? 'text' : 'not-allowed',
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: '#8b949e' }}>x ATR</span>
               </div>
             </div>
 
@@ -1303,7 +1572,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '2px' }}>
-                Close at -5% loss; every +10% of profit raises stop by 5% (+10% -&gt; break-even, +20% -&gt; +5%, ...)
+                Close at -{initialStopPercent}% loss (or TDR stop); every +{trailStepPercent}% of profit raises stop by {trailRaisePercent}% (+9% -&gt; -2%, +18% -&gt; +1%, ...)
               </div>
             </div>
 
