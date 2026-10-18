@@ -179,6 +179,7 @@ export default function DashboardPage() {
   const [trailRaisePercent, setTrailRaisePercent] = useState(1.5);
   const [lookbackBars, setLookbackBars] = useState(3);
   const [minConfirmations, setMinConfirmations] = useState(2);
+  const [trendRequirement, setTrendRequirement] = useState<'either' | '4h_and_1h' | '4h_only'>('either');
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -277,6 +278,7 @@ export default function DashboardPage() {
           tdrMultiplier,
           lookbackBars,
           minConfirmations,
+          trendRequirement,
           trailingStopEnabled,
           trailingMode: trailingStopEnabled ? trailingMode : undefined,
           initialStopPercent: trailingStopEnabled ? initialStopPercent : undefined,
@@ -1228,6 +1230,27 @@ export default function DashboardPage() {
                   <option value={1}>1 of 3 (Aggressive)</option>
                 </select>
               </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>HTF Trend:</label>
+                <select
+                  value={trendRequirement}
+                  onChange={(e) => setTrendRequirement(e.target.value as 'either' | '4h_and_1h' | '4h_only')}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <option value="either">1H or 4H (Responsive)</option>
+                  <option value="4h_and_1h">1H & 4H (Strict Both)</option>
+                  <option value="4h_only">4H Only (Macro)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -1649,6 +1672,11 @@ export default function DashboardPage() {
           rsiBuyMax={rsiBuyMax}
           rsiSellMin={rsiSellMin}
           rsiSellMax={rsiSellMax}
+          stochKPeriod={stochKPeriod}
+          stochDPeriod={stochDPeriod}
+          stochSmooth={stochSmooth}
+          stochOversold={stochOversold}
+          stochOverbought={stochOverbought}
           trades={isBacktestMatchingChart ? backtestResult?.trades : []}
         />
       </section>

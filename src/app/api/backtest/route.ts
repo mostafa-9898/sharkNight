@@ -187,9 +187,9 @@ export async function POST(request: Request) {
     const trendRequirement =
       body.trendRequirement === '4h_only'
         ? '4h_only'
-        : body.trendRequirement === 'either'
-          ? 'either'
-          : '4h_and_1h';
+        : body.trendRequirement === '4h_and_1h'
+          ? '4h_and_1h'
+          : 'either';
     const lookbackBars = Math.max(1, Number(body.lookbackBars ?? 3));
     const minConfirmations = Math.max(1, Math.min(3, Number(body.minConfirmations ?? 2)));
 

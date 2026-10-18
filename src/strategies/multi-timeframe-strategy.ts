@@ -216,7 +216,7 @@ export class MultiTimeframeStrategy implements Strategy {
     this.stochOversold = config?.stochOversold ?? 30;
     this.stochOverbought = config?.stochOverbought ?? 70;
 
-    this.trendRequirement = config?.trendRequirement ?? '4h_and_1h';
+    this.trendRequirement = config?.trendRequirement ?? 'either';
     this.requireLtfCloudAlignment = config?.requireLtfCloudAlignment ?? true;
     this.lookbackBars = Math.max(1, config?.lookbackBars ?? 3);
     this.minConfirmations = Math.max(1, Math.min(3, config?.minConfirmations ?? 2));
@@ -356,8 +356,13 @@ export class MultiTimeframeStrategy implements Strategy {
     const stoch4hK = cached.htf4hStoch.k[htf4hIdx];
     const stoch4hD = cached.htf4hStoch.d[htf4hIdx];
 
-    const ichiBull4h = c4h.close > cloudTop4h && tenkan4h >= kijun4h;
-    const ichiBear4h = c4h.close < cloudBtm4h && tenkan4h <= kijun4h;
+    const ichiBull4h =
+      tenkan4h >= kijun4h &&
+      (c4h.close >= kijun4h || (!Number.isFinite(cloudTop4h) || c4h.close > cloudTop4h));
+
+    const ichiBear4h =
+      tenkan4h <= kijun4h &&
+      (c4h.close <= kijun4h || (!Number.isFinite(cloudBtm4h) || c4h.close < cloudBtm4h));
 
     const rsiBull4h = !Number.isFinite(rsi4h) || rsi4h >= 45;
     const rsiBear4h = !Number.isFinite(rsi4h) || rsi4h <= 55;
@@ -381,8 +386,13 @@ export class MultiTimeframeStrategy implements Strategy {
     const stoch1hK = cached.htf1hStoch.k[htf1hIdx];
     const stoch1hD = cached.htf1hStoch.d[htf1hIdx];
 
-    const ichiBull1h = c1h.close > cloudTop1h && tenkan1h >= kijun1h;
-    const ichiBear1h = c1h.close < cloudBtm1h && tenkan1h <= kijun1h;
+    const ichiBull1h =
+      tenkan1h >= kijun1h &&
+      (c1h.close >= kijun1h || (!Number.isFinite(cloudTop1h) || c1h.close > cloudTop1h));
+
+    const ichiBear1h =
+      tenkan1h <= kijun1h &&
+      (c1h.close <= kijun1h || (!Number.isFinite(cloudBtm1h) || c1h.close < cloudBtm1h));
 
     const rsiBull1h = !Number.isFinite(rsi1h) || rsi1h >= 45;
     const rsiBear1h = !Number.isFinite(rsi1h) || rsi1h <= 55;
@@ -396,15 +406,38 @@ export class MultiTimeframeStrategy implements Strategy {
     let bullish = false;
     let bearish = false;
 
-    if (this.trendRequirement === '4h_and_1h') {
-      bullish = isBull4h && (isBull1h || (c1h.close > cloudBtm1h && rsiBull1h));
-      bearish = isBear4h && (isBear1h || (c1h.close < cloudTop1h && rsiBear1h));
-    } else if (this.trendRequirement === '4h_only') {
+    if (this.trendRequirement === '4h_only') {
       bullish = isBull4h;
       bearish = isBear4h;
+    } else if (this.trendRequirement === 'either') {
+      // 1h is primary for 15m; if 1h has a clear direction, it takes priority; otherwise 4h macro decides
+      if (isBull1h && !isBear1h) {
+        bullish = true;
+      } else if (isBear1h && !isBull1h) {
+        bearish = true;
+      } else if (isBull4h && !isBear4h) {
+        bullish = true;
+      } else if (isBear4h && !isBull4h) {
+        bearish = true;
+      }
     } else {
-      bullish = isBull4h || isBull1h;
-      bearish = isBear4h || isBear1h;
+      // '4h_and_1h' (default):
+      // 1. Both aligned: (isBull4h && isBull1h) => bullish
+      // 2. 1h breakout with 4h not strongly dumping: isBull1h && (!isBear4h || c4h.close >= kijun4h)
+      // 3. 4h strong trend with 1h dip recovery: isBull4h && !isBear1h
+      if (isBull4h && isBull1h) {
+        bullish = true;
+      } else if (isBear4h && isBear1h) {
+        bearish = true;
+      } else if (isBull1h && !isBear1h && (!isBear4h || c4h.close >= kijun4h)) {
+        bullish = true;
+      } else if (isBear1h && !isBull1h && (!isBull4h || c4h.close <= kijun4h)) {
+        bearish = true;
+      } else if (isBull4h && !isBear1h) {
+        bullish = true;
+      } else if (isBear4h && !isBull1h) {
+        bearish = true;
+      }
     }
 
     return { bullish, bearish, htf4hIdx, htf1hIdx };

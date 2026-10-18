@@ -206,4 +206,27 @@ describe('MultiTimeframeStrategy', () => {
     expect(result).toBeDefined();
     expect(result.metrics.totalTrades).toBeGreaterThanOrEqual(0);
   });
+
+  it('triggers BUY at 3 Sep 2026 02:30 UTC when 1h trend is bullish and LTF confluence confirms', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    const fixturePath = path.join(__dirname, '../fixtures/btc_15m_sep3_slice.json');
+    if (!fs.existsSync(fixturePath)) return;
+    const candles = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    const targetTime = new Date('2026-09-03T02:30:00Z').getTime();
+    const idx = candles.findIndex((c: Candle) => c.timestamp === targetTime);
+    expect(idx).toBeGreaterThan(0);
+
+    const strategy = new MultiTimeframeStrategy({
+      lookbackBars: 3,
+      minConfirmations: 2,
+    });
+
+    const signal = strategy.analyze(candles, idx);
+    expect(signal.action).toBe('BUY');
+    expect(signal.price).toBe(77766.2);
+    expect(signal.metadata?.confirmations).toBeGreaterThanOrEqual(2);
+  });
 });

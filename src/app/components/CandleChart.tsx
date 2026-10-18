@@ -16,6 +16,7 @@ import type { Trade } from '@/backtest/types';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import RsiSubChart from './RsiSubChart';
+import StochSubChart from './StochSubChart';
 
 interface CandleChartProps {
   candles: Candle[];
@@ -34,6 +35,12 @@ interface CandleChartProps {
   rsiBuyMax?: number;
   rsiSellMin?: number;
   rsiSellMax?: number;
+  // Stochastic params (from dashboard)
+  stochKPeriod?: number;
+  stochDPeriod?: number;
+  stochSmooth?: number;
+  stochOversold?: number;
+  stochOverbought?: number;
   // Backtest executed trades
   trades?: Trade[];
 }
@@ -100,24 +107,68 @@ class IchimokuCloudPrimitive implements ISeriesPrimitive<Time> {
           draw: (target: any) => {
             if (!this._chart || !this._series || this._points.length < 2) return;
             try {
-              target.useMediaCoordinateSpace((scope: { context: CanvasRenderingContext2D }) => {
+              target.useMediaCoordinateSpace((scope: { context: CanvasRenderingContext2D; mediaSize: { width: number; height: number } }) => {
                 const ctx = scope.context;
                 const timeScale = this._chart!.timeScale();
+                const width = scope.mediaSize?.width ?? 2000;
 
-                for (let i = 0; i < this._points.length - 1; i++) {
+                // Determine visible window to skip thousands of off-screen points
+                let startIdx = 0;
+                let endIdx = this._points.length - 1;
+                const visibleRange = timeScale.getVisibleRange();
+                if (visibleRange && visibleRange.from !== null && visibleRange.to !== null) {
+                  const fromTime = Number(visibleRange.from) - 86400; // 1-day buffer before left edge
+                  const toTime = Number(visibleRange.to) + 86400;     // 1-day buffer after right edge
+
+                  let low = 0;
+                  let high = this._points.length - 1;
+                  while (low <= high) {
+                    const mid = (low + high) >> 1;
+                    if (this._points[mid].time >= fromTime) {
+                      startIdx = mid;
+                      high = mid - 1;
+                    } else {
+                      low = mid + 1;
+                    }
+                  }
+
+                  low = startIdx;
+                  high = this._points.length - 1;
+                  while (low <= high) {
+                    const mid = (low + high) >> 1;
+                    if (this._points[mid].time <= toTime) {
+                      endIdx = mid;
+                      low = mid + 1;
+                    } else {
+                      high = mid - 1;
+                    }
+                  }
+                }
+
+                const bullPath = new Path2D();
+                const bearPath = new Path2D();
+                let hasBull = false;
+                let hasBear = false;
+
+                const maxIdx = Math.min(endIdx, this._points.length - 2);
+                for (let i = startIdx; i <= maxIdx; i++) {
                   const p1 = this._points[i];
                   const p2 = this._points[i + 1];
 
                   const x1 = timeScale.timeToCoordinate(p1.time);
+                  if (x1 === null) continue;
+                  // Break loop early once beyond right edge of visible canvas
+                  if (x1 > width + 50) break;
+
                   const x2 = timeScale.timeToCoordinate(p2.time);
+                  if (x2 === null || x2 < -50) continue;
+
                   const yA1 = this._series!.priceToCoordinate(p1.a);
                   const yA2 = this._series!.priceToCoordinate(p2.a);
                   const yB1 = this._series!.priceToCoordinate(p1.b);
                   const yB2 = this._series!.priceToCoordinate(p2.b);
 
                   if (
-                    x1 === null ||
-                    x2 === null ||
                     yA1 === null ||
                     yA2 === null ||
                     yB1 === null ||
@@ -126,18 +177,26 @@ class IchimokuCloudPrimitive implements ISeriesPrimitive<Time> {
                     continue;
                   }
 
-                  ctx.beginPath();
-                  ctx.moveTo(x1, yA1);
-                  ctx.lineTo(x2, yA2);
-                  ctx.lineTo(x2, yB2);
-                  ctx.lineTo(x1, yB1);
-                  ctx.closePath();
-
                   const isBullish = (p1.a + p2.a) / 2 >= (p1.b + p2.b) / 2;
-                  ctx.fillStyle = isBullish
-                    ? 'rgba(34, 197, 94, 0.22)'
-                    : 'rgba(239, 68, 68, 0.22)';
-                  ctx.fill();
+                  const targetPath = isBullish ? bullPath : bearPath;
+
+                  targetPath.moveTo(x1, yA1);
+                  targetPath.lineTo(x2, yA2);
+                  targetPath.lineTo(x2, yB2);
+                  targetPath.lineTo(x1, yB1);
+                  targetPath.closePath();
+
+                  if (isBullish) hasBull = true;
+                  else hasBear = true;
+                }
+
+                if (hasBull) {
+                  ctx.fillStyle = 'rgba(34, 197, 94, 0.22)';
+                  ctx.fill(bullPath);
+                }
+                if (hasBear) {
+                  ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+                  ctx.fill(bearPath);
                 }
               });
             } catch {
@@ -165,6 +224,11 @@ export default function CandleChart({
   rsiBuyMax = 40,
   rsiSellMin = 60,
   rsiSellMax = 80,
+  stochKPeriod = 14,
+  stochDPeriod = 3,
+  stochSmooth = 3,
+  stochOversold = 30,
+  stochOverbought = 70,
   trades = [],
 }: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -186,6 +250,7 @@ export default function CandleChart({
   // Indicators: OFF by default on initial load!
   const [showIchimoku, setShowIchimoku] = useState(false);
   const [showRSI, setShowRSI] = useState(false);
+  const [showStoch, setShowStoch] = useState(false);
   const [showSignals, setShowSignals] = useState(false);
 
   // Indicators Dropdown menu state
@@ -611,10 +676,11 @@ export default function CandleChart({
     e.stopPropagation();
     setShowIchimoku(false);
     setShowRSI(false);
+    setShowStoch(false);
     setShowSignals(false);
   };
 
-  const activeIndicatorsCount = [showIchimoku, showRSI, showSignals].filter(Boolean).length;
+  const activeIndicatorsCount = [showIchimoku, showRSI, showStoch, showSignals].filter(Boolean).length;
 
   return (
     <div
@@ -851,7 +917,33 @@ export default function CandleChart({
                   <span style={{ fontSize: '10px', color: '#8b949e' }}>Sub-chart</span>
                 </label>
 
-                {/* Option 3: Trade Signals */}
+                {/* Option 3: Stochastic Oscillator */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: showStoch ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={showStoch}
+                      onChange={(e) => setShowStoch(e.target.checked)}
+                      style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
+                      🌊 Stochastic (%K {stochKPeriod} / %D {stochDPeriod})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#8b949e' }}>Sub-chart</span>
+                </label>
+
+                {/* Option 4: Trade Signals */}
                 <label
                   style={{
                     display: 'flex',
@@ -926,6 +1018,22 @@ export default function CandleChart({
           rsiBuyMax={rsiBuyMax}
           rsiSellMin={rsiSellMin}
           rsiSellMax={rsiSellMax}
+          onClose={() => setShowRSI(false)}
+          mainChartRef={chartRef}
+        />
+      )}
+
+      {/* Stochastic Sub-Chart (Synchronized time-axis) */}
+      {showStoch && (
+        <StochSubChart
+          candles={candles}
+          stochKPeriod={stochKPeriod}
+          stochDPeriod={stochDPeriod}
+          stochSmooth={stochSmooth}
+          oversold={stochOversold}
+          overbought={stochOverbought}
+          onClose={() => setShowStoch(false)}
+          mainChartRef={chartRef}
         />
       )}
     </div>
