@@ -545,8 +545,7 @@ export class BacktestEngine {
             }
           }
         }
-      } else {
-        // 'long-only' mode
+      } else if (tradeMode === 'long-only') {
         if (signal.action === 'BUY') {
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
@@ -595,6 +594,59 @@ export class BacktestEngine {
                 timestamp: candle.timestamp,
                 signal,
                 reason: 'longOnlyShortIgnored',
+              });
+            }
+          }
+        }
+      } else if (tradeMode === 'short-only') {
+        if (signal.action === 'SELL') {
+          if (!activePos) {
+            portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
+            tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+          } else if (activePos.side === 'short') {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
+          }
+        } else if (signal.action === 'BUY') {
+          if (activePos && activePos.side === 'short') {
+            if (exitMode === 'trailingOnly') {
+              if (collectTrace) {
+                trace.ignoredSignals.push({
+                  index: i,
+                  timestamp: candle.timestamp,
+                  signal,
+                  reason: 'shortOnlyLongIgnored',
+                });
+              }
+            } else {
+              const mfe = tradeState
+                ? ((tradeState.highestHigh - activePos.entryPrice) / activePos.entryPrice) * 100
+                : 0;
+              const mae = tradeState
+                ? ((activePos.entryPrice - tradeState.lowestLow) / activePos.entryPrice) * 100
+                : 0;
+              portfolio.closePosition(signal, candle.close, candle.timestamp, 'signal', {
+                maxFavorablePercent: mfe,
+                maxAdversePercent: mae,
+                stopPrice: tradeState?.stopPrice ?? undefined,
+                ratchetSteps: tradeState?.ratchetSteps,
+                entryDiagnostics: tradeState?.entryDiagnostics,
+              });
+              tradeState = null;
+            }
+          } else if (!activePos) {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'shortOnlyLongIgnored',
               });
             }
           }

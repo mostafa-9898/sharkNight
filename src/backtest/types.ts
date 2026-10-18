@@ -1,7 +1,7 @@
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from '../strategies/types';
 
-export type TradeMode = 'long-short' | 'long-only';
+export type TradeMode = 'long-short' | 'long-only' | 'short-only';
 export type TradeSide = 'long' | 'short';
 export type ExitReason =
   | 'signal'
@@ -57,7 +57,7 @@ export interface IgnoredSignalTraceEvent {
   index: number;
   timestamp: number;
   signal: TradeSignal;
-  reason: 'alreadyInPosition' | 'longOnlyShortIgnored';
+  reason: 'alreadyInPosition' | 'longOnlyShortIgnored' | 'shortOnlyLongIgnored';
 }
 
 export interface BacktestTrace {

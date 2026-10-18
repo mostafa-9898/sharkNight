@@ -100,8 +100,14 @@ export function calculateMetrics(
 
   if (totalTrades > 0) {
     const returns = trades.map((t) => t.pnlPercent);
-    bestTrade = Math.max(...returns);
-    worstTrade = Math.min(...returns);
+    let best = returns[0];
+    let worst = returns[0];
+    for (let i = 1; i < returns.length; i++) {
+      if (returns[i] > best) best = returns[i];
+      if (returns[i] < worst) worst = returns[i];
+    }
+    bestTrade = best;
+    worstTrade = worst;
     averageTradeReturn = mean(returns);
 
     const stdDev = standardDeviation(returns);

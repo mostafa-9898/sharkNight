@@ -136,4 +136,19 @@ describe('Backtest Metrics Calculator', () => {
     // Threshold >= 10%: 12 and 22 -> 2/3 = 66.7%
     expect(analysis.all.mfeThresholds['>=10%']).toBe(66.7);
   });
+
+  it('should handle large trade and equity arrays (100,000 items) without call stack overflow', () => {
+    const largeTrades: Trade[] = [];
+    for (let i = 0; i < 70000; i++) {
+      largeTrades.push(createTrade(1, 0.1, 'long', 0.01));
+    }
+    const largeEquity = new Array(100000).fill(10000);
+
+    expect(() => {
+      const res = calculateMetrics(largeTrades, 10000, largeEquity);
+      expect(res.totalTrades).toBe(70000);
+      expect(res.bestTrade).toBe(0.1);
+      expect(res.worstTrade).toBe(0.1);
+    }).not.toThrow();
+  });
 });

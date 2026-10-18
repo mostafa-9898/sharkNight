@@ -127,8 +127,9 @@ interface BacktestResultData {
 }
 
 export default function DashboardPage() {
-  // Strategy Mode & Engine
-  const [strategyType, setStrategyType] = useState<'mtf' | 'single'>('mtf');
+  // Strategy Mode & Engine (Locked to Multi-Timeframe)
+  const strategyType = 'mtf';
+  const exitMode: ExitMode = 'trailingOnly';
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
   const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
   const [btPeriod, setBtPeriod] = useState<string>('all');
@@ -164,12 +165,6 @@ export default function DashboardPage() {
 
   // Trade Mode & Risk Management
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
-  const [exitMode, setExitMode] = useState<ExitMode>('trailingOnly');
-  const [maxBarsInTrade, setMaxBarsInTrade] = useState<string>('');
-  const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
-  const [takeProfitPercent, setTakeProfitPercent] = useState(10);
-  const [stopLossEnabled, setStopLossEnabled] = useState(true);
-  const [stopLossPercent, setStopLossPercent] = useState(5);
 
   // Position Sizing & Cloud Filter
   const [positionSizePercent, setPositionSizePercent] = useState<number>(20);
@@ -269,7 +264,6 @@ export default function DashboardPage() {
           rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
           tradeMode,
           exitMode,
-          maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
           strategyType,
           stochKPeriod,
           stochDPeriod,
@@ -278,8 +272,6 @@ export default function DashboardPage() {
           stochOverbought,
           useTdrStop,
           tdrMultiplier,
-          takeProfitPercent: takeProfitEnabled ? takeProfitPercent : undefined,
-          stopLossPercent: stopLossEnabled && !trailingStopEnabled ? stopLossPercent : undefined,
           trailingStopEnabled,
           initialStopPercent: trailingStopEnabled ? initialStopPercent : undefined,
           trailStepPercent: trailingStopEnabled ? trailStepPercent : undefined,
@@ -312,7 +304,6 @@ export default function DashboardPage() {
         useTdrStop,
         tdrMultiplier,
         exitMode,
-        maxBarsInTrade: maxBarsInTrade !== '' ? Number(maxBarsInTrade) : undefined,
         rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
         ichimokuTenkan,
         ichimokuKijun,
@@ -381,12 +372,6 @@ export default function DashboardPage() {
     rsiLookback,
     rsiRecoveryCap,
     tradeMode,
-    exitMode,
-    maxBarsInTrade,
-    takeProfitEnabled,
-    takeProfitPercent,
-    stopLossEnabled,
-    stopLossPercent,
     trailingStopEnabled,
     initialStopPercent,
     trailStepPercent,
@@ -521,22 +506,23 @@ export default function DashboardPage() {
           {/* Strategy Engine */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Strategy Engine</label>
-            <select
-              value={strategyType}
-              onChange={(e) => setStrategyType(e.target.value as 'mtf' | 'single')}
+            <div
               style={{
                 backgroundColor: '#0d1117',
                 color: '#38bdf8',
-                border: '1px solid #30363d',
+                border: '1px solid #1f6feb',
                 borderRadius: '6px',
-                padding: '8px 12px',
+                padding: '8px 14px',
                 fontSize: '13px',
                 fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '37px',
               }}
             >
-              <option value="mtf">🌐 Multi-Timeframe (4h/1h Trend + 15m/5m Entry)</option>
-              <option value="single">☁️ Single Timeframe (Ichimoku + RSI)</option>
-            </select>
+              <span>🌐 Multi-Timeframe (4h/1h Trend + 15m/5m Entry)</span>
+            </div>
           </div>
 
           {/* Symbol */}
@@ -689,8 +675,9 @@ export default function DashboardPage() {
                 fontWeight: 600,
               }}
             >
-              <option value="long-short">Long & Short (Default)</option>
-              <option value="long-only">Long Only</option>
+              <option value="long-short">Long & Short</option>
+              <option value="long-only">Long Only (فقط خرید)</option>
+              <option value="short-only">Short Only (فقط فروش)</option>
             </select>
           </div>
 
@@ -1246,102 +1233,6 @@ export default function DashboardPage() {
               <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
             </div>
 
-            {/* Exit Mode */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Exit Mode:</label>
-              <select
-                value={exitMode}
-                onChange={(e) => setExitMode(e.target.value as ExitMode)}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#38bdf8',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                }}
-              >
-                <option value="trailingOnly">Trailing Ratchet Only (User Plan - No Signal Exit)</option>
-                <option value="reverse">Reverse on Signal</option>
-                <option value="tkCross">Opposite TK Cross</option>
-                <option value="kijun">Opposite Kijun Cross</option>
-              </select>
-            </div>
-
-            {/* Time Stop */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Time Stop:</span>
-              <input
-                type="number"
-                min={1}
-                placeholder="Off"
-                value={maxBarsInTrade}
-                onChange={(e) => setMaxBarsInTrade(e.target.value)}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '60px',
-                }}
-              />
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>bars</span>
-            </div>
-
-            {/* Take Profit % */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={takeProfitEnabled}
-                  onChange={(e) => setTakeProfitEnabled(e.target.checked)}
-                  style={{ accentColor: '#2ea043', width: '14px', height: '14px', cursor: 'pointer' }}
-                />
-                <span
-                  style={{
-                    fontSize: '12px',
-                    color: takeProfitEnabled ? '#e6edf3' : '#8b949e',
-                    fontWeight: 600,
-                  }}
-                >
-                  Take Profit:
-                </span>
-              </label>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: takeProfitEnabled ? 1 : 0.4,
-                }}
-              >
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  step={1}
-                  disabled={!takeProfitEnabled}
-                  value={takeProfitPercent}
-                  onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
-                  style={{
-                    backgroundColor: '#0d1117',
-                    color: '#2ea043',
-                    fontWeight: 700,
-                    border: '1px solid #30363d',
-                    borderRadius: '6px',
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    width: '65px',
-                    cursor: takeProfitEnabled ? 'text' : 'not-allowed',
-                  }}
-                />
-                <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
-              </div>
-            </div>
-
             {/* TDR Dynamic Stop Loss */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -1358,7 +1249,7 @@ export default function DashboardPage() {
                     fontWeight: 600,
                   }}
                 >
-                  📐 TDR Dynamic Stop:
+                  📐 TDR Stop (≤ 5% Cap):
                 </span>
               </label>
               <div
@@ -1391,69 +1282,6 @@ export default function DashboardPage() {
                 />
                 <span style={{ fontSize: '11px', color: '#8b949e' }}>x ATR</span>
               </div>
-            </div>
-
-            {/* Stop Loss % (disabled while Trailing Stop is enabled) */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                opacity: trailingStopEnabled ? 0.35 : 1,
-              }}
-              title={trailingStopEnabled ? 'Fixed Stop Loss is disabled while Trailing Stop is active' : ''}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: trailingStopEnabled ? 'not-allowed' : 'pointer' }}>
-                <input
-                  type="checkbox"
-                  disabled={trailingStopEnabled}
-                  checked={stopLossEnabled && !trailingStopEnabled}
-                  onChange={(e) => setStopLossEnabled(e.target.checked)}
-                  style={{ accentColor: '#f85149', width: '14px', height: '14px', cursor: trailingStopEnabled ? 'not-allowed' : 'pointer' }}
-                />
-                <span
-                  style={{
-                    fontSize: '12px',
-                    color: stopLossEnabled && !trailingStopEnabled ? '#e6edf3' : '#8b949e',
-                    fontWeight: 600,
-                  }}
-                >
-                  Fixed Stop Loss:
-                </span>
-              </label>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: stopLossEnabled && !trailingStopEnabled ? 1 : 0.4,
-                }}
-              >
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  step={1}
-                  disabled={!stopLossEnabled || trailingStopEnabled}
-                  value={stopLossPercent}
-                  onChange={(e) => setStopLossPercent(Number(e.target.value))}
-                  style={{
-                    backgroundColor: '#0d1117',
-                    color: '#f85149',
-                    fontWeight: 700,
-                    border: '1px solid #30363d',
-                    borderRadius: '6px',
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    width: '65px',
-                    cursor: stopLossEnabled && !trailingStopEnabled ? 'text' : 'not-allowed',
-                  }}
-                />
-                <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
-              </div>
-              {trailingStopEnabled && (
-                <span style={{ fontSize: '10px', color: '#eab308' }}>(disabled: trailing active)</span>
-              )}
             </div>
 
             {/* Trailing Stop Box */}

@@ -531,7 +531,8 @@ export default function CandleChart({
 
       const markers: SeriesMarker<Time>[] = [];
 
-      for (const trade of trades) {
+      trades.forEach((trade, idx) => {
+        const tradeNum = idx + 1;
         const isLong = trade.side === 'long';
 
         // Entry Marker
@@ -539,22 +540,22 @@ export default function CandleChart({
           const entrySec = Math.floor(trade.entryTime / 1000) as UTCTimestamp;
           if (candleTimeSet.has(entrySec)) {
             if (isLong) {
-              // Long entry = BUY arrow up below the bar
+              // Long entry = BUY arrow up below the bar with trade number
               markers.push({
                 time: entrySec,
                 position: 'belowBar',
                 color: '#2ea043',
                 shape: 'arrowUp',
-                text: `BUY (LONG) @ $${trade.entryPrice.toLocaleString()}`,
+                text: `#${tradeNum} BUY @ $${trade.entryPrice.toLocaleString()}`,
               });
             } else {
-              // Short entry = SELL arrow down above the bar
+              // Short entry = SELL arrow down above the bar with trade number
               markers.push({
                 time: entrySec,
                 position: 'aboveBar',
                 color: '#eab308',
                 shape: 'arrowDown',
-                text: `SELL (SHORT) @ $${trade.entryPrice.toLocaleString()}`,
+                text: `#${tradeNum} SHORT @ $${trade.entryPrice.toLocaleString()}`,
               });
             }
           }
@@ -568,27 +569,27 @@ export default function CandleChart({
             const pnlStr = `${isWin ? '+' : ''}${trade.pnlPercent.toFixed(1)}%`;
 
             if (isLong) {
-              // Long exit = arrow down above the bar with PnL%
+              // Long exit = arrow down above the bar with trade number and PnL%
               markers.push({
                 time: exitSec,
                 position: 'aboveBar',
                 color: isWin ? '#38bdf8' : '#f85149',
                 shape: 'arrowDown',
-                text: `EXIT LONG (${pnlStr}) [${trade.exitReason}]`,
+                text: `#${tradeNum} EXIT (${pnlStr}) [${trade.exitReason}]`,
               });
             } else {
-              // Short exit = arrow up below the bar with PnL%
+              // Short exit = arrow up below the bar with trade number and PnL%
               markers.push({
                 time: exitSec,
                 position: 'belowBar',
                 color: isWin ? '#38bdf8' : '#f85149',
                 shape: 'arrowUp',
-                text: `EXIT SHORT (${pnlStr}) [${trade.exitReason}]`,
+                text: `#${tradeNum} EXIT (${pnlStr}) [${trade.exitReason}]`,
               });
             }
           }
         }
-      }
+      });
 
       // Sort markers chronologically; if duplicate timestamps occur (reversals), both remain in array
       markers.sort((a, b) => Number(a.time) - Number(b.time));

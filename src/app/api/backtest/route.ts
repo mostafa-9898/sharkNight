@@ -86,8 +86,12 @@ export async function POST(request: Request) {
         : undefined;
     const kijunSlopeFilter = Boolean(body.kijunSlopeFilter);
 
-    // Trade Mode & Risk Management
-    const tradeMode: TradeMode = body.tradeMode === 'long-only' ? 'long-only' : 'long-short';
+    const tradeMode: TradeMode =
+      body.tradeMode === 'short-only'
+        ? 'short-only'
+        : body.tradeMode === 'long-only'
+        ? 'long-only'
+        : 'long-short';
     const exitMode: ExitMode =
       body.exitMode === 'tkCross' || body.exitMode === 'kijun' || body.exitMode === 'reverse'
         ? body.exitMode
