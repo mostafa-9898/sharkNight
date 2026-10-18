@@ -2,6 +2,7 @@ import { BacktestEngine } from '@/backtest/engine';
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 import {
   buildBacktestReport,
+  computeDatasetFingerprint,
   computeDrawdownPeriods,
   computeTradeTrajectories,
   formatHistoryWinRate,
@@ -275,36 +276,338 @@ describe('Backtest Report Builder & Tracing', () => {
   });
 
   describe('3. Invariant Checks Verification', () => {
-    it('should assert all invariants pass on valid backtest execution', () => {
-      const strategy = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
-      const engine = new BacktestEngine();
-      const backtestResult = engine.run({
-        strategy,
-        candles,
-        initialBalance: 10000,
-        tradeFeePercent: 0.1,
-        positionSizePercent: 20,
-        trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
-        collectTrace: true,
-      });
+    it('should handle zero trades correctly: Cash passes, and sample-dependent checks return NOT_APPLICABLE', () => {
+      const input = makeReportInput([]);
+      const output = buildBacktestReport(input);
 
-      const output = buildBacktestReport({
-        backtestResult,
-        candles,
-        config: {
-          symbol: 'BTCUSDT',
-          interval: '1h',
-          initialBalance: 10000,
-          tradeFeePercent: 0.1,
-          trailingStop: { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 },
-          gitCommit: 'test',
-          isDirty: false,
-        },
-      });
+      const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+      expect(invariants).toHaveLength(4);
+
+      const cashInv = invariants.find((i) => i.name === 'Cash / Equity Conservation')!;
+      expect(cashInv.status).toBe('PASS');
+      expect(cashInv.violations).toBe(0);
+
+      const stopInv = invariants.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+      expect(stopInv.status).toBe('NOT_APPLICABLE');
+      expect(stopInv.violations).toBe(0);
+      expect(stopInv.details).toContain('0 applicable trades');
+
+      const overlapInv = invariants.find((i) => i.name === 'Trade Non-Overlap (Single Position Invariant)')!;
+      expect(overlapInv.status).toBe('NOT_APPLICABLE');
+      expect(overlapInv.violations).toBe(0);
+      expect(overlapInv.details).toContain('0 trade pairs');
+
+      const ratchetInv = invariants.find((i) => i.name === 'Trailing Ratchet Step Non-Negativity')!;
+      expect(ratchetInv.status).toBe('NOT_APPLICABLE');
+      expect(ratchetInv.violations).toBe(0);
+
+      // Markdown representation: NOT_APPLICABLE rendered as ⚪ N/A, PASS as ✅ PASS
+      expect(output.markdown).toContain('| **Cash / Equity Conservation** | ✅ PASS | 0 |');
+      expect(output.markdown).toContain('| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚪ N/A | 0 |');
+      expect(output.markdown).toContain('| **Trade Non-Overlap (Single Position Invariant)** | ⚪ N/A | 0 |');
+      expect(output.markdown).toContain('| **Trailing Ratchet Step Non-Negativity** | ⚪ N/A | 0 |');
+    });
+
+    it('should report NOT_APPLICABLE for Trade Non-Overlap when only one trade executed', () => {
+      const singleTrade: Trade = {
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+
+      const input = makeReportInput([singleTrade], { totalTrades: 1, winningTrades: 1, totalPnl: 500 });
+      const output = buildBacktestReport(input);
+
+      const invariants = output.json.invariants as Array<{ name: string; status: string; details: string }>;
+      const overlapInv = invariants.find((i) => i.name === 'Trade Non-Overlap (Single Position Invariant)')!;
+      expect(overlapInv.status).toBe('NOT_APPLICABLE');
+      expect(overlapInv.details).toContain('Only 1 trade executed; no adjacent trade pairs exist');
+
+      const stopInv = invariants.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+      expect(stopInv.status).toBe('NOT_APPLICABLE'); // takeProfit exit is not applicable to stop fill
+    });
+
+    it('should verify Stop Fill Integrity on applicable stop exits and report PASS when valid', () => {
+      const validStopTrade: Trade = {
+        side: 'long',
+        exitReason: 'stopLoss',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 95, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 95,
+        stopPrice: 95,
+        quantity: 1,
+        pnl: -500,
+        pnlPercent: -5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 1,
+        maxAdversePercent: 5.5,
+      };
+
+      const input = makeReportInput([validStopTrade], { totalTrades: 1, losingTrades: 1, totalPnl: -500 });
+      input.backtestResult.equity = [10000, 9500];
+      const output = buildBacktestReport(input);
+
+      const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+      const stopInv = invariants.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+      expect(stopInv.status).toBe('PASS');
+      expect(stopInv.violations).toBe(0);
+      expect(stopInv.details).toContain('1/1 applicable stop trades');
+    });
+
+    it('should report INCOMPLETE for Stop Fill Integrity when stop metadata is missing or uncheckable', () => {
+      const missingStopPriceTrade: Trade = {
+        side: 'long',
+        exitReason: 'stopLoss',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 95, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 95,
+        stopPrice: undefined, // Missing stop price!
+        quantity: 1,
+        pnl: -500,
+        pnlPercent: -5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 1,
+        maxAdversePercent: 5.5,
+      };
+
+      const input = makeReportInput([missingStopPriceTrade], { totalTrades: 1, losingTrades: 1, totalPnl: -500 });
+      input.backtestResult.equity = [10000, 9500];
+      const output = buildBacktestReport(input);
+
+      const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+      const stopInv = invariants.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+      expect(stopInv.status).toBe('INCOMPLETE');
+      expect(stopInv.violations).toBe(0);
+      expect(stopInv.details).toContain('uncheckable due to missing stop price or exit candle');
+      expect(output.markdown).toContain('| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚠️ INCOMPLETE |');
+    });
+
+    it('should report FAIL for Stop Fill Integrity when exit price breaches worst allowed stop', () => {
+      const breachedStopTrade: Trade = {
+        side: 'long',
+        exitReason: 'stopLoss',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 90, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 90, // severely breached 95 stopPrice when candle open was 96
+        stopPrice: 95,
+        quantity: 1,
+        pnl: -1000,
+        pnlPercent: -10.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 1,
+        maxAdversePercent: 10.5,
+      };
+
+      const input = makeReportInput([breachedStopTrade], { totalTrades: 1, losingTrades: 1, totalPnl: -1000 });
+      input.backtestResult.equity = [10000, 9000];
+      const output = buildBacktestReport(input);
 
       const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
-      expect(invariants).toBeDefined();
-      expect(invariants.length).toBe(4);
+      const stopInv = invariants.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+      expect(stopInv.status).toBe('FAIL');
+      expect(stopInv.violations).toBe(1);
+      expect(output.markdown).toContain('| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ❌ FAIL | 1 |');
+    });
+
+    it('should verify Trade Non-Overlap with multiple trades and detect overlaps', () => {
+      const trade1: Trade = {
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+      const trade2NonOverlap: Trade = {
+        side: 'short',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        exitSignal: { action: 'BUY', price: 100, timestamp: candles[10].timestamp },
+        entryPrice: 105,
+        exitPrice: 100,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[5].timestamp, // Entered at same time as previous exit (simultaneous)
+        exitTime: candles[10].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+
+      const validOverlapInput = makeReportInput([trade1, trade2NonOverlap], { totalTrades: 2, winningTrades: 2, totalPnl: 1000 });
+      validOverlapInput.backtestResult.equity = [10000, 11000];
+      const validOutput = buildBacktestReport(validOverlapInput);
+
+      const validInvariants = validOutput.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+      const overlapPass = validInvariants.find((i) => i.name === 'Trade Non-Overlap (Single Position Invariant)')!;
+      expect(overlapPass.status).toBe('PASS');
+      expect(overlapPass.violations).toBe(0);
+      expect(overlapPass.details).toContain('1/1 adjacent pairs verified');
+
+      // Now create overlapping trade
+      const trade2Overlapping: Trade = {
+        ...trade2NonOverlap,
+        entryTime: candles[3].timestamp, // Entered before trade 1 exited (candle 5)!
+      };
+
+      const invalidOverlapInput = makeReportInput([trade1, trade2Overlapping], { totalTrades: 2, winningTrades: 2, totalPnl: 1000 });
+      invalidOverlapInput.backtestResult.equity = [10000, 11000];
+      const invalidOutput = buildBacktestReport(invalidOverlapInput);
+
+      const invalidInvariants = invalidOutput.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+      const overlapFail = invalidInvariants.find((i) => i.name === 'Trade Non-Overlap (Single Position Invariant)')!;
+      expect(overlapFail.status).toBe('FAIL');
+      expect(overlapFail.violations).toBe(1);
+      expect(overlapFail.details).toContain('Trade overlap detected in 1/1 adjacent trade pairs');
+    });
+
+    it('should verify Trailing Ratchet Step Non-Negativity and detect negative step counts', () => {
+      // Disabled trailing stop
+      const disabledInput = makeReportInput([]);
+      disabledInput.config.trailingStop = undefined;
+      const disabledOutput = buildBacktestReport(disabledInput);
+      const disabledInvariants = disabledOutput.json.invariants as Array<{ name: string; status: string; details: string }>;
+      const disabledRatchet = disabledInvariants.find((i) => i.name === 'Trailing Ratchet Step Non-Negativity')!;
+      expect(disabledRatchet.status).toBe('NOT_APPLICABLE');
+      expect(disabledRatchet.details).toContain('Trailing stop disabled in configuration');
+
+      // Enabled trailing stop with valid non-negative steps
+      const validRatchetTrade: Trade = {
+        side: 'long',
+        exitReason: 'trailingStop',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 105,
+        stopPrice: 103,
+        ratchetSteps: 2,
+        quantity: 1,
+        pnl: 500,
+        pnlPercent: 5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 6,
+        maxAdversePercent: 0.5,
+      };
+
+      const validRatchetInput = makeReportInput([validRatchetTrade], { totalTrades: 1, winningTrades: 1, totalPnl: 500 });
+      validRatchetInput.config.trailingStop = { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 };
+      validRatchetInput.backtestResult.equity = [10000, 10500];
+      const validRatchetOutput = buildBacktestReport(validRatchetInput);
+
+      const validRatchetInvariants = validRatchetOutput.json.invariants as Array<{ name: string; status: string; violations: number }>;
+      const validRatchet = validRatchetInvariants.find((i) => i.name === 'Trailing Ratchet Step Non-Negativity')!;
+      expect(validRatchet.status).toBe('PASS');
+      expect(validRatchet.violations).toBe(0);
+
+      // Trailing stop with negative ratchet steps
+      const negativeRatchetTrade: Trade = {
+        ...validRatchetTrade,
+        ratchetSteps: -1,
+      };
+
+      const negativeRatchetInput = makeReportInput([negativeRatchetTrade], { totalTrades: 1, winningTrades: 1, totalPnl: 500 });
+      negativeRatchetInput.config.trailingStop = { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 };
+      negativeRatchetInput.backtestResult.equity = [10000, 10500];
+      const negativeRatchetOutput = buildBacktestReport(negativeRatchetInput);
+
+      const negativeRatchetInvariants = negativeRatchetOutput.json.invariants as Array<{ name: string; status: string; violations: number }>;
+      const negativeRatchet = negativeRatchetInvariants.find((i) => i.name === 'Trailing Ratchet Step Non-Negativity')!;
+      expect(negativeRatchet.status).toBe('FAIL');
+      expect(negativeRatchet.violations).toBe(1);
+    });
+
+    it('should assert all 4 invariants pass when valid backtest execution has verified stop exits, trade pairs, and non-negative ratchets', () => {
+      const trade1: Trade = {
+        side: 'long',
+        exitReason: 'stopLoss',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[0].timestamp },
+        exitSignal: { action: 'SELL', price: 95, timestamp: candles[5].timestamp },
+        entryPrice: 100,
+        exitPrice: 95,
+        stopPrice: 95,
+        ratchetSteps: 0,
+        quantity: 1,
+        pnl: -500,
+        pnlPercent: -5.0,
+        fee: 1,
+        entryTime: candles[0].timestamp,
+        exitTime: candles[5].timestamp,
+        duration: 5,
+        maxFavorablePercent: 1,
+        maxAdversePercent: 5.5,
+      };
+      const trade2: Trade = {
+        side: 'long',
+        exitReason: 'trailingStop',
+        entrySignal: { action: 'BUY', price: 95, timestamp: candles[6].timestamp },
+        exitSignal: { action: 'SELL', price: 105, timestamp: candles[10].timestamp },
+        entryPrice: 95,
+        exitPrice: 105,
+        stopPrice: 102,
+        ratchetSteps: 2,
+        quantity: 1,
+        pnl: 1000,
+        pnlPercent: 10.0,
+        fee: 1,
+        entryTime: candles[6].timestamp,
+        exitTime: candles[10].timestamp,
+        duration: 4,
+        maxFavorablePercent: 12,
+        maxAdversePercent: 1,
+      };
+
+      const input = makeReportInput([trade1, trade2], {
+        totalTrades: 2,
+        winningTrades: 1,
+        losingTrades: 1,
+        winRate: 0.5,
+        totalPnl: 500,
+        totalPnlPercent: 5.0,
+      });
+      input.config.trailingStop = { initialStopPercent: 5, stepPercent: 10, raisePercent: 5 };
+      input.backtestResult.equity = [10000, 10500];
+
+      const output = buildBacktestReport(input);
+      const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
+      expect(invariants).toHaveLength(4);
 
       for (const inv of invariants) {
         expect(inv.status).toBe('PASS');
@@ -843,6 +1146,76 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(output.markdown).toContain('| `[20, 30)` | 0 | N/A | 0.00% | N/A |');
       expect(output.markdown).toContain('| `[50, 60)` | 1 | 100% | +5.00% | +5.00% |');
     });
+
+    it('should compute breakdown averages from raw sum without premature double rounding', () => {
+      // 4 trades each with pnlPercent = 10.0049.
+      // Raw sum = 40.0196.
+      // Correct unrounded mean = 40.0196 / 4 = 10.0049 -> rounded to 2 decimals = 10.00.
+      // If sum was prematurely rounded: roundTo(40.0196, 2) = 40.02.
+      // Premature average: 40.02 / 4 = 10.005 -> rounded to 2 decimals = 10.01.
+      // This test proves that premature rounding would change the reported average from 10.00 to 10.01.
+      const makeTrade = (index: number): Trade => ({
+        side: 'long',
+        exitReason: 'takeProfit',
+        entrySignal: { action: 'BUY', price: 100, timestamp: candles[index * 2].timestamp },
+        exitSignal: { action: 'SELL', price: 110, timestamp: candles[index * 2 + 1].timestamp },
+        entryPrice: 100,
+        exitPrice: 110,
+        quantity: 1,
+        pnl: 100.049,
+        pnlPercent: 10.0049,
+        fee: 0.1,
+        entryTime: candles[index * 2].timestamp,
+        exitTime: candles[index * 2 + 1].timestamp,
+        duration: 1,
+        maxFavorablePercent: 10.5,
+        maxAdversePercent: 0,
+        entryDiagnostics: {
+          side: 'long',
+          priceVsCloud: 'above',
+          tkCrossVsCloud: 'above',
+          cloudThicknessPercent: 2,
+          rsiAtEntry: 25, // falls into [20, 30)
+          rsiHitValue: 25,
+          rsiHitAge: 0,
+          kijunSlope: 1,
+          atrPercentile: 50,
+          distanceFromKijunAtr: 0.5,
+          hourOfDayUtc: 12,
+          dayOfWeek: 1,
+        },
+      });
+
+      const sampleTrades = [makeTrade(0), makeTrade(1), makeTrade(2), makeTrade(3)];
+      const input = makeReportInput(sampleTrades, {
+        totalTrades: 4,
+        winningTrades: 4,
+        winRate: 1.0,
+        totalPnl: 400.196,
+        totalPnlPercent: 40.0196,
+        long: { totalTrades: 4, winningTrades: 4, losingTrades: 0, winRate: 1.0, totalPnl: 400.196, totalPnlPercent: 40.0196 },
+      });
+
+      const output = buildBacktestReport(input);
+      const breakdowns = output.json.breakdowns as {
+        year: Array<{ year: number; count: number; totalPnl: number; avgPnl: number }>;
+        priceVsCloud: Array<{ position: string; totalPnl: number; avgPnl: number | null }>;
+        rsiBuckets: Array<{ bucket: string; totalPnl: number; avgPnl: number | null }>;
+      };
+
+      const yearEntry = breakdowns.year[0];
+      expect(yearEntry.count).toBe(4);
+      expect(yearEntry.totalPnl).toBe(40.02); // Independent rounded total
+      expect(yearEntry.avgPnl).toBe(10.00);   // Derived from raw sum (not 10.01!)
+
+      const cloudEntry = breakdowns.priceVsCloud.find((c) => c.position === 'above')!;
+      expect(cloudEntry.totalPnl).toBe(40.02);
+      expect(cloudEntry.avgPnl).toBe(10.00);   // Derived from raw sum (not 10.01!)
+
+      const rsiEntry = breakdowns.rsiBuckets.find((b) => b.bucket === '[20, 30)')!;
+      expect(rsiEntry.totalPnl).toBe(40.02);
+      expect(rsiEntry.avgPnl).toBe(10.00);     // Derived from raw sum (not 10.01!)
+    });
   });
 
   describe('8. Section D Diagnostic Semantics Note (Step 4)', () => {
@@ -1063,6 +1436,32 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(output.markdown).toContain('Forced Trade:');
       expect(output.markdown).not.toContain('No forced exit at backtest conclusion');
       expect(output.markdown).not.toContain('No trades executed');
+    });
+  });
+
+  describe('11. Dataset Fingerprint & Metadata Integrity', () => {
+    it('computes deterministic dataset fingerprint and records it in report metadata', () => {
+      const fp1 = computeDatasetFingerprint(candles);
+      const fp2 = computeDatasetFingerprint(candles);
+      expect(fp1).toBe(fp2);
+      expect(typeof fp1).toBe('string');
+      expect(fp1).toHaveLength(16);
+
+      // Mutated candles must produce a different fingerprint
+      const mutatedCandles = [...candles];
+      mutatedCandles[0] = { ...mutatedCandles[0], close: mutatedCandles[0].close + 1 };
+      const fpMutated = computeDatasetFingerprint(mutatedCandles);
+      expect(fpMutated).not.toBe(fp1);
+
+      // Empty candles return 'empty'
+      expect(computeDatasetFingerprint([])).toBe('empty');
+
+      // Verify report metadata and Section A markdown include fingerprint
+      const input = makeReportInput([]);
+      const output = buildBacktestReport(input);
+      const meta = output.json.meta as Record<string, unknown>;
+      expect(meta.datasetFingerprint).toBe(fp1);
+      expect(output.markdown).toContain(`| **Dataset Fingerprint** | \`${fp1}\` |`);
     });
   });
 });

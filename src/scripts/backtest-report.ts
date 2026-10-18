@@ -1,5 +1,5 @@
 import { JsonStorage } from '../data/storage/json-storage';
-import { getIntervalMs, type CandleInterval } from '../data/models/candle';
+import { getIntervalMs, type Candle, type CandleInterval } from '../data/models/candle';
 import { BacktestEngine } from '../backtest/engine';
 import { IchimokuRsiStrategy, type CloudFilter } from '../strategies/ichimoku-rsi-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
@@ -39,6 +39,29 @@ export function parseNumArg(
     throw new Error(`Invalid numeric value for argument --${key}: "${val}".`);
   }
   return defaultValue;
+}
+
+export function parseTimestampArg(
+  key: string,
+  defaultValue?: number,
+  argv: string[] = process.argv.slice(2)
+): number | undefined {
+  const val = parseArg(key, undefined, argv);
+  if (val === undefined || val === '') return defaultValue;
+  const trimmed = val.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const num = Number(trimmed);
+    if (Number.isFinite(num) && num > 0) {
+      return num < 1e11 ? num * 1000 : num;
+    }
+  }
+  const parsed = Date.parse(trimmed);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  throw new Error(
+    `Invalid timestamp value for argument --${key}: "${val}". Expected ISO-8601 string or numeric timestamp in milliseconds.`
+  );
 }
 
 export function parseBoolArg(
@@ -119,10 +142,24 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const stopLossPercent = parseNumArg('stopLossPercent', undefined, argv);
   const takeProfitPercent = parseNumArg('takeProfitPercent', undefined, argv);
 
+  // Time window parameters (precedence: startTime/endTime > asOf > latest cached candle anchor)
+  const startTime = parseTimestampArg('startTime', undefined, argv);
+  const endTime = parseTimestampArg('endTime', undefined, argv);
+  const asOf = parseTimestampArg('asOf', undefined, argv);
+
+  if (startTime !== undefined && endTime !== undefined && startTime > endTime) {
+    throw new Error(
+      `Invalid time window: --startTime (${new Date(startTime).toISOString()}) must be <= --endTime (${new Date(endTime).toISOString()}).`
+    );
+  }
+
   return {
     symbol,
     interval,
     period,
+    startTime,
+    endTime,
+    asOf,
     tenkan,
     kijun,
     senkouB,
@@ -151,11 +188,111 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   };
 }
 
+export interface ResolveCandleWindowParams {
+  candles: readonly Candle[];
+  interval: CandleInterval;
+  period?: string;
+  startTime?: number;
+  endTime?: number;
+  asOf?: number;
+}
+
+export interface ResolvedCandleWindow {
+  candles: Candle[];
+  effectiveStartTime?: number;
+  effectiveEndTime?: number;
+  isCapped: boolean;
+  anchorTime?: number;
+}
+
+export function resolveEffectiveCandleWindow(
+  params: ResolveCandleWindowParams
+): ResolvedCandleWindow {
+  const { candles, interval, period = '6y', startTime, endTime, asOf } = params;
+  if (!candles || candles.length === 0) {
+    return {
+      candles: [],
+      effectiveStartTime: undefined,
+      effectiveEndTime: undefined,
+      isCapped: false,
+    };
+  }
+
+  const intervalMs = getIntervalMs(interval);
+  const yearsMap: Record<string, number> = {
+    '1y': 1,
+    '2y': 2,
+    '3y': 3,
+    '6y': 6,
+  };
+
+  // Determine reference anchor for relative periods:
+  // Precedence:
+  // 1. Explicit --asOf
+  // 2. Explicit --endTime
+  // 3. Latest cached candle timestamp (deterministic anchor derived from dataset)
+  let anchorTime: number;
+  if (asOf !== undefined) {
+    anchorTime = asOf;
+  } else if (endTime !== undefined) {
+    anchorTime = endTime;
+  } else {
+    anchorTime = candles[candles.length - 1].timestamp;
+  }
+
+  // Align anchor to candle interval
+  const alignedAnchor = Math.floor(anchorTime / intervalMs) * intervalMs;
+
+  // Determine effectiveEndTime:
+  // Explicit --endTime takes precedence, aligned to candle interval
+  const effectiveEndTime =
+    endTime !== undefined ? Math.floor(endTime / intervalMs) * intervalMs : alignedAnchor;
+
+  // Determine effectiveStartTime:
+  // Explicit --startTime takes precedence over relative --period
+  let effectiveStartTime: number;
+  let isCapped = false;
+
+  if (startTime !== undefined) {
+    effectiveStartTime = Math.floor(startTime / intervalMs) * intervalMs;
+  } else if (period !== 'all') {
+    const years = yearsMap[period.toLowerCase()];
+    if (years !== undefined) {
+      const periodDurationMs = Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
+      const alignedPeriodMs = Math.round(periodDurationMs / intervalMs) * intervalMs;
+      const targetStartTime = effectiveEndTime - alignedPeriodMs;
+      if (candles[0].timestamp > targetStartTime + 2 * intervalMs) {
+        isCapped = true;
+      }
+      effectiveStartTime = targetStartTime;
+    } else {
+      effectiveStartTime = candles[0].timestamp;
+    }
+  } else {
+    effectiveStartTime = candles[0].timestamp;
+  }
+
+  const filteredCandles = candles.filter(
+    (c) => c.timestamp >= effectiveStartTime && c.timestamp <= effectiveEndTime
+  );
+
+  return {
+    candles: filteredCandles,
+    effectiveStartTime,
+    effectiveEndTime,
+    isCapped,
+    anchorTime: alignedAnchor,
+  };
+}
+
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
   const {
     symbol,
     interval,
     period,
+    startTime,
+    endTime,
+    asOf,
     tenkan,
     kijun,
     senkouB,
@@ -190,36 +327,31 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 
   // 1. Load real data from storage
   const storage = new JsonStorage();
-  let candles = await storage.loadCandles(symbol, interval);
-  if (!candles || candles.length === 0) {
+  const rawCandles = await storage.loadCandles(symbol, interval);
+  if (!rawCandles || rawCandles.length === 0) {
     console.error(`❌ Error: No cached candle data found for ${symbol} (${interval}).`);
     console.error(`Please download historical data first: npm run download -- --symbols=${symbol} --intervals=${interval}`);
     process.exit(1);
   }
 
-  const initialCandleCount = candles.length;
-  if (period !== 'all') {
-    const yearsMap: Record<string, number> = {
-      '1y': 1,
-      '2y': 2,
-      '3y': 3,
-      '6y': 6,
-    };
-    const years = yearsMap[period];
-    if (years) {
-      const intervalMs = getIntervalMs(interval);
-      const requiredStartTime = Date.now() - Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
-      if (candles[0].timestamp > requiredStartTime + 2 * intervalMs) {
-        console.warn(
-          `⚠️ Warning: Cached candles for ${symbol} ${interval} do not span the requested full ${period}. Using available candles.`
-        );
-      }
-      candles = candles.filter((c) => c.timestamp >= requiredStartTime);
-    }
+  const initialCandleCount = rawCandles.length;
+  const { candles, isCapped } = resolveEffectiveCandleWindow({
+    candles: rawCandles,
+    interval,
+    period,
+    startTime,
+    endTime,
+    asOf,
+  });
+
+  if (isCapped) {
+    console.warn(
+      `⚠️ Warning: Cached candles for ${symbol} ${interval} do not span the requested full ${period}. Using available candles.`
+    );
   }
 
   if (candles.length === 0) {
-    console.error(`❌ Error: Candle series is empty after applying period filter.`);
+    console.error(`❌ Error: Candle series is empty after applying window filter.`);
     process.exit(1);
   }
 
@@ -287,6 +419,9 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       interval,
       period,
       dataSource: 'cache',
+      startTime,
+      endTime,
+      asOf,
       tenkan,
       kijun,
       senkouB,

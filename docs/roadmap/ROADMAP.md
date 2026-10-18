@@ -45,10 +45,10 @@
 - [x] Write tests for metrics calculation
 
 ## Phase 6: Results & Reporting
-- [ ] Console reporter (pretty-printed backtest results)
-- [ ] JSON export of backtest results
+- [x] Console reporter (pretty-printed backtest results)
+- [x] JSON export of backtest results
 - [ ] CSV export of trades
-- [ ] Write tests for reporters
+- [x] Write tests for reporters
 
 ---
 

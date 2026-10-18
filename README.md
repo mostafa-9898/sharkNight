@@ -10,7 +10,7 @@ Crypto trading bot, backtesting engine, parameter optimizer, and interactive Nex
 - **Backtesting Engine (`BacktestEngine`):**
   - **Trade Modes:** `long-short` (reverses on opposite signals) and `long-only` (flat on sell/stop).
   - **1x Short Selling:** Cash-backed, unleveraged short accounting with mark-to-market continuous equity and realistic maker/taker fees.
-  - **Engine-Level TP/SL:** Take-profit and stop-loss evaluated at candle close prior to signal processing without accidental reversals.
+  - **Engine-Level TP/SL:** Take-profit and stop-loss execution configurable via `stopCheckMode` (`intrabar` with intrabar gap/slippage modeling or `close` on candle close), evaluated prior to signal processing without accidental reversals.
   - **Breakdown Metrics:** Long vs. short trade count, win rate, and net PnL breakdown.
 - **Interactive Dashboard (Next.js / Lightweight-Charts v5):**
   - Candlestick chart with custom canvas primitive for Ichimoku Cloud fill (green / red spans) projected `displacement` candles into the future.
@@ -22,8 +22,10 @@ Crypto trading bot, backtesting engine, parameter optimizer, and interactive Nex
   - Chronological 70% train / 30% test walk-forward validation on real multi-year Binance/KuCoin data.
   - Calmar-like ranking and parameter neighborhood stability analysis.
   - Enforces minimum sample size (>= 5,000 1h / 4,000 4h candles) and rejects synthetic data.
-- **Review Notes Generator (`src/scripts/review-notes.ts`):**
-  - Produces an automated Markdown and JSON self-audit report for reviewers.
+- **Backtest Review Report Generator (`src/scripts/backtest-report.ts`):**
+  - Produces reproducible, comprehensive Section A-K backtest review reports in Markdown and machine-readable JSON (`BACKTEST_LATEST.md`, `backtest-latest.json`), with automated versioned archives in `docs/review/history/` and index tracking in `docs/review/HISTORY.md`. Supports reproducible dataset windowing via deterministic anchor and overrides (`--asOf`, `--startTime`, `--endTime`).
+- **Legacy Review Notes Generator (`src/scripts/review-notes.ts`):**
+  - Produces standalone audit snapshot files (`docs/review/CLAUDE_REVIEW_NOTES.md` and `docs/review/last-backtest.json`). Preserved for historical review and audit traceability.
 
 ## Setup
 
@@ -47,7 +49,10 @@ npm run lint
 npx tsx src/scripts/optimize.ts --symbol=BTCUSDT
 npx tsx src/scripts/optimize.ts --symbol=ETHUSDT
 
-# Generate reviewer notes
+# Generate reproducible backtest review report (Sections A-K, latest markdown & JSON, history archive)
+npm run backtest-report
+
+# Generate legacy reviewer notes snapshot (CLAUDE_REVIEW_NOTES.md & last-backtest.json)
 npm run review-notes
 ```
 
@@ -77,7 +82,7 @@ src/
 └── strategies/           # Trading strategy implementations
 data/                     # Historical OHLCV JSON datasets and optimization CSVs
 docs/
-├── review/               # Generated review notes (CLAUDE_REVIEW_NOTES.md, last-backtest.json)
+├── review/               # Generated reports (BACKTEST_LATEST.md, backtest-latest.json, HISTORY.md, history/ archives, and legacy CLAUDE_REVIEW_NOTES.md)
 └── strategies/           # Optimization reports and strategies log
 tests/                    # Jest unit and integration test suites
 ```

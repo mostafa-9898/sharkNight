@@ -1,14 +1,15 @@
 # Automated Backtest Review Report
-Generated: **2026-10-17T15:09:59.805Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-18T05:08:09.043Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `9b8b3ca` (⚠️ dirty) |
+| **Git Commit** | `7c97d09` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
-| **Total Candles** | 52,593 |
-| **Start Time (UTC)** | 2020-10-17T04:00:00Z |
+| **Total Candles** | 52,596 |
+| **Start Time (UTC)** | 2020-10-17T01:00:00Z |
 | **End Time (UTC)** | 2026-10-17T12:00:00Z |
+| **Dataset Fingerprint** | `006de41a38074c0c` |
 | **Data Source** | `cache` ✅ |
 | **Config Hash** | `f8e53fab` |
 
@@ -33,7 +34,7 @@ Generated: **2026-10-17T15:09:59.805Z** | Config Hash: `f8e53fab`
 | Metric | Value | Baseline / Context |
 |---|---|---|
 | **Net Return** | **0.00%** ($0.00) | Initial: $10000.00 → Final: $10000.00 |
-| **Buy & Hold Return** | **+618.83%** | Market performance over same candle window |
+| **Buy & Hold Return** | **+619.85%** | Market performance over same candle window |
 | **Max Drawdown** | **0.00%** | Peak to trough depth on continuous equity |
 | **Total Trades** | **0** | Long: 0 / Short: 0 |
 | **Win Rate** | **N/A** | Long: N/A / Short: N/A |
@@ -42,7 +43,7 @@ Generated: **2026-10-17T15:09:59.805Z** | Config Hash: `f8e53fab`
 | **Profit Factor** | **N/A** | Gross Profit: $0.00 / Gross Loss: $0.00 (no trades executed) |
 | **Total Fees Paid** | **$0.00** (0.00% of capital) | Fee Drag: 0.00% |
 | **Avg Holding Duration** | **0 bars** | Total bars in positions: 0 |
-| **Time in Market** | **0%** | 0 of 52,593 candles |
+| **Time in Market** | **0%** | 0 of 52,596 candles |
 
 ## Section C: Automated Warning Flags
 - 🚨 **[CRITICAL]** Zero Trades Executed: The backtest executed zero trades. Profitability, expectancy, and risk conclusions cannot be inferred from a zero-trade sample.
@@ -70,10 +71,10 @@ Generated: **2026-10-17T15:09:59.805Z** | Config Hash: `f8e53fab`
 #### Sample of Rejected TK Crosses (First 8 Events)
 | Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |
 |---|---|---|---|---|
-| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.7 | `cloudFilter` |
-| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.7 | `cloudFilter` |
-| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.3 | `cloudFilter` |
-| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.3 | `cloudFilter` |
+| 2020-10-19T09:00:00Z | `DOWN` | $11486.10 | 61.9 | `cloudFilter` |
+| 2020-10-19T11:00:00Z | `UP` | $11476.40 | 58.9 | `cloudFilter` |
+| 2020-10-19T12:00:00Z | `DOWN` | $11516.40 | 66.5 | `cloudFilter` |
+| 2020-10-19T13:00:00Z | `UP` | $11642.80 | 79.4 | `cloudFilter` |
 | 2020-10-22T17:00:00Z | `DOWN` | $13043.40 | 64.9 | `cloudFilter` |
 | 2020-10-22T19:00:00Z | `UP` | $13071.80 | 66.1 | `kijunSlopeFilter` |
 | 2020-10-23T08:00:00Z | `DOWN` | $12920.60 | 51.2 | `cloudFilter` |
@@ -143,6 +144,6 @@ _No significant drawdown periods detected on the equity curve._
 | Invariant Name | Status | Violations | Verification Details |
 |---|---|---|---|
 | **Cash / Equity Conservation** | ✅ PASS | 0 | |initialBalance + sum(trade.pnl) - finalEquity| = 0.0000e+0 (threshold 1e-5) |
-| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ✅ PASS | 0 | Exit price was at or better than allowed stopPrice + gap slippage in 0/0 trades |
-| **Trade Non-Overlap (Single Position Invariant)** | ✅ PASS | 0 | Every trade entered after or simultaneous with prior trade exit (0/0) |
-| **Trailing Ratchet Step Monotonicity** | ✅ PASS | 0 | Trailing ratchet steps monotonically non-negative across all trades (0/0) |
+| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚪ N/A | 0 | No stop-loss or trailing-stop exits in trade sample (0 applicable trades) |
+| **Trade Non-Overlap (Single Position Invariant)** | ⚪ N/A | 0 | No trades executed to evaluate trade overlap (0 trade pairs) |
+| **Trailing Ratchet Step Non-Negativity** | ⚪ N/A | 0 | No trades executed to evaluate trailing ratchet steps (0 applicable trades) |

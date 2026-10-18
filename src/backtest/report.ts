@@ -26,6 +26,10 @@ export interface BacktestReportConfig {
   dataSource?: string;
   gitCommit?: string;
   isDirty?: boolean;
+  startTime?: number;
+  endTime?: number;
+  asOf?: number;
+  datasetFingerprint?: string;
   // Strategy
   tenkan?: number;
   kijun?: number;
@@ -114,9 +118,11 @@ export interface TradeTrajectory {
   ratchetSteps: number;
 }
 
+export type InvariantStatus = 'PASS' | 'FAIL' | 'NOT_APPLICABLE' | 'INCOMPLETE';
+
 export interface InvariantResult {
   name: string;
-  status: 'PASS' | 'FAIL';
+  status: InvariantStatus;
   violations: number;
   details: string;
 }
@@ -139,10 +145,25 @@ function getGitMetadata(): { commit: string; isDirty: boolean } {
   }
 }
 
+export function computeDatasetFingerprint(candles: readonly Candle[]): string {
+  if (candles.length === 0) return 'empty';
+  const hash = crypto.createHash('sha256');
+  for (const c of candles) {
+    hash.update(`${c.timestamp},${c.open},${c.high},${c.low},${c.close},${c.volume};`);
+  }
+  return hash.digest('hex').slice(0, 16);
+}
+
 function computeConfigHash(config: BacktestReportConfig): string {
   const normalized: Record<string, unknown> = {};
   const keys = Object.keys(config)
-    .filter((k) => k !== 'gitCommit' && k !== 'isDirty')
+    .filter(
+      (k) =>
+        k !== 'gitCommit' &&
+        k !== 'isDirty' &&
+        k !== 'datasetFingerprint' &&
+        (config as unknown as Record<string, unknown>)[k] !== undefined
+    )
     .sort();
   for (const k of keys) {
     normalized[k] = (config as unknown as Record<string, unknown>)[k];
@@ -391,6 +412,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   const initialBalance = config.initialBalance ?? 10000;
   const firstCandle = candles[0];
   const lastCandle = candles[candles.length - 1];
+  const datasetFingerprint = config.datasetFingerprint ?? computeDatasetFingerprint(candles);
 
   // Indicator series
   const tenkan = config.tenkan ?? 9;
@@ -605,8 +627,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
     const winRateVal = count > 0 ? `${roundTo((wins / count) * 100, 1)}%` : 'N/A';
-    const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? `${formatPercent(roundTo(totalPnlVal / count, 2))}` : 'N/A';
+    const rawTotalPnl = list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+    const totalPnlVal = roundTo(rawTotalPnl, 2);
+    const avgPnlVal = count > 0 ? `${formatPercent(roundTo(rawTotalPnl / count, 2))}` : 'N/A';
     const grossW = list.filter((t) => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
     const grossL = Math.abs(list.filter((t) => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0));
     const pfVal =
@@ -650,8 +673,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       if (count === 0) return null;
       const wins = list.filter((t) => (t.pnl || 0) > 0).length;
       const winRateVal = roundTo((wins / count) * 100, 1);
-      const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-      const avgPnlVal = roundTo(totalPnlVal / count, 2);
+      const rawTotalPnl = list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+      const totalPnlVal = roundTo(rawTotalPnl, 2);
+      const avgPnlVal = roundTo(rawTotalPnl / count, 2);
       const avgBars = roundTo(
         list.reduce((sum, t) => {
           const idx = trades.indexOf(t);
@@ -679,8 +703,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       const count = list.length;
       const wins = list.filter((t) => (t.pnl || 0) > 0).length;
       const winRateVal = roundTo((wins / count) * 100, 1);
-      const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-      const avgPnlVal = roundTo(totalPnlVal / count, 2);
+      const rawTotalPnl = list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+      const totalPnlVal = roundTo(rawTotalPnl, 2);
+      const avgPnlVal = roundTo(rawTotalPnl / count, 2);
       return { year: yr, count, winRate: winRateVal, totalPnl: totalPnlVal, avgPnl: avgPnlVal };
     });
 
@@ -691,20 +716,23 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
     const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : null;
-    const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : null;
+    const rawTotalPnl = list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+    const totalPnlVal = roundTo(rawTotalPnl, 2);
+    const avgPnlVal = count > 0 ? roundTo(rawTotalPnl / count, 2) : null;
 
     const longList = list.filter((t) => t.side === 'long');
     const longCount = longList.length;
     const longWins = longList.filter((t) => (t.pnl || 0) > 0).length;
     const longWinRate = longCount > 0 ? roundTo((longWins / longCount) * 100, 1) : null;
-    const longTotalPnl = roundTo(longList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
+    const longRawTotal = longList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+    const longTotalPnl = roundTo(longRawTotal, 2);
 
     const shortList = list.filter((t) => t.side === 'short');
     const shortCount = shortList.length;
     const shortWins = shortList.filter((t) => (t.pnl || 0) > 0).length;
     const shortWinRate = shortCount > 0 ? roundTo((shortWins / shortCount) * 100, 1) : null;
-    const shortTotalPnl = roundTo(shortList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
+    const shortRawTotal = shortList.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+    const shortTotalPnl = roundTo(shortRawTotal, 2);
 
     return {
       position: pos,
@@ -734,8 +762,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const count = list.length;
     const wins = list.filter((t) => (t.pnl || 0) > 0).length;
     const winRateVal = count > 0 ? roundTo((wins / count) * 100, 1) : null;
-    const totalPnlVal = roundTo(list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0), 2);
-    const avgPnlVal = count > 0 ? roundTo(totalPnlVal / count, 2) : null;
+    const rawTotalPnl = list.reduce((sum, t) => sum + (t.pnlPercent || 0), 0);
+    const totalPnlVal = roundTo(rawTotalPnl, 2);
+    const avgPnlVal = count > 0 ? roundTo(rawTotalPnl / count, 2) : null;
     return { bucket: b.label, count, winRate: winRateVal, totalPnl: totalPnlVal, avgPnl: avgPnlVal };
   });
 
@@ -754,59 +783,132 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   });
 
   // Check 2: Stop Fill Integrity
-  let stopViolations = 0;
-  for (const t of trades) {
-    if (t.exitReason === 'stopLoss' || t.exitReason === 'trailingStop') {
+  const applicableStopTrades = trades.filter(
+    (t) => t.exitReason === 'stopLoss' || t.exitReason === 'trailingStop'
+  );
+  if (applicableStopTrades.length === 0) {
+    invariantResults.push({
+      name: 'Stop Fill Integrity (Intrabar Gap/Slippage)',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details: 'No stop-loss or trailing-stop exits in trade sample (0 applicable trades)',
+    });
+  } else {
+    let checkedCount = 0;
+    let uncheckableCount = 0;
+    let stopViolations = 0;
+    let passedCount = 0;
+    const slip = (config.slippagePercent ?? 0) / 100;
+
+    for (const t of applicableStopTrades) {
       const exitIdx = t.exitTime ? candleMap.get(t.exitTime) ?? -1 : -1;
       const c = exitIdx !== -1 ? candles[exitIdx] : null;
-      if (c && t.stopPrice !== undefined) {
-        const slip = (config.slippagePercent ?? 0) / 100;
-        if (t.side === 'long') {
-          const expectedBase = c.open <= t.stopPrice ? c.open : t.stopPrice;
-          const allowedWorst = expectedBase * (1 - slip);
-          if (t.exitPrice < allowedWorst - 1e-5) stopViolations++;
-        } else {
-          const expectedBase = c.open >= t.stopPrice ? c.open : t.stopPrice;
-          const allowedWorst = expectedBase * (1 + slip);
-          if (t.exitPrice > allowedWorst + 1e-5) stopViolations++;
-        }
+      if (!c || t.stopPrice === undefined || !Number.isFinite(t.stopPrice)) {
+        uncheckableCount++;
+        continue;
+      }
+      checkedCount++;
+      let isViolation = false;
+      if (t.side === 'long') {
+        const expectedBase = c.open <= t.stopPrice ? c.open : t.stopPrice;
+        const allowedWorst = expectedBase * (1 - slip);
+        if (t.exitPrice < allowedWorst - 1e-5) isViolation = true;
+      } else {
+        const expectedBase = c.open >= t.stopPrice ? c.open : t.stopPrice;
+        const allowedWorst = expectedBase * (1 + slip);
+        if (t.exitPrice > allowedWorst + 1e-5) isViolation = true;
+      }
+      if (isViolation) {
+        stopViolations++;
+      } else {
+        passedCount++;
       }
     }
+
+    let stopStatus: InvariantStatus;
+    let stopDetails: string;
+    if (stopViolations > 0) {
+      stopStatus = 'FAIL';
+      stopDetails = `Exit price was worse than allowed stopPrice + gap slippage in ${stopViolations}/${checkedCount} checked stop trades${uncheckableCount > 0 ? ` (${uncheckableCount} uncheckable)` : ''}`;
+    } else if (uncheckableCount > 0) {
+      stopStatus = 'INCOMPLETE';
+      stopDetails = `${passedCount}/${checkedCount} checked stop exits verified (${uncheckableCount}/${applicableStopTrades.length} uncheckable due to missing stop price or exit candle)`;
+    } else {
+      stopStatus = 'PASS';
+      stopDetails = `Exit price was at or better than allowed stopPrice + gap slippage in ${passedCount}/${checkedCount} applicable stop trades`;
+    }
+
+    invariantResults.push({
+      name: 'Stop Fill Integrity (Intrabar Gap/Slippage)',
+      status: stopStatus,
+      violations: stopViolations,
+      details: stopDetails,
+    });
   }
-  invariantResults.push({
-    name: 'Stop Fill Integrity (Intrabar Gap/Slippage)',
-    status: stopViolations === 0 ? 'PASS' : 'FAIL',
-    violations: stopViolations,
-    details: `Exit price was at or better than allowed stopPrice + gap slippage in ${trades.length - stopViolations}/${trades.length} trades`,
-  });
 
   // Check 3: Trade Non-Overlap
-  let overlapViolations = 0;
-  for (let i = 1; i < trades.length; i++) {
-    const prevExit = trades[i - 1].exitTime ?? 0;
-    const currEntry = trades[i].entryTime ?? 0;
-    if (currEntry < prevExit) {
-      overlapViolations++;
+  if (trades.length < 2) {
+    invariantResults.push({
+      name: 'Trade Non-Overlap (Single Position Invariant)',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details:
+        trades.length === 0
+          ? 'No trades executed to evaluate trade overlap (0 trade pairs)'
+          : 'Only 1 trade executed; no adjacent trade pairs exist to evaluate overlap (0 trade pairs)',
+    });
+  } else {
+    const totalPairs = trades.length - 1;
+    let overlapViolations = 0;
+    for (let i = 1; i < trades.length; i++) {
+      const prevExit = trades[i - 1].exitTime ?? 0;
+      const currEntry = trades[i].entryTime ?? 0;
+      if (currEntry < prevExit) {
+        overlapViolations++;
+      }
     }
+    const passedPairs = totalPairs - overlapViolations;
+    invariantResults.push({
+      name: 'Trade Non-Overlap (Single Position Invariant)',
+      status: overlapViolations === 0 ? 'PASS' : 'FAIL',
+      violations: overlapViolations,
+      details:
+        overlapViolations === 0
+          ? `Every trade entered after or simultaneous with prior trade exit (${passedPairs}/${totalPairs} adjacent pairs verified)`
+          : `Trade overlap detected in ${overlapViolations}/${totalPairs} adjacent trade pairs`,
+    });
   }
-  invariantResults.push({
-    name: 'Trade Non-Overlap (Single Position Invariant)',
-    status: overlapViolations === 0 ? 'PASS' : 'FAIL',
-    violations: overlapViolations,
-    details: `Every trade entered after or simultaneous with prior trade exit (${trades.length - overlapViolations}/${trades.length})`,
-  });
 
-  // Check 4: Monotonic Ratchet Steps
-  let ratchetViolations = 0;
-  for (const tr of trajectories) {
-    if (tr.ratchetSteps < 0) ratchetViolations++;
+  // Check 4: Trailing Ratchet Step Non-Negativity
+  if (!config.trailingStop) {
+    invariantResults.push({
+      name: 'Trailing Ratchet Step Non-Negativity',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details: 'Trailing stop disabled in configuration (0 applicable trades)',
+    });
+  } else if (trades.length === 0) {
+    invariantResults.push({
+      name: 'Trailing Ratchet Step Non-Negativity',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details: 'No trades executed to evaluate trailing ratchet steps (0 applicable trades)',
+    });
+  } else {
+    let ratchetViolations = 0;
+    for (const tr of trajectories) {
+      if (tr.ratchetSteps < 0) ratchetViolations++;
+    }
+    invariantResults.push({
+      name: 'Trailing Ratchet Step Non-Negativity',
+      status: ratchetViolations === 0 ? 'PASS' : 'FAIL',
+      violations: ratchetViolations,
+      details:
+        ratchetViolations === 0
+          ? `Trailing ratchet step count non-negative across all trades (${trades.length - ratchetViolations}/${trades.length})`
+          : `Negative trailing ratchet step count detected in ${ratchetViolations}/${trades.length} trades`,
+    });
   }
-  invariantResults.push({
-    name: 'Trailing Ratchet Step Monotonicity',
-    status: ratchetViolations === 0 ? 'PASS' : 'FAIL',
-    violations: ratchetViolations,
-    details: `Trailing ratchet steps monotonically non-negative across all trades (${trades.length - ratchetViolations}/${trades.length})`,
-  });
 
   // ==========================================
   // BUILD MARKDOWN (SECTIONS A TO K IN ORDER)
@@ -827,6 +929,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| **Total Candles** | ${candles.length.toLocaleString()} |`);
   lines.push(`| **Start Time (UTC)** | ${formatDate(firstCandle?.timestamp)} |`);
   lines.push(`| **End Time (UTC)** | ${formatDate(lastCandle?.timestamp)} |`);
+  lines.push(`| **Dataset Fingerprint** | \`${datasetFingerprint}\` |`);
   lines.push(
     `| **Data Source** | \`${config.dataSource ?? 'cache'}\` ${config.dataSource === 'synthetic' ? '⚠️ **SYNTHETIC DATA**' : '✅'} |`
   );
@@ -1189,7 +1292,11 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Invariant Name | Status | Violations | Verification Details |`);
   lines.push(`|---|---|---|---|`);
   for (const inv of invariantResults) {
-    const icon = inv.status === 'PASS' ? '✅ PASS' : '❌ FAIL';
+    let icon: string;
+    if (inv.status === 'PASS') icon = '✅ PASS';
+    else if (inv.status === 'FAIL') icon = '❌ FAIL';
+    else if (inv.status === 'INCOMPLETE') icon = '⚠️ INCOMPLETE';
+    else icon = '⚪ N/A';
     lines.push(`| **${inv.name}** | ${icon} | ${inv.violations} | ${inv.details} |`);
   }
   lines.push(``);
@@ -1210,6 +1317,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       candleCount: candles.length,
       startTime: firstCandle?.timestamp,
       endTime: lastCandle?.timestamp,
+      effectiveStartTime: firstCandle?.timestamp,
+      effectiveEndTime: lastCandle?.timestamp,
+      datasetFingerprint,
       config,
     },
     summary: {
@@ -1398,9 +1508,21 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
       const fullHistoryMd = `${tableHeader}\n${newRow}\n`;
       await fs.writeFile(historyIndexPath, fullHistoryMd, 'utf-8');
     } else {
-      // Append row to existing table
-      const updatedHistoryMd = `${existingContent.trim()}\n${newRow}\n`;
-      await fs.writeFile(historyIndexPath, updatedHistoryMd, 'utf-8');
+      // Insert newRow directly after the last table row, preserving any notes at the bottom
+      const contentLines = existingContent.split('\n');
+      let lastTableRowIdx = -1;
+      for (let i = 0; i < contentLines.length; i++) {
+        if (contentLines[i].trim().startsWith('|')) {
+          lastTableRowIdx = i;
+        }
+      }
+      if (lastTableRowIdx !== -1 && lastTableRowIdx < contentLines.length - 1) {
+        contentLines.splice(lastTableRowIdx + 1, 0, newRow);
+        await fs.writeFile(historyIndexPath, contentLines.join('\n'), 'utf-8');
+      } else {
+        const updatedHistoryMd = `${existingContent.trim()}\n${newRow}\n`;
+        await fs.writeFile(historyIndexPath, updatedHistoryMd, 'utf-8');
+      }
     }
     historyIndexUpdated = true;
   } catch (err) {

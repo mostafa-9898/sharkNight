@@ -1,16 +1,19 @@
 {
   "meta": {
-    "generatedAt": "2026-10-17T15:09:59.805Z",
+    "generatedAt": "2026-10-18T05:08:09.043Z",
     "configHash": "f8e53fab",
-    "gitCommit": "9b8b3ca",
+    "gitCommit": "7c97d09",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "1h",
     "period": "6y",
     "dataSource": "cache",
-    "candleCount": 52593,
-    "startTime": 1602907200000,
+    "candleCount": 52596,
+    "startTime": 1602896400000,
     "endTime": 1792238400000,
+    "effectiveStartTime": 1602896400000,
+    "effectiveEndTime": 1792238400000,
+    "datasetFingerprint": "006de41a38074c0c",
     "config": {
       "symbol": "BTCUSDT",
       "interval": "1h",
@@ -49,7 +52,7 @@
     "finalBalance": 10000,
     "netReturnPercent": 0,
     "netReturnDollar": 0,
-    "buyAndHoldReturnPercent": 618.83,
+    "buyAndHoldReturnPercent": 619.85,
     "maxDrawdownPercent": 0,
     "totalTrades": 0,
     "winRate": null,
@@ -240,21 +243,21 @@
     },
     {
       "name": "Stop Fill Integrity (Intrabar Gap/Slippage)",
-      "status": "PASS",
+      "status": "NOT_APPLICABLE",
       "violations": 0,
-      "details": "Exit price was at or better than allowed stopPrice + gap slippage in 0/0 trades"
+      "details": "No stop-loss or trailing-stop exits in trade sample (0 applicable trades)"
     },
     {
       "name": "Trade Non-Overlap (Single Position Invariant)",
-      "status": "PASS",
+      "status": "NOT_APPLICABLE",
       "violations": 0,
-      "details": "Every trade entered after or simultaneous with prior trade exit (0/0)"
+      "details": "No trades executed to evaluate trade overlap (0 trade pairs)"
     },
     {
-      "name": "Trailing Ratchet Step Monotonicity",
-      "status": "PASS",
+      "name": "Trailing Ratchet Step Non-Negativity",
+      "status": "NOT_APPLICABLE",
       "violations": 0,
-      "details": "Trailing ratchet steps monotonically non-negative across all trades (0/0)"
+      "details": "No trades executed to evaluate trailing ratchet steps (0 applicable trades)"
     }
   ]
 }
