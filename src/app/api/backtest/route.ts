@@ -153,10 +153,14 @@ export async function POST(request: Request) {
         );
       }
 
+      const trailingMode: 'trend' | 'stepped' =
+        body.trailingMode === 'stepped' ? 'stepped' : 'trend';
+
       trailingStop = {
         initialStopPercent,
         stepPercent: trailStepPercent,
         raisePercent: trailRaisePercent,
+        mode: trailingMode,
       };
     }
 

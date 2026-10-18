@@ -171,11 +171,12 @@ export default function DashboardPage() {
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
 
-  // Trailing Stop & Execution Mode (5% initial stop, 9% step, 3% raise per user request)
+  // Trailing Stop & Execution Mode (3% initial stop, 2% trigger/step, 2% raise/trail per best test)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
-  const [initialStopPercent, setInitialStopPercent] = useState(5);
-  const [trailStepPercent, setTrailStepPercent] = useState(9);
-  const [trailRaisePercent, setTrailRaisePercent] = useState(3);
+  const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
+  const [initialStopPercent, setInitialStopPercent] = useState(3);
+  const [trailStepPercent, setTrailStepPercent] = useState(2);
+  const [trailRaisePercent, setTrailRaisePercent] = useState(2);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -273,6 +274,7 @@ export default function DashboardPage() {
           useTdrStop,
           tdrMultiplier,
           trailingStopEnabled,
+          trailingMode: trailingStopEnabled ? trailingMode : undefined,
           initialStopPercent: trailingStopEnabled ? initialStopPercent : undefined,
           trailStepPercent: trailingStopEnabled ? trailStepPercent : undefined,
           trailRaisePercent: trailingStopEnabled ? trailRaisePercent : undefined,
@@ -373,6 +375,7 @@ export default function DashboardPage() {
     rsiRecoveryCap,
     tradeMode,
     trailingStopEnabled,
+    trailingMode,
     initialStopPercent,
     trailStepPercent,
     trailRaisePercent,
@@ -675,9 +678,9 @@ export default function DashboardPage() {
                 fontWeight: 600,
               }}
             >
-              <option value="long-short">Long & Short</option>
-              <option value="long-only">Long Only (فقط خرید)</option>
-              <option value="short-only">Short Only (فقط فروش)</option>
+              <option value="long-short">معاملات دوطرفه (Long & Short)</option>
+              <option value="long-only">فقط پوزیشن خرید (Long Only)</option>
+              <option value="short-only">فقط پوزیشن فروش (Short Only)</option>
             </select>
           </div>
 
@@ -1321,6 +1324,29 @@ export default function DashboardPage() {
                     opacity: trailingStopEnabled ? 1 : 0.4,
                   }}
                 >
+                  {/* Mode Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Mode:</span>
+                    <select
+                      disabled={!trailingStopEnabled}
+                      value={trailingMode}
+                      onChange={(e) => setTrailingMode(e.target.value as 'trend' | 'stepped')}
+                      style={{
+                        backgroundColor: '#0d1117',
+                        color: '#38bdf8',
+                        fontWeight: 700,
+                        border: '1px solid #30363d',
+                        borderRadius: '6px',
+                        padding: '3px 6px',
+                        fontSize: '11px',
+                        cursor: trailingStopEnabled ? 'pointer' : 'not-allowed',
+                      }}
+                    >
+                      <option value="trend">🌊 تعقیب قله روند (Trend Follow)</option>
+                      <option value="stepped">🪜 جابه‌جایی پله‌ای (Stepped Ratchet)</option>
+                    </select>
+                  </div>
+
                   {/* Initial Stop */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                     <span style={{ fontSize: '11px', color: '#8b949e' }}>Initial:</span>
@@ -1340,7 +1366,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '50px',
+                        width: '45px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />
@@ -1349,7 +1375,7 @@ export default function DashboardPage() {
 
                   {/* Step */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Step:</span>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Trigger:</span>
                     <input
                       type="number"
                       min={1}
@@ -1366,7 +1392,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '50px',
+                        width: '45px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />
@@ -1375,7 +1401,7 @@ export default function DashboardPage() {
 
                   {/* Raise */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Raise:</span>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>Lock/Raise:</span>
                     <input
                       type="number"
                       min={1}
@@ -1392,7 +1418,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '50px',
+                        width: '45px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />
@@ -1400,8 +1426,46 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '2px' }}>
-                Close at -{initialStopPercent}% loss (or TDR stop); every +{trailStepPercent}% of profit raises stop by {trailRaisePercent}% (+9% -&gt; -2%, +18% -&gt; +1%, ...)
+              <div
+                dir="rtl"
+                style={{
+                  backgroundColor: 'rgba(56, 189, 248, 0.04)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  marginTop: '6px',
+                  fontSize: '11.5px',
+                  lineHeight: '1.8',
+                  color: '#c9d1d9',
+                  textAlign: 'right',
+                  fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Tahoma, sans-serif',
+                }}
+              >
+                {trailingMode === 'trend' ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 700, marginBottom: '2px' }}>
+                      <span>🌊 تعقیب دقیق و لحظه‌ای قله روند (Trend Follow):</span>
+                    </div>
+                    <div>
+                      • <strong style={{ color: '#f0f6fc' }}>حفظ سرمایه (ریسک‌فری):</strong> با رسیدن سود به <span style={{ color: '#eab308', fontWeight: 700 }}>%{initialStopPercent}</span>، استاپ بلافاصله به نقطه ورود می‌آید تا از اصل سرمایه محافظت شود.
+                      <br />
+                      • <strong style={{ color: '#f0f6fc' }}>تریگر و قفل سود:</strong> با عبور سود از تریگر <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailStepPercent}</span>، حداقل <span style={{ color: '#3fb950', fontWeight: 700 }}>%{trailRaisePercent}</span> سود قطعی قفل شده و از آن پس، استاپ با فاصله دقیق <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailRaisePercent}</span> پشت قله‌های صعودی (یا کف‌های نزولی) لحظه به لحظه پیش می‌رود.
+                      <br />
+                      • <strong style={{ color: '#38bdf8' }}>قانون بدون بازگشت:</strong> استاپ فقط در جهت سود پیشروی می‌کند و در هیچ اصلاح یا نوسانی عقب‌نشینی نمی‌کند.
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#eab308', fontWeight: 700, marginBottom: '2px' }}>
+                      <span>🪜 استاپ پلکانی به سمت سود (Stepped Ratchet):</span>
+                    </div>
+                    <div>
+                      • با رسیدن سود به <span style={{ color: '#eab308', fontWeight: 700 }}>%{initialStopPercent}</span>، استاپ به نقطه ورود (سر‌به‌سر) می‌آید.
+                      <br />
+                      • به ازای هر <span style={{ color: '#38bdf8', fontWeight: 700 }}>%{trailStepPercent}</span> سود جدید، استاپ دقیقاً <span style={{ color: '#3fb950', fontWeight: 700 }}>%{trailRaisePercent}</span> در جهت سود ارتقا می‌یابد و هرگز به عقب بازنمی‌گردد.
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -247,10 +247,13 @@ export class BacktestEngine {
           }
         }
 
-        // Conservative rule: If both TP and stop triggered in the same candle, assume stop was hit first
         if (stopTriggered) {
+          const isProfitableOrBe =
+            side === 'long' ? baseStopExitPrice >= entryPrice : baseStopExitPrice <= entryPrice;
           const exitReason: ExitReason =
-            trailingStop && tradeState.ratchetSteps >= 1 ? 'trailingStop' : 'stopLoss';
+            trailingStop && (tradeState.ratchetSteps >= 1 || isProfitableOrBe)
+              ? 'trailingStop'
+              : 'stopLoss';
 
           // Adverse slippage on exit: selling long slips down, buying short slips up
           const finalExitPrice = roundTo(
@@ -353,41 +356,103 @@ export class BacktestEngine {
 
         if (trailingStop) {
           const tradeInitialStop = tradeState.initialStopPercent ?? trailingStop.initialStopPercent;
+          const trailingMode = trailingStop.mode ?? 'stepped';
+
           if (currentPos.side === 'long') {
             const mfePercent =
               ((tradeState.highestHigh - currentPos.entryPrice) / currentPos.entryPrice) * 100;
+
+            // Capital preservation: Move stop to Break-Even (entry price) once trade gains >= initial risk
+            if (mfePercent >= tradeInitialStop) {
+              if (tradeState.stopPrice === null || tradeState.stopPrice < currentPos.entryPrice) {
+                tradeState.stopPrice = currentPos.entryPrice;
+              }
+            }
+
             const n = Math.floor(mfePercent / trailingStop.stepPercent);
             if (n > 0) {
-              const candidateStopPercent =
-                -tradeInitialStop + n * trailingStop.raisePercent;
-              const candidateStopPrice = roundTo(
-                currentPos.entryPrice * (1 + candidateStopPercent / 100),
-                8
-              );
-              if (tradeState.stopPrice === null || candidateStopPrice > tradeState.stopPrice) {
-                tradeState.stopPrice = candidateStopPrice;
-              }
               if (n > tradeState.ratchetSteps) {
                 tradeState.ratchetSteps = n;
+              }
+
+              if (trailingMode === 'trend') {
+                // Trend-Following Ratchet:
+                // 1. Minimum locked profit based on trigger steps reached
+                const minLockedProfitPercent = n * trailingStop.raisePercent;
+                // 2. Stop trails smoothly behind highestHigh at distance (raisePercent)
+                const trailDistance = trailingStop.raisePercent;
+                const minLockedPrice = roundTo(
+                  currentPos.entryPrice * (1 + minLockedProfitPercent / 100),
+                  8
+                );
+                const peakTrailPrice = roundTo(
+                  tradeState.highestHigh * (1 - trailDistance / 100),
+                  8
+                );
+                const candidateStop = Math.max(minLockedPrice, peakTrailPrice);
+                // 3. Golden Rule: Under NO circumstances can stopPrice ever move backward!
+                if (tradeState.stopPrice === null || candidateStop > tradeState.stopPrice) {
+                  tradeState.stopPrice = candidateStop;
+                }
+              } else {
+                // 'stepped' Mode: discrete steps from -tradeInitialStop + n * raisePercent
+                const candidateStopPercent =
+                  -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPrice = roundTo(
+                  currentPos.entryPrice * (1 + candidateStopPercent / 100),
+                  8
+                );
+                if (tradeState.stopPrice === null || candidateStopPrice > tradeState.stopPrice) {
+                  tradeState.stopPrice = candidateStopPrice;
+                }
               }
             }
           } else {
             // short
             const mfePercent =
               ((currentPos.entryPrice - tradeState.lowestLow) / currentPos.entryPrice) * 100;
+
+            // Capital preservation: Move stop to Break-Even (entry price) once trade gains >= initial risk
+            if (mfePercent >= tradeInitialStop) {
+              if (tradeState.stopPrice === null || tradeState.stopPrice > currentPos.entryPrice) {
+                tradeState.stopPrice = currentPos.entryPrice;
+              }
+            }
+
             const n = Math.floor(mfePercent / trailingStop.stepPercent);
             if (n > 0) {
-              const candidateStopPercent =
-                -tradeInitialStop + n * trailingStop.raisePercent;
-              const candidateStopPrice = roundTo(
-                currentPos.entryPrice * (1 - candidateStopPercent / 100),
-                8
-              );
-              if (tradeState.stopPrice === null || candidateStopPrice < tradeState.stopPrice) {
-                tradeState.stopPrice = candidateStopPrice;
-              }
               if (n > tradeState.ratchetSteps) {
                 tradeState.ratchetSteps = n;
+              }
+
+              if (trailingMode === 'trend') {
+                // Trend-Following Ratchet:
+                const minLockedProfitPercent = n * trailingStop.raisePercent;
+                const trailDistance = trailingStop.raisePercent;
+                const minLockedPrice = roundTo(
+                  currentPos.entryPrice * (1 - minLockedProfitPercent / 100),
+                  8
+                );
+                const peakTrailPrice = roundTo(
+                  tradeState.lowestLow * (1 + trailDistance / 100),
+                  8
+                );
+                const candidateStop = Math.min(minLockedPrice, peakTrailPrice);
+                // Golden Rule: Stop only ratchets DOWN in short, never moves upward!
+                if (tradeState.stopPrice === null || candidateStop < tradeState.stopPrice) {
+                  tradeState.stopPrice = candidateStop;
+                }
+              } else {
+                // 'stepped' Mode: discrete steps from -tradeInitialStop + n * raisePercent
+                const candidateStopPercent =
+                  -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPrice = roundTo(
+                  currentPos.entryPrice * (1 - candidateStopPercent / 100),
+                  8
+                );
+                if (tradeState.stopPrice === null || candidateStopPrice < tradeState.stopPrice) {
+                  tradeState.stopPrice = candidateStopPrice;
+                }
               }
             }
           }

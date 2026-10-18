@@ -43,6 +43,30 @@
 | 2026-10-18 09:14:41 | `20fdd6f` | `6d9a1d87` | BTCUSDT / 15m / all | **+16.73%** | 36 | 41.78% | 25.0% | [Report](history/20261018_091440_BTCUSDT_15m_6d9a1d87.md) |
 | 2026-10-18 09:15:58 | `20fdd6f` | `cf566818` | BTCUSDT / 15m / all | **+16.73%** | 36 | 41.78% | 25.0% | [Report](history/20261018_091557_BTCUSDT_15m_cf566818.md) |
 | 2026-10-18 09:16:37 | `20fdd6f` | `cf566818` | BTCUSDT / 15m / all | **+16.73%** | 36 | 41.78% | 25.0% | [Report](history/20261018_091637_BTCUSDT_15m_cf566818.md) |
+| 2026-10-18 09:27:51 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_092751_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 09:28:15 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_092815_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 09:28:42 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_092842_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 09:29:05 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_092905_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 09:48:41 | `d14bf31` | `185eb092` | BTCUSDT / 15m / all | **+1.42%** | 174 | 20.16% | 27.0% | [Report](history/20261018_094841_BTCUSDT_15m_185eb092.md) |
+| 2026-10-18 09:49:46 | `d14bf31` | `81aa7b58` | BTCUSDT / 15m / all | **+6.77%** | 104 | 10.67% | 28.8% | [Report](history/20261018_094946_BTCUSDT_15m_81aa7b58.md) |
+| 2026-10-18 10:02:28 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_100228_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 10:03:41 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_100341_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 10:04:27 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_100427_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 10:09:24 | `d14bf31` | `5c0a0a56` | BTCUSDT / 15m / all | **+4.56%** | 220 | 12.22% | 50.0% | [Report](history/20261018_100924_BTCUSDT_15m_5c0a0a56.md) |
+| 2026-10-18 10:11:27 | `d14bf31` | `3093062a` | BTCUSDT / 15m / all | **-5.92%** | 343 | 11.26% | 51.3% | [Report](history/20261018_101127_BTCUSDT_15m_3093062a.md) |
+| 2026-10-18 10:11:46 | `d14bf31` | `be865ed0` | BTCUSDT / 15m / all | **-3.10%** | 318 | 10.51% | 33.0% | [Report](history/20261018_101145_BTCUSDT_15m_be865ed0.md) |
+| 2026-10-18 10:11:56 | `d14bf31` | `33c1a7a8` | BTCUSDT / 15m / all | **-3.46%** | 293 | 9.53% | 49.1% | [Report](history/20261018_101155_BTCUSDT_15m_33c1a7a8.md) |
+| 2026-10-18 10:12:18 | `d14bf31` | `b07cf7ed` | BTCUSDT / 15m / all | **-7.64%** | 268 | 12.63% | 61.6% | [Report](history/20261018_101217_BTCUSDT_15m_b07cf7ed.md) |
+| 2026-10-18 10:12:43 | `d14bf31` | `b07cf7ed` | BTCUSDT / 15m / all | **-14.13%** | 389 | 15.63% | 10.5% | [Report](history/20261018_101242_BTCUSDT_15m_b07cf7ed.md) |
+| 2026-10-18 10:13:06 | `d14bf31` | `a728ac42` | BTCUSDT / 15m / all | **-3.25%** | 186 | 19.13% | 37.6% | [Report](history/20261018_101306_BTCUSDT_15m_a728ac42.md) |
+| 2026-10-18 10:13:16 | `d14bf31` | `b07cf7ed` | BTCUSDT / 15m / all | **-7.64%** | 268 | 12.63% | 61.6% | [Report](history/20261018_101316_BTCUSDT_15m_b07cf7ed.md) |
+| 2026-10-18 10:13:43 | `d14bf31` | `6811a7a6` | BTCUSDT / 15m / all | **+10.26%** | 230 | 8.61% | 40.9% | [Report](history/20261018_101343_BTCUSDT_15m_6811a7a6.md) |
+| 2026-10-18 10:14:02 | `d14bf31` | `ecf718ec` | BTCUSDT / 15m / all | **+6.53%** | 247 | 9.24% | 49.4% | [Report](history/20261018_101401_BTCUSDT_15m_ecf718ec.md) |
+| 2026-10-18 10:14:15 | `d14bf31` | `c5e68f72` | BTCUSDT / 15m / all | **-2.24%** | 278 | 9.02% | 57.9% | [Report](history/20261018_101415_BTCUSDT_15m_c5e68f72.md) |
+| 2026-10-18 10:15:25 | `d14bf31` | `85e1d04d` | BTCUSDT / 15m / all | **-0.27%** | 271 | 10.72% | 30.3% | [Report](history/20261018_101525_BTCUSDT_15m_85e1d04d.md) |
+| 2026-10-18 10:16:13 | `d14bf31` | `b99736e0` | BTCUSDT / 15m / all | **-8.82%** | 331 | 17.19% | 60.7% | [Report](history/20261018_101613_BTCUSDT_15m_b99736e0.md) |
+| 2026-10-18 10:16:35 | `d14bf31` | `f8d85bcc` | BTCUSDT / 15m / all | **-4.69%** | 343 | 10.36% | 51.3% | [Report](history/20261018_101635_BTCUSDT_15m_f8d85bcc.md) |
+| 2026-10-18 10:39:21 | `d14bf31` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_103921_BTCUSDT_4h_656c8de8.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).

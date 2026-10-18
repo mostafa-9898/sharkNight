@@ -20,6 +20,7 @@ export interface TrailingStopConfig {
   initialStopPercent: number; // e.g., 5 for 5% initial stop below/above entry
   stepPercent: number;        // e.g., 10 for each 10% favorable move
   raisePercent: number;       // e.g., 5 for 5% stop raise per step
+  mode?: 'trend' | 'stepped'; // 'trend' (follows trend peaks, non-retreating) or 'stepped' (ratchet steps)
 }
 
 export type CloudLocation = 'above' | 'inside' | 'below';

@@ -537,6 +537,73 @@ describe('BacktestEngine', () => {
       expect(result.trades[0].exitReason).toBe('trailingStop');
     });
 
+    it('should advance stop along with trend peaks and never move backward in trend mode', () => {
+      const engine = new BacktestEngine();
+      // Entry long at 100 on candle 0. Initial stop 95.
+      // Candle 1: High 110 (+10% favorable move) -> locks min +5% (105) and peak trail 110 * 0.95 = 104.5 -> stop = 105
+      // Candle 2: High 130 (+30% favorable move) -> peak trail 130 * 0.95 = 123.5 -> stop = 123.5
+      // Candle 3: Pullback to 125, high 127 -> stop stays strictly at 123.5 (never moves backward!)
+      // Candle 4: Low dips to 120 (<= 123.5) -> exits with trailingStop at 123.5
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 110, 99, 108, 1),
+        createExactCandle(108, 130, 107, 128, 2),
+        createExactCandle(128, 127, 125, 126, 3),
+        createExactCandle(126, 126, 120, 122, 4),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 1000,
+        trailingStop: {
+          initialStopPercent: 5,
+          stepPercent: 10,
+          raisePercent: 5,
+          mode: 'trend',
+        },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      const trade = result.trades[0];
+      expect(trade.exitPrice).toBe(123.5);
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.pnlPercent).toBeCloseTo(23.25, 1);
+      expect(trade.maxFavorablePercent).toBe(30);
+    });
+
+    it('should move stop to break-even once trade reaches initial stop distance (capital preservation)', () => {
+      const engine = new BacktestEngine();
+      // Entry at 100. Initial stop = 95 (5%).
+      // Candle 1: High reaches 106 (+6% MFE >= 5% initial risk) -> stop moves to break-even (100)
+      // Candle 2: Price reverses, low drops to 99 -> exits at 100 (gross 0% break-even)
+      const candles: Candle[] = [
+        createExactCandle(100, 100, 100, 100, 0),
+        createExactCandle(100, 106, 99, 104, 1),
+        createExactCandle(104, 104, 99, 99, 2),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 1000,
+        trailingStop: {
+          initialStopPercent: 5,
+          stepPercent: 10,
+          raisePercent: 5,
+          mode: 'trend',
+        },
+      });
+
+      expect(result.trades).toHaveLength(1);
+      const trade = result.trades[0];
+      expect(trade.exitPrice).toBe(100);
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.pnlPercent).toBeCloseTo(-0.2, 1); // 0% gross price return, -0.2% after roundtrip fees
+    });
+
     it('should fill at the open price if candle gaps past the stop level', () => {
       const engine = new BacktestEngine();
       // Long position: entry 100, initial stop 95. Next candle gaps down to open at 92.
