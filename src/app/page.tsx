@@ -101,7 +101,7 @@ interface BacktestResultData {
 export default function DashboardPage() {
   // --- 1. Top Backtest Configuration Box State ---
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
-  const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
+  const [btInterval, setBtInterval] = useState<CandleInterval>('4h');
   const [btPeriod, setBtPeriod] = useState<string>('all');
   const [btLimit, setBtLimit] = useState<string>('all');
   const [btInitialBalance, setBtInitialBalance] = useState(10000);
@@ -119,25 +119,25 @@ export default function DashboardPage() {
   const [rsiBuyMax, setRsiBuyMax] = useState(40);
   const [rsiSellMin, setRsiSellMin] = useState(60);
   const [rsiSellMax, setRsiSellMax] = useState(80);
-  const [rsiLookback, setRsiLookback] = useState(10);
+  const [rsiLookback, setRsiLookback] = useState(20);
   const [rsiRecoveryCap, setRsiRecoveryCap] = useState<string>('');
 
   // Trade Mode & Risk Management
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
-  const [exitMode, setExitMode] = useState<ExitMode>('reverse');
+  const [exitMode, setExitMode] = useState<ExitMode>('tkCross');
   const [maxBarsInTrade, setMaxBarsInTrade] = useState<string>('');
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
-  const [stopLossEnabled, setStopLossEnabled] = useState(false);
+  const [stopLossEnabled, setStopLossEnabled] = useState(true);
   const [stopLossPercent, setStopLossPercent] = useState(5);
 
   // Position Sizing & Cloud Filter
   const [positionSizePercent, setPositionSizePercent] = useState<number>(20);
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
-  const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('off');
+  const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
 
   // Trailing Stop & Execution Mode
-  const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
+  const [trailingStopEnabled, setTrailingStopEnabled] = useState(false);
   const [initialStopPercent, setInitialStopPercent] = useState(5);
   const [trailStepPercent, setTrailStepPercent] = useState(10);
   const [trailRaisePercent, setTrailRaisePercent] = useState(5);

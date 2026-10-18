@@ -103,7 +103,7 @@ export function validatePeriod(period: string): SupportedPeriod {
 
 export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const symbol = (parseArg('symbol', 'BTCUSDT', argv) ?? 'BTCUSDT').toUpperCase();
-  const interval = (parseArg('interval', '1h', argv) ?? '1h') as CandleInterval;
+  const interval = (parseArg('interval', '4h', argv) ?? '4h') as CandleInterval;
   const rawPeriod = parseArg('period', '6y', argv) ?? '6y';
   const period = validatePeriod(rawPeriod);
 
@@ -117,14 +117,14 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const rsiBuyMax = parseNumArg('rsiBuyMax', 40, argv)!;
   const rsiSellMin = parseNumArg('rsiSellMin', 60, argv)!;
   const rsiSellMax = parseNumArg('rsiSellMax', 80, argv)!;
-  const rsiLookback = parseNumArg('rsiLookback', 10, argv)!;
-  const cloudFilter = (parseArg('cloudFilter', 'off', argv) ?? 'off') as CloudFilter;
+  const rsiLookback = parseNumArg('rsiLookback', 20, argv)!;
+  const cloudFilter = (parseArg('cloudFilter', 'trend', argv) ?? 'trend') as CloudFilter;
   const rsiRecoveryCap = parseNumArg('rsiRecoveryCap', undefined, argv);
   const kijunSlopeFilter = parseBoolArg('kijunSlopeFilter', false, argv);
 
   // Engine params
   const tradeMode = (parseArg('tradeMode', 'long-short', argv) ?? 'long-short') as TradeMode;
-  const exitMode = (parseArg('exitMode', 'reverse', argv) ?? 'reverse') as ExitMode;
+  const exitMode = (parseArg('exitMode', 'tkCross', argv) ?? 'tkCross') as ExitMode;
   const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
   const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
   const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
@@ -134,11 +134,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
 
   // Trailing stop
-  let trailingStop: TrailingStopConfig | undefined = {
-    initialStopPercent: 5,
-    stepPercent: 10,
-    raisePercent: 5,
-  };
+  let trailingStop: TrailingStopConfig | undefined = undefined;
   const trailingArg = parseArg('trailingStop', undefined, argv);
   if (trailingArg === 'false' || trailingArg === 'off' || trailingArg === '0') {
     trailingStop = undefined;
@@ -153,7 +149,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     }
   }
 
-  const stopLossPercent = parseNumArg('stopLossPercent', undefined, argv);
+  const stopLossPercent = parseNumArg('stopLossPercent', 5, argv);
   const takeProfitPercent = parseNumArg('takeProfitPercent', undefined, argv);
 
   // Time window parameters (precedence: startTime/endTime > asOf > latest cached candle anchor)
