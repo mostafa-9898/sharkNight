@@ -164,7 +164,7 @@ export default function DashboardPage() {
 
   // Trade Mode & Risk Management
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
-  const [exitMode, setExitMode] = useState<ExitMode>('tkCross');
+  const [exitMode, setExitMode] = useState<ExitMode>('trailingOnly');
   const [maxBarsInTrade, setMaxBarsInTrade] = useState<string>('');
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(false);
   const [takeProfitPercent, setTakeProfitPercent] = useState(10);
@@ -1262,7 +1262,8 @@ export default function DashboardPage() {
                   fontWeight: 600,
                 }}
               >
-                <option value="reverse">Reverse on Signal (Default)</option>
+                <option value="trailingOnly">Trailing Ratchet Only (User Plan - No Signal Exit)</option>
+                <option value="reverse">Reverse on Signal</option>
                 <option value="tkCross">Opposite TK Cross</option>
                 <option value="kijun">Opposite Kijun Cross</option>
               </select>

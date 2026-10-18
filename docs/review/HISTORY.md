@@ -28,6 +28,11 @@
 | 2026-10-18 07:45:12 | `5783fb4` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_074512_BTCUSDT_4h_656c8de8.md) |
 | 2026-10-18 07:52:29 | `5783fb4` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_075229_BTCUSDT_4h_656c8de8.md) |
 | 2026-10-18 07:55:38 | `5783fb4` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_075538_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 08:08:40 | `7f33012` | `943cc31b` | BTCUSDT / 15m / all | **-14.00%** | 420 | 14.41% | 24.5% | [Report](history/20261018_080840_BTCUSDT_15m_943cc31b.md) |
+| 2026-10-18 08:10:05 | `7f33012` | `6fb7452b` | ETHUSDT / 15m / all | **-11.11%** | 405 | 14.90% | 29.9% | [Report](history/20261018_081005_ETHUSDT_15m_6fb7452b.md) |
+| 2026-10-18 08:16:17 | `7f33012` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_081617_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 08:20:20 | `7f33012` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_082020_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-18 08:38:50 | `7f33012` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261018_083850_BTCUSDT_4h_656c8de8.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).

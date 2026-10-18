@@ -13,7 +13,7 @@ export type ExitReason =
   | 'tkCrossExit'
   | 'kijunExit'
   | 'timeStop';
-export type ExitMode = 'reverse' | 'tkCross' | 'kijun';
+export type ExitMode = 'reverse' | 'tkCross' | 'kijun' | 'trailingOnly';
 export type StopCheckMode = 'intrabar' | 'close';
 
 export interface TrailingStopConfig {

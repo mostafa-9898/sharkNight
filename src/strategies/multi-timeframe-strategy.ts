@@ -1,6 +1,6 @@
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from './types';
-import type { ExitMode } from '../backtest/types';
+import type { ExitMode, TkCrossTraceEvent } from '../backtest/types';
 import { calculateIchimoku, type IchimokuResult } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { calculateStochastic, type StochasticResult } from '../indicators/stochastic';
@@ -50,10 +50,16 @@ interface CachedIndicators {
   // HTF 4h indicators
   htf4hCandles: readonly Candle[];
   htf4hIchimoku: IchimokuResult;
+  htf4hRsi: number[];
+  htf4hStoch: StochasticResult;
+  htf4hAtr: number[];
 
   // HTF 1h indicators
   htf1hCandles: readonly Candle[];
   htf1hIchimoku: IchimokuResult;
+  htf1hRsi: number[];
+  htf1hStoch: StochasticResult;
+  htf1hAtr: number[];
 }
 
 /**
@@ -179,6 +185,11 @@ export class MultiTimeframeStrategy implements Strategy {
   private explicitHtf1h?: readonly Candle[];
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
+  private traceCollector?: { onTkCross?: (event: TkCrossTraceEvent) => void };
+
+  setTraceCollector(collector?: { onTkCross?: (event: TkCrossTraceEvent) => void }): void {
+    this.traceCollector = collector;
+  }
 
   constructor(config?: MultiTimeframeConfig) {
     this.explicitHtf4h = config?.htf4hCandles;
@@ -238,6 +249,13 @@ export class MultiTimeframeStrategy implements Strategy {
           ? this.explicitHtf4h
           : aggregateCandles(candles, 4 * 60 * 60 * 1000);
       const htf4hIchimoku = calculateIchimoku(htf4hCandles, ichiConfig);
+      const htf4hRsi = calculateRSI(htf4hCandles.map((c) => c.close), this.rsiPeriod);
+      const htf4hStoch = calculateStochastic(htf4hCandles, {
+        kPeriod: this.stochKPeriod,
+        dPeriod: this.stochDPeriod,
+        smooth: this.stochSmooth,
+      });
+      const htf4hAtr = calculateATR(htf4hCandles, 14);
 
       // 3. HTF 1h Candles & Indicators
       const htf1hCandles =
@@ -245,6 +263,13 @@ export class MultiTimeframeStrategy implements Strategy {
           ? this.explicitHtf1h
           : aggregateCandles(candles, 60 * 60 * 1000);
       const htf1hIchimoku = calculateIchimoku(htf1hCandles, ichiConfig);
+      const htf1hRsi = calculateRSI(htf1hCandles.map((c) => c.close), this.rsiPeriod);
+      const htf1hStoch = calculateStochastic(htf1hCandles, {
+        kPeriod: this.stochKPeriod,
+        dPeriod: this.stochDPeriod,
+        smooth: this.stochSmooth,
+      });
+      const htf1hAtr = calculateATR(htf1hCandles, 14);
 
       cached = {
         ltfIchimoku,
@@ -253,8 +278,14 @@ export class MultiTimeframeStrategy implements Strategy {
         ltfAtr,
         htf4hCandles,
         htf4hIchimoku,
+        htf4hRsi,
+        htf4hStoch,
+        htf4hAtr,
         htf1hCandles,
         htf1hIchimoku,
+        htf1hRsi,
+        htf1hStoch,
+        htf1hAtr,
       };
 
       this.indicatorCache.set(candles, cached);
@@ -274,21 +305,31 @@ export class MultiTimeframeStrategy implements Strategy {
     const ms4h = 4 * 60 * 60 * 1000;
     const ms1h = 60 * 60 * 1000;
 
-    // Find the latest closed 4h candle strictly before or at timestamp
+    // Find the latest closed 4h candle strictly before or at timestamp using binary search
     let htf4hIdx = -1;
-    for (let k = htf4hCandles.length - 1; k >= 0; k--) {
-      if (htf4hCandles[k].timestamp + ms4h <= timestamp) {
-        htf4hIdx = k;
-        break;
+    let low4h = 0;
+    let high4h = htf4hCandles.length - 1;
+    while (low4h <= high4h) {
+      const mid = (low4h + high4h) >> 1;
+      if (htf4hCandles[mid].timestamp + ms4h <= timestamp) {
+        htf4hIdx = mid;
+        low4h = mid + 1;
+      } else {
+        high4h = mid - 1;
       }
     }
 
-    // Find the latest closed 1h candle strictly before or at timestamp
+    // Find the latest closed 1h candle strictly before or at timestamp using binary search
     let htf1hIdx = -1;
-    for (let k = htf1hCandles.length - 1; k >= 0; k--) {
-      if (htf1hCandles[k].timestamp + ms1h <= timestamp) {
-        htf1hIdx = k;
-        break;
+    let low1h = 0;
+    let high1h = htf1hCandles.length - 1;
+    while (low1h <= high1h) {
+      const mid = (low1h + high1h) >> 1;
+      if (htf1hCandles[mid].timestamp + ms1h <= timestamp) {
+        htf1hIdx = mid;
+        low1h = mid + 1;
+      } else {
+        high1h = mid - 1;
       }
     }
 
@@ -296,7 +337,7 @@ export class MultiTimeframeStrategy implements Strategy {
       return { bullish: false, bearish: false, htf4hIdx, htf1hIdx };
     }
 
-    // 4h Trend Evaluation
+    // 4h Trend Evaluation (Ichimoku + RSI + Stochastic + TDR)
     const c4h = htf4hCandles[htf4hIdx];
     const spanA4h = htf4hIchimoku.senkouA[htf4hIdx];
     const spanB4h = htf4hIchimoku.senkouB[htf4hIdx];
@@ -305,10 +346,23 @@ export class MultiTimeframeStrategy implements Strategy {
     const tenkan4h = htf4hIchimoku.tenkan[htf4hIdx];
     const kijun4h = htf4hIchimoku.kijun[htf4hIdx];
 
-    const isBull4h = c4h.close > cloudTop4h && tenkan4h >= kijun4h;
-    const isBear4h = c4h.close < cloudBtm4h && tenkan4h <= kijun4h;
+    const rsi4h = cached.htf4hRsi[htf4hIdx];
+    const stoch4hK = cached.htf4hStoch.k[htf4hIdx];
+    const stoch4hD = cached.htf4hStoch.d[htf4hIdx];
 
-    // 1h Trend Evaluation
+    const ichiBull4h = c4h.close > cloudTop4h && tenkan4h >= kijun4h;
+    const ichiBear4h = c4h.close < cloudBtm4h && tenkan4h <= kijun4h;
+
+    const rsiBull4h = !Number.isFinite(rsi4h) || rsi4h >= 45;
+    const rsiBear4h = !Number.isFinite(rsi4h) || rsi4h <= 55;
+
+    const stochBull4h = !Number.isFinite(stoch4hK) || stoch4hK >= stoch4hD || stoch4hK >= 30;
+    const stochBear4h = !Number.isFinite(stoch4hK) || stoch4hK <= stoch4hD || stoch4hK <= 70;
+
+    const isBull4h = ichiBull4h && rsiBull4h && stochBull4h;
+    const isBear4h = ichiBear4h && rsiBear4h && stochBear4h;
+
+    // 1h Trend Evaluation (Ichimoku + RSI + Stochastic + TDR)
     const c1h = htf1hCandles[htf1hIdx];
     const spanA1h = htf1hIchimoku.senkouA[htf1hIdx];
     const spanB1h = htf1hIchimoku.senkouB[htf1hIdx];
@@ -317,15 +371,28 @@ export class MultiTimeframeStrategy implements Strategy {
     const tenkan1h = htf1hIchimoku.tenkan[htf1hIdx];
     const kijun1h = htf1hIchimoku.kijun[htf1hIdx];
 
-    const isBull1h = c1h.close > cloudTop1h && tenkan1h >= kijun1h;
-    const isBear1h = c1h.close < cloudBtm1h && tenkan1h <= kijun1h;
+    const rsi1h = cached.htf1hRsi[htf1hIdx];
+    const stoch1hK = cached.htf1hStoch.k[htf1hIdx];
+    const stoch1hD = cached.htf1hStoch.d[htf1hIdx];
+
+    const ichiBull1h = c1h.close > cloudTop1h && tenkan1h >= kijun1h;
+    const ichiBear1h = c1h.close < cloudBtm1h && tenkan1h <= kijun1h;
+
+    const rsiBull1h = !Number.isFinite(rsi1h) || rsi1h >= 45;
+    const rsiBear1h = !Number.isFinite(rsi1h) || rsi1h <= 55;
+
+    const stochBull1h = !Number.isFinite(stoch1hK) || stoch1hK >= stoch1hD || stoch1hK >= 30;
+    const stochBear1h = !Number.isFinite(stoch1hK) || stoch1hK <= stoch1hD || stoch1hK <= 70;
+
+    const isBull1h = ichiBull1h && rsiBull1h && stochBull1h;
+    const isBear1h = ichiBear1h && rsiBear1h && stochBear1h;
 
     let bullish = false;
     let bearish = false;
 
     if (this.trendRequirement === '4h_and_1h') {
-      bullish = isBull4h && (isBull1h || c1h.close > cloudBtm1h);
-      bearish = isBear4h && (isBear1h || c1h.close < cloudTop1h);
+      bullish = isBull4h && (isBull1h || (c1h.close > cloudBtm1h && rsiBull1h));
+      bearish = isBear4h && (isBear1h || (c1h.close < cloudTop1h && rsiBear1h));
     } else if (this.trendRequirement === '4h_only') {
       bullish = isBull4h;
       bearish = isBear4h;
@@ -401,20 +468,52 @@ export class MultiTimeframeStrategy implements Strategy {
     const ltfCloudBullish = !this.requireLtfCloudAlignment || candle.close >= cloudBtm;
     const ltfCloudBearish = !this.requireLtfCloudAlignment || candle.close <= cloudTop;
 
+    if (this.traceCollector?.onTkCross) {
+      if (ltfTkCrossUp) {
+        this.traceCollector.onTkCross({
+          index: currentIndex,
+          timestamp: candle.timestamp,
+          direction: 'up',
+          price: candle.close,
+          rsi,
+          inRsiZone: rsiBuyValid,
+          signalEmitted: Boolean(htfBullish && stochCrossUp && rsiBuyValid && (ltfTkCrossUp || (tenkan >= kijun && ltfCloudBullish))),
+        });
+      } else if (ltfTkCrossDown) {
+        this.traceCollector.onTkCross({
+          index: currentIndex,
+          timestamp: candle.timestamp,
+          direction: 'down',
+          price: candle.close,
+          rsi,
+          inRsiZone: rsiSellValid,
+          signalEmitted: Boolean(htfBearish && stochCrossDown && rsiSellValid && (ltfTkCrossDown || (tenkan <= kijun && ltfCloudBearish))),
+        });
+      }
+    }
+
     // Confluence BUY Signal
     if (htfBullish && stochCrossUp && rsiBuyValid) {
       if (ltfTkCrossUp || (tenkan >= kijun && ltfCloudBullish)) {
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const initialStopPercent = this.initialStopPercent;
-        const stopPrice = this.useTdrStop
-          ? roundTo(candle.close - atr * this.tdrMultiplier, 8)
-          : roundTo(candle.close * (1 - initialStopPercent / 100), 8);
+        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+        const maxStopPercent = 5.0;
+
+        // User requirement: "اگر برآوردت بیشتر از 5 درصد بود باز نکن پوزیشن رو"
+        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+          return defaultSignal;
+        }
+
+        const effectiveStopPercent = this.useTdrStop
+          ? Math.min(tdrStopPercent, maxStopPercent)
+          : this.initialStopPercent;
+        const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
 
         return {
           action: 'BUY',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bullish: 4h/1h Trend + LTF Stoch Cross Up (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + Ichimoku`,
+          reason: `MTF Bullish: 4h/1h Trend (Ichimoku+RSI+Stoch+TDR) + LTF Stoch Cross Up (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + TDR Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
@@ -422,8 +521,9 @@ export class MultiTimeframeStrategy implements Strategy {
             tenkan,
             kijun,
             atr,
+            tdrStopPercent,
             stopPrice,
-            initialStopPercent,
+            initialStopPercent: effectiveStopPercent,
           },
         };
       }
@@ -433,16 +533,24 @@ export class MultiTimeframeStrategy implements Strategy {
     if (htfBearish && stochCrossDown && rsiSellValid) {
       if (ltfTkCrossDown || (tenkan <= kijun && ltfCloudBearish)) {
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const initialStopPercent = this.initialStopPercent;
-        const stopPrice = this.useTdrStop
-          ? roundTo(candle.close + atr * this.tdrMultiplier, 8)
-          : roundTo(candle.close * (1 + initialStopPercent / 100), 8);
+        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+        const maxStopPercent = 5.0;
+
+        // User requirement: "اگر برآوردت بیشتر از 5 درصد بود باز نکن پوزیشن رو"
+        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+          return defaultSignal;
+        }
+
+        const effectiveStopPercent = this.useTdrStop
+          ? Math.min(tdrStopPercent, maxStopPercent)
+          : this.initialStopPercent;
+        const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
 
         return {
           action: 'SELL',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bearish: 4h/1h Trend + LTF Stoch Cross Down (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + Ichimoku`,
+          reason: `MTF Bearish: 4h/1h Trend (Ichimoku+RSI+Stoch+TDR) + LTF Stoch Cross Down (%K:${roundTo(k, 1)}) + RSI ${roundTo(rsi, 1)} + TDR Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
@@ -450,8 +558,9 @@ export class MultiTimeframeStrategy implements Strategy {
             tenkan,
             kijun,
             atr,
+            tdrStopPercent,
             stopPrice,
-            initialStopPercent,
+            initialStopPercent: effectiveStopPercent,
           },
         };
       }
@@ -464,8 +573,13 @@ export class MultiTimeframeStrategy implements Strategy {
     candles: readonly Candle[],
     currentIndex: number,
     side: 'long' | 'short',
-    mode: ExitMode = 'reverse'
+    mode: ExitMode = 'trailingOnly'
   ): boolean {
+    // "پس برای خروج نیازی به سیگنال نیست ، فقط با حالت تریگر کردن استاپ برو جلو"
+    if (mode === 'trailingOnly') {
+      return false;
+    }
+
     if (currentIndex < 1 || currentIndex >= candles.length) {
       return false;
     }

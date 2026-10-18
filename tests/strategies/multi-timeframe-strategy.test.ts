@@ -116,4 +116,73 @@ describe('MultiTimeframeStrategy', () => {
 
     expect(result.metrics).toBeDefined();
   });
+
+  it('exitSignal returns false when mode is trailingOnly', () => {
+    const candles = createMockCandles(100, 15, 100);
+    const strategy = new MultiTimeframeStrategy();
+
+    // In trailingOnly mode, no signal-based exit occurs
+    expect(strategy.exitSignal(candles, 50, 'long', 'trailingOnly')).toBe(false);
+    expect(strategy.exitSignal(candles, 50, 'short', 'trailingOnly')).toBe(false);
+  });
+
+  it('filters out trades when estimated TDR stop exceeds 5%', () => {
+    // Create candles with very high volatility (high-low spread = 20 on price 100 -> ATR > 10%)
+    const highVolCandles: Candle[] = [];
+    const intervalMs = 15 * 60 * 1000;
+    const start = 1600000000000;
+    for (let i = 0; i < 100; i++) {
+      highVolCandles.push({
+        timestamp: start + i * intervalMs,
+        open: 100,
+        high: 115,
+        low: 85,
+        close: 100,
+        volume: 1000,
+      });
+    }
+
+    const strategy = new MultiTimeframeStrategy({
+      useTdrStop: true,
+      tdrMultiplier: 1.5, // ATR is ~30 -> 1.5 * 30 / 100 = 45% > 5%
+    });
+
+    for (let i = 50; i < highVolCandles.length; i++) {
+      const signal = strategy.analyze(highVolCandles, i);
+      // Because estimated stop is > 5%, no trade should ever be opened!
+      expect(signal.action).toBe('HOLD');
+    }
+  });
+
+  it('runs cleanly in BacktestEngine with exitMode trailingOnly', () => {
+    const candles = createMockCandles(200, 15, 100);
+    const strategy = new MultiTimeframeStrategy({
+      useTdrStop: true,
+      tdrMultiplier: 1.5,
+    });
+    const engine = new BacktestEngine();
+
+    const result = engine.run({
+      strategy,
+      candles,
+      initialBalance: 10000,
+      positionSizePercent: 20,
+      tradeMode: 'long-short',
+      exitMode: 'trailingOnly',
+      trailingStop: {
+        initialStopPercent: 5,
+        stepPercent: 9,
+        raisePercent: 3,
+      },
+    });
+
+    expect(result).toBeDefined();
+    expect(result.metrics).toBeDefined();
+    // Trades should only exit via stopLoss, trailingStop, or end of dataset
+    for (const trade of result.trades) {
+      expect(['stopLoss', 'trailingStop', 'end', 'takeProfit', 'timeStop']).toContain(trade.exitReason);
+      expect(trade.exitReason).not.toBe('reverse');
+      expect(trade.exitReason).not.toBe('tkCrossExit');
+    }
+  });
 });
