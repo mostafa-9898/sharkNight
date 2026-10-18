@@ -1,4 +1,5 @@
 import { MultiTimeframeStrategy, aggregateCandles, calculateATR } from '../../src/strategies/multi-timeframe-strategy';
+import { confirmedSwings } from '../../src/indicators/swing';
 import { BacktestEngine } from '../../src/backtest/engine';
 import type { Candle } from '../../src/data/models';
 
@@ -220,6 +221,8 @@ describe('MultiTimeframeStrategy', () => {
     expect(idx).toBeGreaterThan(0);
 
     const strategy = new MultiTimeframeStrategy({
+      htfMode: 'legacy',
+      entryMode: 'legacy',
       lookbackBars: 3,
       minConfirmations: 2,
     });
@@ -228,5 +231,364 @@ describe('MultiTimeframeStrategy', () => {
     expect(signal.action).toBe('BUY');
     expect(signal.price).toBe(77766.2);
     expect(signal.metadata?.confirmations).toBeGreaterThanOrEqual(2);
+  });
+
+  it('does not emit signal when 1h and 4h HTF trends are opposing', () => {
+    const start = 1700000000000;
+    // 1h bullish: prices rising
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    // 4h bearish: prices falling
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 1000 - i * 5,
+      high: 1000 - i * 5 + 2,
+      low: 1000 - i * 5 - 2,
+      close: 1000 - i * 5,
+      volume: 100,
+    }));
+    // LTF candles with bullish Stoch cross at index 59
+    const ltfStart = start + 40 * 3600000;
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    ltfCandles[58].close = 90;
+    ltfCandles[58].low = 88;
+    ltfCandles[59].close = 110;
+    ltfCandles[59].high = 112;
+
+    const strategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+    });
+
+    const signal = strategy.analyze(ltfCandles, 59);
+    expect(signal.action).toBe('HOLD');
+  });
+
+  it('does not emit signal on cross when HTF trend is neutral/flat', () => {
+    const start = 1700000000000;
+    // Flat 1h & 4h candles -> trend = 0
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 100,
+    }));
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 100,
+    }));
+    const ltfStart = start + 40 * 3600000;
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    ltfCandles[58].close = 90;
+    ltfCandles[58].low = 88;
+    ltfCandles[59].close = 110;
+    ltfCandles[59].high = 112;
+
+    const strategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+    });
+
+    const signal = strategy.analyze(ltfCandles, 59);
+    expect(signal.action).toBe('HOLD');
+  });
+
+  it('does not use unclosed HTF candles causally', () => {
+    const start = 1700000000000;
+    // 4h is fully bullish
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+
+    // 1h candles: first 40 are flat (trend 0), from 40 onwards strongly rising
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 100,
+    }));
+    for (let i = 40; i < 60; i++) {
+      htf1h[i] = {
+        timestamp: start + i * 3600000,
+        open: 100 + (i - 39) * 20,
+        high: 100 + (i - 39) * 20 + 2,
+        low: 100 + (i - 39) * 20 - 2,
+        close: 100 + (i - 39) * 20,
+        volume: 100,
+      };
+    }
+
+    const strategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+    });
+
+    // LTF candle at 40h 15m (closes at 40h 30m) -> 1h candle 40 (starts at 40h, closes at 41h) is UNCLOSED!
+    const ltfStart = start + 40 * 3600000 + 15 * 60000 - 59 * 900000;
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    ltfCandles[58].close = 90;
+    ltfCandles[58].low = 88;
+    ltfCandles[59].close = 110;
+    ltfCandles[59].high = 112;
+
+    const signalUnclosed = strategy.analyze(ltfCandles, 59);
+    // Because 1h candle 40 has not closed yet, only closed candle 39 (flat, trend 0) is used -> HOLD!
+    expect(signalUnclosed.action).toBe('HOLD');
+  });
+
+  it('confirmedSwings enforces strictly causal no-lookahead behavior', () => {
+    // 25 candles with flat baseline
+    const candles: Candle[] = Array.from({ length: 25 }, (_, i) => ({
+      timestamp: 1000 + i * 60000,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 100,
+    }));
+    // Peak at index j = 10 with k = 3
+    candles[10].high = 150;
+
+    // At index i = 12 (i < j + k = 13), the candle 13 has not closed yet, so pivot 10 is NOT known/confirmed
+    const swingsBefore = confirmedSwings(candles, 3, 12);
+    expect(swingsBefore.highs.find((p) => p.index === 10)).toBeUndefined();
+
+    // At index i = 13 (i = j + k = 13), candle 13 has closed, so pivot 10 IS confirmed
+    const swingsAtConfirmation = confirmedSwings(candles, 3, 13);
+    const pivotAt10 = swingsAtConfirmation.highs.find((p) => p.index === 10);
+    expect(pivotAt10).toBeDefined();
+    expect(pivotAt10?.price).toBe(150);
+    expect(pivotAt10?.confirmedIndex).toBe(13);
+
+    // Future candles beyond 13 should not affect swings confirmed up to index 13
+    candles[14].high = 200;
+    const swingsUnchanged = confirmedSwings(candles, 3, 13);
+    expect(swingsUnchanged.highs.find((p) => p.index === 10)).toBeDefined();
+    expect(swingsUnchanged.highs.find((p) => p.index === 14)).toBeUndefined();
+  });
+
+  it('kijunSlopeFilter positive example emits BUY when kijun is sloping up', () => {
+    const start = 1700000000000;
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const ltfStart = start + 40 * 3600000;
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    // Rising kijun on LTF: prices increase from bar 50 to 60
+    for (let i = 50; i < 60; i++) {
+      ltfCandles[i].high += (i - 49) * 5;
+      ltfCandles[i].low += (i - 49) * 5;
+      ltfCandles[i].close += (i - 49) * 5;
+    }
+    ltfCandles[58].close = ltfCandles[58].low;
+    ltfCandles[59].close = ltfCandles[59].high;
+
+    const strategy = new MultiTimeframeStrategy({
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+      kijunSlopeFilter: true,
+    });
+
+    const signal = strategy.analyze(ltfCandles, 59);
+    expect(signal.action).toBe('BUY');
+  });
+
+  it('kijunSlopeFilter negative example holds when kijun is flat or declining', () => {
+    const start = 1700000000000;
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const ltfStart = start + 40 * 3600000;
+    // Flat baseline candles -> kijun[59] == kijun[54]
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    ltfCandles[58].close = 90;
+    ltfCandles[58].low = 88;
+    ltfCandles[59].close = 110;
+    ltfCandles[59].high = 112;
+
+    const strategy = new MultiTimeframeStrategy({
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+      kijunSlopeFilter: true,
+    });
+
+    const signal = strategy.analyze(ltfCandles, 59);
+    // Because kijun[59] is not > kijun[54], the filter blocks BUY signal
+    expect(signal.action).toBe('HOLD');
+  });
+
+  it('structureFilter positive example passes when HH and HL are present', () => {
+    const start = 1700000000000;
+    const prices = [
+      75, 73, 70, 68, 65, 62, 60, 58, 56, 54, 52, 55, 60, 70, 80, 90, 100, 110, 120, 130,
+      135, 138, 140, 135, 130, 120, 110, 100, 95, 90, 95, 100, 110, 120, 130, 140, 150, 160,
+      150, 140, 130, 120, 110, 100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 170
+    ];
+    const ltfCandles = prices.map((p, i) => ({
+      timestamp: start + i * 900000,
+      open: p,
+      high: p + 1,
+      low: p - 1,
+      close: p,
+      volume: 100,
+    }));
+
+    const strategy = new MultiTimeframeStrategy({ structureFilter: true });
+    // Structure filter should pass for long because H2 (161) > H1 (141) and L2 (89) > L1 (51)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const passes = (strategy as any).passesFilters(ltfCandles, 59, 'long', []);
+    expect(passes).toBe(true);
+  });
+
+  it('structureFilter negative example fails on lower high or insufficient pivots', () => {
+    const start = 1700000000000;
+    const prices = [
+      75, 73, 70, 68, 65, 62, 60, 58, 56, 54, 52, 55, 60, 70, 80, 90, 100, 110, 120, 130,
+      135, 138, 140, 135, 130, 120, 110, 100, 95, 90, 95, 100, 110, 120, 130, 140, 150, 160,
+      150, 140, 130, 120, 110, 100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 170
+    ];
+    // Create LH by dropping the second peak from 160 to 130 (< 140)
+    const pricesLH = [...prices];
+    pricesLH[37] = 130;
+    const ltfCandlesLH = pricesLH.map((p, i) => ({
+      timestamp: start + i * 900000,
+      open: p,
+      high: p + 1,
+      low: p - 1,
+      close: p,
+      volume: 100,
+    }));
+
+    const strategy = new MultiTimeframeStrategy({ structureFilter: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const passesLH = (strategy as any).passesFilters(ltfCandlesLH, 59, 'long', []);
+    expect(passesLH).toBe(false);
+
+    // Also verify rejection when fewer than 2 pivots exist
+    const fewCandles = ltfCandlesLH.slice(0, 10);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const passesFew = (strategy as any).passesFilters(fewCandles, 9, 'long', []);
+    expect(passesFew).toBe(false);
   });
 });

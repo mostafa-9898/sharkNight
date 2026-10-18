@@ -4,11 +4,17 @@ import type { ExitMode, TkCrossTraceEvent } from '../backtest/types';
 import { calculateIchimoku, type IchimokuResult } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { calculateStochastic, type StochasticResult } from '../indicators/stochastic';
+import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
 import { roundTo } from '../utils/math';
 
 export interface MultiTimeframeConfig {
+  htfMode?: 'strict' | 'legacy';
+  entryMode?: 'cross' | 'legacy';
+  kijunSlopeFilter?: boolean;
+  structureFilter?: boolean;
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
+  ltfIntervalMs?: number;
 
   // Ichimoku parameters (default: 9, 26, 52, 26)
   tenkan?: number;
@@ -48,6 +54,7 @@ interface CachedIndicators {
   ltfRsi: number[];
   ltfStoch: StochasticResult;
   ltfAtr: number[];
+  ltfSwings?: ConfirmedSwingsResult;
 
   // HTF 4h indicators
   htf4hCandles: readonly Candle[];
@@ -146,6 +153,44 @@ export function calculateATR(candles: readonly Candle[], period = 14): number[] 
 }
 
 /**
+ * Computes strict HTF trend direction for a single HTF candle:
+ * +1 if close > cloudTop and tenkan > kijun
+ * -1 if close < cloudBottom and tenkan < kijun
+ * otherwise 0
+ * RSI and Stochastic are strictly NOT used.
+ */
+export function computeStrictHtfTrend(
+  candle: Candle | undefined,
+  ichimoku: IchimokuResult,
+  idx: number
+): number {
+  if (idx < 0 || !candle) return 0;
+  const spanA = ichimoku.senkouA[idx];
+  const spanB = ichimoku.senkouB[idx];
+  const cloudTop = Math.max(spanA, spanB);
+  const cloudBottom = Math.min(spanA, spanB);
+  const tenkan = ichimoku.tenkan[idx];
+  const kijun = ichimoku.kijun[idx];
+
+  if (
+    !Number.isFinite(cloudTop) ||
+    !Number.isFinite(cloudBottom) ||
+    !Number.isFinite(tenkan) ||
+    !Number.isFinite(kijun)
+  ) {
+    return 0;
+  }
+
+  if (candle.close > cloudTop && tenkan > kijun) {
+    return 1;
+  }
+  if (candle.close < cloudBottom && tenkan < kijun) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
  * Multi-Timeframe Strategy:
  * - Macro & Intermediate Trend: Determined on 4h & 1h using Ichimoku (Price vs Cloud, Cloud Twist, TK alignment).
  * - Confirmation: Evaluated on 15m / 5m using 3 indicators:
@@ -176,6 +221,12 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly stochOversold: number;
   readonly stochOverbought: number;
 
+  readonly htfMode: 'strict' | 'legacy';
+  readonly entryMode: 'cross' | 'legacy';
+  readonly kijunSlopeFilter: boolean;
+  readonly structureFilter: boolean;
+  readonly ltfIntervalMs?: number;
+
   readonly trendRequirement: '4h_and_1h' | '4h_only' | 'either';
   readonly requireLtfCloudAlignment: boolean;
   readonly lookbackBars: number;
@@ -196,6 +247,12 @@ export class MultiTimeframeStrategy implements Strategy {
   }
 
   constructor(config?: MultiTimeframeConfig) {
+    this.htfMode = config?.htfMode ?? 'strict';
+    this.entryMode = config?.entryMode ?? 'cross';
+    this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
+    this.structureFilter = config?.structureFilter ?? false;
+    this.ltfIntervalMs = config?.ltfIntervalMs;
+
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;
 
@@ -277,11 +334,14 @@ export class MultiTimeframeStrategy implements Strategy {
       });
       const htf1hAtr = calculateATR(htf1hCandles, 14);
 
+      const ltfSwings = this.structureFilter ? confirmedSwings(candles, 3) : undefined;
+
       cached = {
         ltfIchimoku,
         ltfRsi,
         ltfStoch,
         ltfAtr,
+        ltfSwings,
         htf4hCandles,
         htf4hIchimoku,
         htf4hRsi,
@@ -299,17 +359,76 @@ export class MultiTimeframeStrategy implements Strategy {
     return cached;
   }
 
+  private getLtfMs(candles: readonly Candle[], currentIndex: number): number {
+    if (this.ltfIntervalMs && this.ltfIntervalMs > 0) return this.ltfIntervalMs;
+    if (currentIndex > 0) {
+      const diff = candles[currentIndex].timestamp - candles[currentIndex - 1].timestamp;
+      if (diff > 0 && diff <= 24 * 60 * 60 * 1000) return diff;
+    }
+    if (candles.length >= 2) {
+      const diff = candles[1].timestamp - candles[0].timestamp;
+      if (diff > 0 && diff <= 24 * 60 * 60 * 1000) return diff;
+    }
+    return 15 * 60 * 1000;
+  }
+
   /**
    * Evaluates HTF trend strictly causally up to current LTF timestamp
    */
   private getHtfBias(
     timestamp: number,
-    cached: CachedIndicators
+    cached: CachedIndicators,
+    ltfMs: number = 15 * 60 * 1000
   ): { bullish: boolean; bearish: boolean; htf4hIdx: number; htf1hIdx: number } {
     const { htf4hCandles, htf4hIchimoku, htf1hCandles, htf1hIchimoku } = cached;
 
     const ms4h = 4 * 60 * 60 * 1000;
     const ms1h = 60 * 60 * 1000;
+
+    if (this.htfMode === 'strict') {
+      const ltfEndTime = timestamp + ltfMs;
+
+      // Find the latest closed 4h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
+      let htf4hIdx = -1;
+      let low4h = 0;
+      let high4h = htf4hCandles.length - 1;
+      while (low4h <= high4h) {
+        const mid = (low4h + high4h) >> 1;
+        if (htf4hCandles[mid].timestamp + ms4h <= ltfEndTime) {
+          htf4hIdx = mid;
+          low4h = mid + 1;
+        } else {
+          high4h = mid - 1;
+        }
+      }
+
+      // Find the latest closed 1h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
+      let htf1hIdx = -1;
+      let low1h = 0;
+      let high1h = htf1hCandles.length - 1;
+      while (low1h <= high1h) {
+        const mid = (low1h + high1h) >> 1;
+        if (htf1hCandles[mid].timestamp + ms1h <= ltfEndTime) {
+          htf1hIdx = mid;
+          low1h = mid + 1;
+        } else {
+          high1h = mid - 1;
+        }
+      }
+
+      if (htf4hIdx < 0 || htf1hIdx < 0) {
+        return { bullish: false, bearish: false, htf4hIdx, htf1hIdx };
+      }
+
+      const trend4h = computeStrictHtfTrend(htf4hCandles[htf4hIdx], htf4hIchimoku, htf4hIdx);
+      const trend1h = computeStrictHtfTrend(htf1hCandles[htf1hIdx], htf1hIchimoku, htf1hIdx);
+
+      // جهت مجاز فقط وقتی غیر صفر است که روند ۱h و ۴h هر دو برابر باشند
+      const bullish = trend4h === 1 && trend1h === 1;
+      const bearish = trend4h === -1 && trend1h === -1;
+
+      return { bullish, bearish, htf4hIdx, htf1hIdx };
+    }
 
     // Find the latest closed 4h candle strictly before or at timestamp using binary search
     let htf4hIdx = -1;
@@ -443,6 +562,86 @@ export class MultiTimeframeStrategy implements Strategy {
     return { bullish, bearish, htf4hIdx, htf1hIdx };
   }
 
+  private passesFilters(
+    candles: readonly Candle[],
+    currentIndex: number,
+    side: 'long' | 'short',
+    ltfKijun: number[],
+    cachedSwings?: ConfirmedSwingsResult
+  ): boolean {
+    if (this.kijunSlopeFilter) {
+      if (currentIndex < 5) return false;
+      const kijunNow = ltfKijun[currentIndex];
+      const kijunPast = ltfKijun[currentIndex - 5];
+      if (!Number.isFinite(kijunNow) || !Number.isFinite(kijunPast)) return false;
+
+      // long فقط اگر kijun[i] > kijun[i-5]؛ short فقط اگر kijun[i] < kijun[i-5]
+      if (side === 'long' && !(kijunNow > kijunPast)) {
+        return false;
+      }
+      if (side === 'short' && !(kijunNow < kijunPast)) {
+        return false;
+      }
+    }
+
+    if (this.structureFilter) {
+      const swings = cachedSwings || confirmedSwings(candles, 3, currentIndex);
+      const highs = swings.highs;
+      const lows = swings.lows;
+
+      let hLast: SwingPoint | undefined;
+      let hPrev: SwingPoint | undefined;
+      for (let idx = highs.length - 1; idx >= 0; idx--) {
+        if (highs[idx].confirmedIndex <= currentIndex) {
+          if (!hLast) {
+            hLast = highs[idx];
+          } else if (!hPrev) {
+            hPrev = highs[idx];
+            break;
+          }
+        }
+      }
+
+      let lLast: SwingPoint | undefined;
+      let lPrev: SwingPoint | undefined;
+      for (let idx = lows.length - 1; idx >= 0; idx--) {
+        if (lows[idx].confirmedIndex <= currentIndex) {
+          if (!lLast) {
+            lLast = lows[idx];
+          } else if (!lPrev) {
+            lPrev = lows[idx];
+            break;
+          }
+        }
+      }
+
+      // اگر کمتر از دو pivot داریم، سیگنال نده
+      if (!hLast || !hPrev || !lLast || !lPrev) {
+        return false;
+      }
+
+      // long فقط اگر HH و HL باشد
+      if (side === 'long') {
+        const isHH = hLast.price > hPrev.price;
+        const isHL = lLast.price > lPrev.price;
+        if (!isHH || !isHL) {
+          return false;
+        }
+      }
+
+      // short فقط اگر LH و LL باشد
+      if (side === 'short') {
+        const isLH = hLast.price < hPrev.price;
+        const isLL = lLast.price < lPrev.price;
+        if (!isLH || !isLL) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   analyze(candles: readonly Candle[], currentIndex: number): TradeSignal {
     const defaultSignal: TradeSignal = {
       action: 'HOLD',
@@ -456,9 +655,172 @@ export class MultiTimeframeStrategy implements Strategy {
 
     const candle = candles[currentIndex];
     const cached = this.getIndicators(candles);
-    const { bullish: htfBullish, bearish: htfBearish } = this.getHtfBias(candle.timestamp, cached);
+    const ltfMs = this.getLtfMs(candles, currentIndex);
+    const { bullish: htfBullish, bearish: htfBearish } = this.getHtfBias(candle.timestamp, cached, ltfMs);
 
     if (!htfBullish && !htfBearish) {
+      return defaultSignal;
+    }
+
+    if (this.entryMode === 'cross') {
+      const { ltfIchimoku, ltfStoch, ltfAtr } = cached;
+
+      const tenkan = ltfIchimoku.tenkan[currentIndex];
+      const kijun = ltfIchimoku.kijun[currentIndex];
+      const prevTenkan = ltfIchimoku.tenkan[currentIndex - 1];
+      const prevKijun = ltfIchimoku.kijun[currentIndex - 1];
+
+      const k = ltfStoch.k[currentIndex];
+      const d = ltfStoch.d[currentIndex];
+      const prevK = ltfStoch.k[currentIndex - 1];
+      const prevD = ltfStoch.d[currentIndex - 1];
+
+      const tkBullCross =
+        Number.isFinite(tenkan) &&
+        Number.isFinite(kijun) &&
+        Number.isFinite(prevTenkan) &&
+        Number.isFinite(prevKijun) &&
+        prevTenkan <= prevKijun &&
+        tenkan > kijun;
+
+      const tkBearCross =
+        Number.isFinite(tenkan) &&
+        Number.isFinite(kijun) &&
+        Number.isFinite(prevTenkan) &&
+        Number.isFinite(prevKijun) &&
+        prevTenkan >= prevKijun &&
+        tenkan < kijun;
+
+      const stochBullCross =
+        Number.isFinite(k) &&
+        Number.isFinite(d) &&
+        Number.isFinite(prevK) &&
+        Number.isFinite(prevD) &&
+        prevK <= prevD &&
+        k > d;
+
+      const stochBearCross =
+        Number.isFinite(k) &&
+        Number.isFinite(d) &&
+        Number.isFinite(prevK) &&
+        Number.isFinite(prevD) &&
+        prevK >= prevD &&
+        k < d;
+
+      if (this.traceCollector?.onTkCross) {
+        if (tkBullCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'up',
+            price: candle.close,
+            rsi: 50,
+            inRsiZone: false,
+            signalEmitted: Boolean(htfBullish && !tkBearCross && !stochBearCross),
+          });
+        } else if (tkBearCross) {
+          this.traceCollector.onTkCross({
+            index: currentIndex,
+            timestamp: candle.timestamp,
+            direction: 'down',
+            price: candle.close,
+            rsi: 50,
+            inRsiZone: false,
+            signalEmitted: Boolean(htfBearish && !tkBullCross && !stochBearCross),
+          });
+        }
+      }
+
+      if (htfBullish) {
+        // Aligned cross: tkBullCross || stochBullCross
+        // If opposite cross occurred: do not signal
+        if (tkBearCross || stochBearCross || (!tkBullCross && !stochBullCross)) {
+          return defaultSignal;
+        }
+
+        if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
+          return defaultSignal;
+        }
+
+        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
+        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+        const maxStopPercent = 5.0;
+
+        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+          return defaultSignal;
+        }
+
+        const effectiveStopPercent = this.useTdrStop
+          ? Math.min(tdrStopPercent, maxStopPercent)
+          : this.initialStopPercent;
+        const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
+
+        return {
+          action: 'BUY',
+          timestamp: candle.timestamp,
+          price: candle.close,
+          reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}) + Stop ${effectiveStopPercent}%`,
+          metadata: {
+            stochK: k,
+            stochD: d,
+            tenkan,
+            kijun,
+            atr,
+            tdrStopPercent,
+            stopPrice,
+            initialStopPercent: effectiveStopPercent,
+            confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0),
+            ichiCross: tkBullCross,
+            stochCross: stochBullCross,
+          },
+        };
+      }
+
+      if (htfBearish) {
+        // Aligned cross: tkBearCross || stochBearCross
+        // If opposite cross occurred: do not signal
+        if (tkBullCross || stochBullCross || (!tkBearCross && !stochBearCross)) {
+          return defaultSignal;
+        }
+
+        if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
+          return defaultSignal;
+        }
+
+        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
+        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+        const maxStopPercent = 5.0;
+
+        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+          return defaultSignal;
+        }
+
+        const effectiveStopPercent = this.useTdrStop
+          ? Math.min(tdrStopPercent, maxStopPercent)
+          : this.initialStopPercent;
+        const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
+
+        return {
+          action: 'SELL',
+          timestamp: candle.timestamp,
+          price: candle.close,
+          reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}) + Stop ${effectiveStopPercent}%`,
+          metadata: {
+            stochK: k,
+            stochD: d,
+            tenkan,
+            kijun,
+            atr,
+            tdrStopPercent,
+            stopPrice,
+            initialStopPercent: effectiveStopPercent,
+            confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0),
+            ichiCross: tkBearCross,
+            stochCross: stochBearCross,
+          },
+        };
+      }
+
       return defaultSignal;
     }
 
@@ -560,6 +922,10 @@ export class MultiTimeframeStrategy implements Strategy {
       if (rsiSlopingUp) confirmations++;
 
       if (confirmations >= this.minConfirmations && (ichiBullCross || stochBullCross)) {
+        if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
+          return defaultSignal;
+        }
+
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
         const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
         const maxStopPercent = 5.0;
@@ -606,6 +972,9 @@ export class MultiTimeframeStrategy implements Strategy {
       if (rsiSlopingDown) confirmations++;
 
       if (confirmations >= this.minConfirmations && (ichiBearCross || stochBearCross)) {
+        if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
+          return defaultSignal;
+        }
         const atr = ltfAtr[currentIndex] || candle.close * 0.02;
         const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
         const maxStopPercent = 5.0;
@@ -664,7 +1033,8 @@ export class MultiTimeframeStrategy implements Strategy {
 
     const candle = candles[currentIndex];
     const cached = this.getIndicators(candles);
-    const { bullish: htfBullish, bearish: htfBearish } = this.getHtfBias(candle.timestamp, cached);
+    const ltfMs = this.getLtfMs(candles, currentIndex);
+    const { bullish: htfBullish, bearish: htfBearish } = this.getHtfBias(candle.timestamp, cached, ltfMs);
 
     // Trend reversal exit
     if (mode === 'reverse' || mode === 'kijun') {
