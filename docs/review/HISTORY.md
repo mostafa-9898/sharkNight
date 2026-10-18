@@ -14,6 +14,7 @@
 | 2026-10-17 15:00:39 | `3f9a84b` | `f8e53fab` | BTCUSDT / 1h / 6y | **0.00%** | 0 | 0.00% | N/A | [Report](history/20261017_150039_BTCUSDT_1h_f8e53fab.md) |
 | 2026-10-17 15:09:59 | `9b8b3ca` | `f8e53fab` | BTCUSDT / 1h / 6y | **0.00%** | 0 | 0.00% | N/A | [Report](history/20261017_150959_BTCUSDT_1h_f8e53fab.md) |
 | 2026-10-18 05:08:09 | `7c97d09` | `f8e53fab` | BTCUSDT / 1h / 6y | **0.00%** | 0 | 0.00% | N/A | [Report](history/20261018_050809_BTCUSDT_1h_f8e53fab.md) |
+| 2026-10-18 05:27:35 | `95cd534` | `f8e53fab` | BTCUSDT / 1h / 6y | **0.00%** | 0 | 0.00% | N/A | [Report](history/20261018_052735_BTCUSDT_1h_f8e53fab.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).

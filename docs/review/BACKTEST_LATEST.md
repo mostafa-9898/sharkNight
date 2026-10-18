@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-18T05:08:09.043Z** | Config Hash: `f8e53fab`
+Generated: **2026-10-18T05:27:35.217Z** | Config Hash: `f8e53fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `7c97d09` (⚠️ dirty) |
+| **Git Commit** | `95cd534` (⚠️ dirty) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `1h` / `6y` |
 | **Total Candles** | 52,596 |
 | **Start Time (UTC)** | 2020-10-17T01:00:00Z |

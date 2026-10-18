@@ -1,8 +1,8 @@
 {
   "meta": {
-    "generatedAt": "2026-10-18T05:08:09.043Z",
+    "generatedAt": "2026-10-18T05:27:35.217Z",
     "configHash": "f8e53fab",
-    "gitCommit": "7c97d09",
+    "gitCommit": "95cd534",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "1h",
@@ -19,6 +19,8 @@
       "interval": "1h",
       "period": "6y",
       "dataSource": "cache",
+      "isCapped": false,
+      "coverageStatus": "full",
       "tenkan": 9,
       "kijun": 26,
       "senkouB": 52,

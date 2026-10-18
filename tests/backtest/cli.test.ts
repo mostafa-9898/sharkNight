@@ -6,6 +6,8 @@ import {
   parseCliArgs,
   formatCliSummary,
   resolveEffectiveCandleWindow,
+  validatePeriod,
+  SUPPORTED_PERIODS,
 } from '@/scripts/backtest-report';
 import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
 import type { BacktestMetrics } from '@/backtest/types';
@@ -92,6 +94,35 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
       expect(() => parseTimestampArg('startTime', undefined, ['--startTime=not-a-date'])).toThrow(
         /Invalid timestamp value for argument --startTime/
       );
+    });
+  });
+
+  describe('validatePeriod & --period CLI argument validation', () => {
+    it('accepts all supported periods case-insensitively', () => {
+      for (const p of SUPPORTED_PERIODS) {
+        expect(validatePeriod(p)).toBe(p);
+        expect(validatePeriod(p.toUpperCase())).toBe(p);
+      }
+    });
+
+    it('parses valid --period in parseCliArgs', () => {
+      expect(parseCliArgs(['--period=1y']).period).toBe('1y');
+      expect(parseCliArgs(['--period=2Y']).period).toBe('2y');
+      expect(parseCliArgs(['--period=3y']).period).toBe('3y');
+      expect(parseCliArgs(['--period=6Y']).period).toBe('6y');
+      expect(parseCliArgs(['--period=all']).period).toBe('all');
+    });
+
+    it('rejects unsupported period values with a descriptive error', () => {
+      const unsupported = ['invalid', '5y', '10y', '4y', 'foo', '1m', '1d'];
+      for (const val of unsupported) {
+        expect(() => validatePeriod(val)).toThrow(
+          /Invalid period: ".*"\. Supported periods are: all, 1y, 2y, 3y, 6y\./
+        );
+        expect(() => parseCliArgs([`--period=${val}`])).toThrow(
+          /Invalid period: ".*"\. Supported periods are: all, 1y, 2y, 3y, 6y\./
+        );
+      }
     });
   });
 
@@ -400,7 +431,150 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
 
       expect(result.candles.length).toBe(50);
       expect(result.isCapped).toBe(false);
+      expect(result.coverageStatus).toBe('full');
       expect(result.effectiveStartTime).toBe(candles[0].timestamp);
+      expect(result.effectiveEndTime).toBe(candles[candles.length - 1].timestamp);
+    });
+
+    it('rejects unsupported period in resolveEffectiveCandleWindow with clear error', () => {
+      const candles = makeMockCandles(10);
+      expect(() =>
+        resolveEffectiveCandleWindow({
+          candles,
+          interval: '1h',
+          period: 'invalid_period',
+        })
+      ).toThrow(/Invalid period: "invalid_period"\. Supported periods are: all, 1y, 2y, 3y, 6y\./);
+    });
+
+    it('detects left-edge truncation when explicit startTime is earlier than first available candle', () => {
+      const candles = makeMockCandles(100);
+      const earliestCandleTime = candles[0].timestamp;
+      const requestedStart = earliestCandleTime - 24 * oneHour; // 1 day earlier than cached
+      const requestedEnd = candles[50].timestamp;
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        startTime: requestedStart,
+        endTime: requestedEnd,
+      });
+
+      expect(result.isCapped).toBe(true);
+      expect(result.coverageStatus).toBe('left_truncated');
+      expect(result.requestedStartTime).toBe(requestedStart);
+      expect(result.requestedEndTime).toBe(requestedEnd);
+      expect(result.effectiveStartTime).toBe(earliestCandleTime);
+      expect(result.effectiveEndTime).toBe(requestedEnd);
+      expect(result.coverageWarning).toBeDefined();
+      expect(result.coverageWarning).toContain('earlier than earliest available cached candle');
+      expect(result.candles.length).toBe(51);
+    });
+
+    it('detects right-edge truncation when explicit endTime is later than latest available candle', () => {
+      const candles = makeMockCandles(100);
+      const latestCandleTime = candles[candles.length - 1].timestamp;
+      const requestedStart = candles[10].timestamp;
+      const requestedEnd = latestCandleTime + 24 * oneHour; // 1 day later than cached
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        startTime: requestedStart,
+        endTime: requestedEnd,
+      });
+
+      expect(result.isCapped).toBe(true);
+      expect(result.coverageStatus).toBe('right_truncated');
+      expect(result.requestedStartTime).toBe(requestedStart);
+      expect(result.requestedEndTime).toBe(requestedEnd);
+      expect(result.effectiveStartTime).toBe(requestedStart);
+      expect(result.effectiveEndTime).toBe(latestCandleTime);
+      expect(result.coverageWarning).toBeDefined();
+      expect(result.coverageWarning).toContain('later than latest available cached candle');
+      expect(result.candles.length).toBe(90);
+    });
+
+    it('preserves valid intentional sub-range requests where the cache covers the full requested range', () => {
+      const candles = makeMockCandles(100);
+      const requestedStart = candles[20].timestamp;
+      const requestedEnd = candles[60].timestamp;
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        startTime: requestedStart,
+        endTime: requestedEnd,
+      });
+
+      expect(result.isCapped).toBe(false);
+      expect(result.coverageStatus).toBe('full');
+      expect(result.coverageWarning).toBeUndefined();
+      expect(result.requestedStartTime).toBe(requestedStart);
+      expect(result.requestedEndTime).toBe(requestedEnd);
+      expect(result.effectiveStartTime).toBe(requestedStart);
+      expect(result.effectiveEndTime).toBe(requestedEnd);
+      expect(result.candles.length).toBe(41);
+    });
+
+    it('detects right-edge truncation when asOf is later than latest available candle', () => {
+      const candles = makeMockCandles(100);
+      const latestCandleTime = candles[candles.length - 1].timestamp;
+      const futureAsOf = latestCandleTime + 48 * oneHour;
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        startTime: candles[10].timestamp,
+        asOf: futureAsOf,
+      });
+
+      expect(result.isCapped).toBe(true);
+      expect(result.coverageStatus).toBe('right_truncated');
+      expect(result.coverageWarning).toBeDefined();
+      expect(result.coverageWarning).toContain('later than latest available cached candle');
+      expect(result.effectiveEndTime).toBe(latestCandleTime);
+    });
+
+    it('detects out-of-bounds coverage when asOf is earlier than earliest available candle', () => {
+      const candles = makeMockCandles(100);
+      const earliestCandleTime = candles[0].timestamp;
+      const pastAsOf = earliestCandleTime - 10 * oneHour;
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        period: '1y',
+        asOf: pastAsOf,
+      });
+
+      expect(result.isCapped).toBe(true);
+      expect(result.coverageStatus).toBe('out_of_bounds');
+      expect(result.coverageWarning).toBeDefined();
+      expect(result.coverageWarning).toContain('earlier than earliest available cached candle');
+      expect(result.candles.length).toBe(0);
+      expect(result.effectiveStartTime).toBeUndefined();
+      expect(result.effectiveEndTime).toBeUndefined();
+    });
+
+    it('detects truncation on both boundaries when requested window spans outside cache on both sides', () => {
+      const candles = makeMockCandles(50);
+      const earliest = candles[0].timestamp;
+      const latest = candles[candles.length - 1].timestamp;
+
+      const result = resolveEffectiveCandleWindow({
+        candles,
+        interval: '1h',
+        startTime: earliest - 10 * oneHour,
+        endTime: latest + 10 * oneHour,
+      });
+
+      expect(result.isCapped).toBe(true);
+      expect(result.coverageStatus).toBe('both_truncated');
+      expect(result.coverageWarning).toContain('exceeds cached candle range');
+      expect(result.effectiveStartTime).toBe(earliest);
+      expect(result.effectiveEndTime).toBe(latest);
+      expect(result.candles.length).toBe(50);
     });
   });
 });

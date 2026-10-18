@@ -88,10 +88,24 @@ export function parseBoolArg(
   return defaultValue;
 }
 
+export const SUPPORTED_PERIODS = ['all', '1y', '2y', '3y', '6y'] as const;
+export type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
+
+export function validatePeriod(period: string): SupportedPeriod {
+  const normalized = period.trim().toLowerCase();
+  if (!SUPPORTED_PERIODS.includes(normalized as SupportedPeriod)) {
+    throw new Error(
+      `Invalid period: "${period}". Supported periods are: ${SUPPORTED_PERIODS.join(', ')}.`
+    );
+  }
+  return normalized as SupportedPeriod;
+}
+
 export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const symbol = (parseArg('symbol', 'BTCUSDT', argv) ?? 'BTCUSDT').toUpperCase();
   const interval = (parseArg('interval', '1h', argv) ?? '1h') as CandleInterval;
-  const period = (parseArg('period', '6y', argv) ?? '6y').toLowerCase();
+  const rawPeriod = parseArg('period', '6y', argv) ?? '6y';
+  const period = validatePeriod(rawPeriod);
 
   // Strategy params
   const tenkan = parseNumArg('tenkan', 9, argv)!;
@@ -197,12 +211,24 @@ export interface ResolveCandleWindowParams {
   asOf?: number;
 }
 
+export type CoverageStatus =
+  | 'full'
+  | 'left_truncated'
+  | 'right_truncated'
+  | 'both_truncated'
+  | 'out_of_bounds'
+  | 'empty';
+
 export interface ResolvedCandleWindow {
   candles: Candle[];
   effectiveStartTime?: number;
   effectiveEndTime?: number;
+  requestedStartTime?: number;
+  requestedEndTime?: number;
   isCapped: boolean;
   anchorTime?: number;
+  coverageStatus: CoverageStatus;
+  coverageWarning?: string;
 }
 
 export function resolveEffectiveCandleWindow(
@@ -214,17 +240,24 @@ export function resolveEffectiveCandleWindow(
       candles: [],
       effectiveStartTime: undefined,
       effectiveEndTime: undefined,
+      requestedStartTime: undefined,
+      requestedEndTime: undefined,
       isCapped: false,
+      coverageStatus: 'empty',
     };
   }
 
+  const validPeriod = validatePeriod(period);
   const intervalMs = getIntervalMs(interval);
-  const yearsMap: Record<string, number> = {
+  const yearsMap: Record<Exclude<SupportedPeriod, 'all'>, number> = {
     '1y': 1,
     '2y': 2,
     '3y': 3,
     '6y': 6,
   };
+
+  const cacheStart = candles[0].timestamp;
+  const cacheEnd = candles[candles.length - 1].timestamp;
 
   // Determine reference anchor for relative periods:
   // Precedence:
@@ -237,51 +270,100 @@ export function resolveEffectiveCandleWindow(
   } else if (endTime !== undefined) {
     anchorTime = endTime;
   } else {
-    anchorTime = candles[candles.length - 1].timestamp;
+    anchorTime = cacheEnd;
   }
 
   // Align anchor to candle interval
   const alignedAnchor = Math.floor(anchorTime / intervalMs) * intervalMs;
 
-  // Determine effectiveEndTime:
-  // Explicit --endTime takes precedence, aligned to candle interval
-  const effectiveEndTime =
+  // Determine requestedEndTime:
+  // Explicit --endTime takes precedence, aligned to candle interval; otherwise alignedAnchor
+  const requestedEndTime =
     endTime !== undefined ? Math.floor(endTime / intervalMs) * intervalMs : alignedAnchor;
 
-  // Determine effectiveStartTime:
+  // Determine requestedStartTime:
   // Explicit --startTime takes precedence over relative --period
-  let effectiveStartTime: number;
-  let isCapped = false;
+  let requestedStartTime: number;
+  let isRelative = false;
 
   if (startTime !== undefined) {
-    effectiveStartTime = Math.floor(startTime / intervalMs) * intervalMs;
-  } else if (period !== 'all') {
-    const years = yearsMap[period.toLowerCase()];
-    if (years !== undefined) {
-      const periodDurationMs = Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
-      const alignedPeriodMs = Math.round(periodDurationMs / intervalMs) * intervalMs;
-      const targetStartTime = effectiveEndTime - alignedPeriodMs;
-      if (candles[0].timestamp > targetStartTime + 2 * intervalMs) {
-        isCapped = true;
-      }
-      effectiveStartTime = targetStartTime;
-    } else {
-      effectiveStartTime = candles[0].timestamp;
-    }
+    requestedStartTime = Math.floor(startTime / intervalMs) * intervalMs;
+  } else if (validPeriod !== 'all') {
+    isRelative = true;
+    const years = yearsMap[validPeriod];
+    const periodDurationMs = Math.round(years * 365.25 * 24 * 60 * 60 * 1000);
+    const alignedPeriodMs = Math.round(periodDurationMs / intervalMs) * intervalMs;
+    requestedStartTime = requestedEndTime - alignedPeriodMs;
   } else {
-    effectiveStartTime = candles[0].timestamp;
+    requestedStartTime = cacheStart;
   }
 
+  // Evaluate coverage boundaries
+  let isLeftTruncated = false;
+  if (startTime !== undefined) {
+    isLeftTruncated = requestedStartTime < cacheStart;
+  } else if (isRelative) {
+    isLeftTruncated = cacheStart > requestedStartTime + 2 * intervalMs;
+  }
+
+  let isRightTruncated = false;
+  if (endTime !== undefined) {
+    isRightTruncated = requestedEndTime > cacheEnd;
+  }
+  if (asOf !== undefined && asOf > cacheEnd) {
+    isRightTruncated = true;
+  }
+
+  const isOutOfBounds =
+    (asOf !== undefined && asOf < cacheStart) ||
+    requestedStartTime > cacheEnd ||
+    requestedEndTime < cacheStart;
+
+  let coverageStatus: CoverageStatus = 'full';
+  let coverageWarning: string | undefined;
+
+  if (isOutOfBounds) {
+    coverageStatus = 'out_of_bounds';
+    coverageWarning =
+      asOf !== undefined && asOf < cacheStart
+        ? `Requested asOf anchor (${new Date(asOf).toISOString()}) is earlier than earliest available cached candle (${new Date(cacheStart).toISOString()}).`
+        : `Requested time window (${new Date(requestedStartTime).toISOString()} to ${new Date(requestedEndTime).toISOString()}) does not intersect available cached candles (${new Date(cacheStart).toISOString()} to ${new Date(cacheEnd).toISOString()}).`;
+  } else if (isLeftTruncated && isRightTruncated) {
+    coverageStatus = 'both_truncated';
+    coverageWarning = `Requested time window (${new Date(requestedStartTime).toISOString()} to ${new Date(requestedEndTime).toISOString()}) exceeds cached candle range (${new Date(cacheStart).toISOString()} to ${new Date(cacheEnd).toISOString()}) on both boundaries.`;
+  } else if (isLeftTruncated) {
+    coverageStatus = 'left_truncated';
+    coverageWarning = `Requested start time (${new Date(requestedStartTime).toISOString()}) is earlier than earliest available cached candle (${new Date(cacheStart).toISOString()}). Cached dataset cannot fully cover the requested period.`;
+  } else if (isRightTruncated) {
+    coverageStatus = 'right_truncated';
+    const detail =
+      asOf !== undefined && asOf > cacheEnd
+        ? `Requested asOf anchor (${new Date(asOf).toISOString()}) is later than latest available cached candle (${new Date(cacheEnd).toISOString()}).`
+        : `Requested end time (${new Date(requestedEndTime).toISOString()}) is later than latest available cached candle (${new Date(cacheEnd).toISOString()}).`;
+    coverageWarning = `${detail} Cached dataset cannot fully cover the requested period.`;
+  }
+
+  const isCapped = coverageStatus !== 'full';
+
   const filteredCandles = candles.filter(
-    (c) => c.timestamp >= effectiveStartTime && c.timestamp <= effectiveEndTime
+    (c) => c.timestamp >= requestedStartTime && c.timestamp <= requestedEndTime
   );
+
+  const effectiveStartTime =
+    filteredCandles.length > 0 ? filteredCandles[0].timestamp : undefined;
+  const effectiveEndTime =
+    filteredCandles.length > 0 ? filteredCandles[filteredCandles.length - 1].timestamp : undefined;
 
   return {
     candles: filteredCandles,
     effectiveStartTime,
     effectiveEndTime,
+    requestedStartTime,
+    requestedEndTime,
     isCapped,
     anchorTime: alignedAnchor,
+    coverageStatus,
+    coverageWarning,
   };
 }
 
@@ -335,7 +417,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
   }
 
   const initialCandleCount = rawCandles.length;
-  const { candles, isCapped } = resolveEffectiveCandleWindow({
+  const { candles, isCapped, coverageStatus, coverageWarning } = resolveEffectiveCandleWindow({
     candles: rawCandles,
     interval,
     period,
@@ -344,14 +426,15 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     asOf,
   });
 
-  if (isCapped) {
-    console.warn(
-      `⚠️ Warning: Cached candles for ${symbol} ${interval} do not span the requested full ${period}. Using available candles.`
-    );
+  if (isCapped && coverageWarning) {
+    console.warn(`⚠️ Window Coverage Warning: ${coverageWarning}`);
   }
 
   if (candles.length === 0) {
     console.error(`❌ Error: Candle series is empty after applying window filter.`);
+    if (coverageWarning) {
+      console.error(`   Details: ${coverageWarning}`);
+    }
     process.exit(1);
   }
 
@@ -422,6 +505,9 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       startTime,
       endTime,
       asOf,
+      isCapped,
+      coverageStatus,
+      coverageWarning,
       tenkan,
       kijun,
       senkouB,

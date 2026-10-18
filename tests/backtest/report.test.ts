@@ -1464,5 +1464,458 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(output.markdown).toContain(`| **Dataset Fingerprint** | \`${fp1}\` |`);
     });
   });
+
+  describe('Stop Fill Integrity Invariant under stopCheckMode (intrabar vs close)', () => {
+    const testCandles: Candle[] = [
+      createCandle(0, 100, 105, 98, 102), // Entry candle
+      createCandle(1, 96, 97, 93, 94),   // Candle 1: normal intrabar hit for long (open 96 > stop 95, low 93 <= 95)
+      createCandle(2, 90, 91, 88, 89),   // Candle 2: gap down for long (open 90 <= stop 95)
+      createCandle(3, 103, 107, 102, 106), // Candle 3: normal intrabar hit for short (open 103 < stop 105, high 107 >= 105)
+      createCandle(4, 110, 112, 108, 109), // Candle 4: gap up for short (open 110 >= stop 105)
+      createCandle(5, 97, 98, 92, 93),   // Candle 5: close-mode trigger for long (close 93 <= stop 95)
+      createCandle(6, 103, 108, 102, 107), // Candle 6: close-mode trigger for short (close 107 >= stop 105)
+    ];
+
+    const createTestTrade = (
+      overrides: Partial<Trade> & {
+        side: Trade['side'];
+        exitReason: Trade['exitReason'];
+        exitPrice: number;
+        entryPrice: number;
+      }
+    ): Trade => ({
+      quantity: 1,
+      pnl: -500,
+      pnlPercent: -5,
+      fee: 0,
+      duration: 1,
+      maxFavorablePercent: 1,
+      maxAdversePercent: 5,
+      entrySignal: {
+        action: overrides.side === 'long' ? 'BUY' : 'SELL',
+        price: overrides.entryPrice,
+        timestamp: testCandles[0].timestamp,
+      },
+      exitSignal: {
+        action: overrides.side === 'long' ? 'SELL' : 'BUY',
+        price: overrides.exitPrice,
+        timestamp: testCandles[1].timestamp,
+      },
+      entryTime: testCandles[0].timestamp,
+      exitTime: testCandles[1].timestamp,
+      ...overrides,
+    });
+
+    const makeCustomReportInput = (
+      trade: Trade,
+      configOverrides: Record<string, unknown> = {}
+    ): BacktestReportInput => {
+      const backtestResult: BacktestResult = {
+        config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+        trades: [trade],
+        metrics: { ...baseMetrics, totalTrades: 1, losingTrades: 1, totalPnl: trade.pnl ?? -100 },
+        equity: [10000, 10000 + (trade.pnl ?? -100)],
+      };
+      return {
+        backtestResult,
+        candles: testCandles,
+        config: {
+          symbol: 'BTCUSDT',
+          interval: '1h',
+          initialBalance: 10000,
+          ...configOverrides,
+        },
+      };
+    };
+
+    describe('Intrabar stopCheckMode', () => {
+      it('validates Long stopLoss at stopPrice without gap', () => {
+        const trade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 95,
+          stopPrice: 95,
+          exitTime: testCandles[1].timestamp,
+        });
+        const output = buildBacktestReport(makeCustomReportInput(trade, { stopCheckMode: 'intrabar' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+        expect(inv.status).toBe('PASS');
+        expect(inv.violations).toBe(0);
+        expect(inv.details).toContain('1/1 applicable stop trades');
+        expect(output.markdown).toContain('| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ✅ PASS | 0 |');
+      });
+
+      it('validates Long stopLoss on gap down through stop', () => {
+        // Candle 2 opens at 90, stop is 95 -> expectedBase is 90
+        const trade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 90,
+          stopPrice: 95,
+          exitTime: testCandles[2].timestamp,
+          duration: 2,
+        });
+        const output = buildBacktestReport(makeCustomReportInput(trade, { stopCheckMode: 'intrabar' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)')!;
+        expect(inv.status).toBe('PASS');
+        expect(inv.violations).toBe(0);
+      });
+
+      it('validates Long stopLoss with non-zero slippage', () => {
+        // Stop is 95, candle 1 open is 96 -> base is 95. Slippage is 1% -> allowedWorst is 95 * 0.99 = 94.05
+        const validTrade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 94.05,
+          stopPrice: 95,
+          exitTime: testCandles[1].timestamp,
+        });
+        const passOutput = buildBacktestReport(
+          makeCustomReportInput(validTrade, { stopCheckMode: 'intrabar', slippagePercent: 1 })
+        );
+        const passInv = (passOutput.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(passInv.status).toBe('PASS');
+
+        // Worse than allowed slippage (93.5 < 94.05) -> FAIL
+        const failTrade = { ...validTrade, exitPrice: 93.5 };
+        const failOutput = buildBacktestReport(
+          makeCustomReportInput(failTrade, { stopCheckMode: 'intrabar', slippagePercent: 1 })
+        );
+        const failInv = (failOutput.json.invariants as Array<{ name: string; status: string; violations: number }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(failInv.status).toBe('FAIL');
+        expect(failInv.violations).toBe(1);
+      });
+
+      it('validates Short stopLoss at stopPrice and on gap up with non-zero slippage', () => {
+        // Short stop is 105, candle 3 open 103 -> base is 105. Slippage 1% -> allowedWorst = 105 * 1.01 = 106.05
+        const normalShortTrade = createTestTrade({
+          side: 'short',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 106.05,
+          stopPrice: 105,
+          exitTime: testCandles[3].timestamp,
+          duration: 3,
+        });
+        const normalOutput = buildBacktestReport(
+          makeCustomReportInput(normalShortTrade, { stopCheckMode: 'intrabar', slippagePercent: 1 })
+        );
+        const normalInv = (normalOutput.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(normalInv.status).toBe('PASS');
+
+        // Gap up: candle 4 open is 110 >= 105 -> base is 110. Slippage 1% -> allowedWorst = 110 * 1.01 = 111.1
+        const gapShortTrade = createTestTrade({
+          side: 'short',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 111.1,
+          stopPrice: 105,
+          exitTime: testCandles[4].timestamp,
+          duration: 4,
+        });
+        const gapOutput = buildBacktestReport(
+          makeCustomReportInput(gapShortTrade, { stopCheckMode: 'intrabar', slippagePercent: 1 })
+        );
+        const gapInv = (gapOutput.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(gapInv.status).toBe('PASS');
+
+        // Breach gap-up stop (112.5 > 111.1) -> FAIL
+        const breachedShortTrade = { ...gapShortTrade, exitPrice: 112.5 };
+        const breachOutput = buildBacktestReport(
+          makeCustomReportInput(breachedShortTrade, { stopCheckMode: 'intrabar', slippagePercent: 1 })
+        );
+        const breachInv = (breachOutput.json.invariants as Array<{ name: string; status: string; violations: number }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(breachInv.status).toBe('FAIL');
+        expect(breachInv.violations).toBe(1);
+      });
+
+      it('validates Long and Short trailingStop under intrabar mode', () => {
+        const trailingLong = createTestTrade({
+          side: 'long',
+          exitReason: 'trailingStop',
+          entryPrice: 100,
+          exitPrice: 95,
+          stopPrice: 95,
+          exitTime: testCandles[1].timestamp,
+        });
+        const longOut = buildBacktestReport(makeCustomReportInput(trailingLong, { stopCheckMode: 'intrabar' }));
+        const longInv = (longOut.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(longInv.status).toBe('PASS');
+
+        const trailingShort = createTestTrade({
+          side: 'short',
+          exitReason: 'trailingStop',
+          entryPrice: 100,
+          exitPrice: 105,
+          stopPrice: 105,
+          exitTime: testCandles[3].timestamp,
+          duration: 3,
+        });
+        const shortOut = buildBacktestReport(makeCustomReportInput(trailingShort, { stopCheckMode: 'intrabar' }));
+        const shortInv = (shortOut.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Intrabar Gap/Slippage)'
+        )!;
+        expect(shortInv.status).toBe('PASS');
+      });
+    });
+
+    describe('Close stopCheckMode', () => {
+      it('validates Long stopLoss exits at candle close without falsely failing when close is worse than stopPrice', () => {
+        // In candle 5: open 97, close 93. Stop is 95. In close mode, exitPrice is 93.
+        // Under old intrabar rules, 93 < 95 would FAIL. In close mode, 93 is valid and must PASS!
+        const closeTrade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 93,
+          stopPrice: 95,
+          exitTime: testCandles[5].timestamp,
+          duration: 5,
+        });
+
+        const output = buildBacktestReport(makeCustomReportInput(closeTrade, { stopCheckMode: 'close' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Close Slippage)')!;
+        expect(inv.status).toBe('PASS');
+        expect(inv.violations).toBe(0);
+        expect(inv.details).toContain('candle close + slippage');
+        expect(output.markdown).toContain('| **Stop Fill Integrity (Close Slippage)** | ✅ PASS | 0 |');
+      });
+
+      it('validates Long stopLoss in close mode with non-zero adverse slippage and detects breach', () => {
+        // Candle 5 close is 93. Slippage 1% -> allowedWorst = 93 * 0.99 = 92.07
+        const validTrade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 92.07,
+          stopPrice: 95,
+          exitTime: testCandles[5].timestamp,
+          duration: 5,
+        });
+        const passOutput = buildBacktestReport(
+          makeCustomReportInput(validTrade, { stopCheckMode: 'close', slippagePercent: 1 })
+        );
+        const passInv = (passOutput.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(passInv.status).toBe('PASS');
+
+        // Exit price breaches close mode allowedWorst (91 < 92.07) -> FAIL
+        const breachTrade = { ...validTrade, exitPrice: 91.0 };
+        const failOutput = buildBacktestReport(
+          makeCustomReportInput(breachTrade, { stopCheckMode: 'close', slippagePercent: 1 })
+        );
+        const failInv = (failOutput.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(failInv.status).toBe('FAIL');
+        expect(failInv.violations).toBe(1);
+        expect(failInv.details).toContain('Exit price was worse than candle close + slippage');
+        expect(failOutput.markdown).toContain('| **Stop Fill Integrity (Close Slippage)** | ❌ FAIL | 1 |');
+      });
+
+      it('validates Short stopLoss exits at candle close without falsely failing when close is worse than stopPrice', () => {
+        // Candle 6 close is 107. Short stop is 105. In close mode, exitPrice is 107.
+        // Under old intrabar rules, 107 > 105 would FAIL. In close mode, 107 is valid and must PASS!
+        const closeShortTrade = createTestTrade({
+          side: 'short',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 107,
+          stopPrice: 105,
+          exitTime: testCandles[6].timestamp,
+          duration: 6,
+        });
+
+        const output = buildBacktestReport(makeCustomReportInput(closeShortTrade, { stopCheckMode: 'close' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Close Slippage)')!;
+        expect(inv.status).toBe('PASS');
+        expect(inv.violations).toBe(0);
+      });
+
+      it('validates Short stopLoss in close mode with non-zero slippage and detects breach', () => {
+        // Candle 6 close is 107. Slippage 1% -> allowedWorst = 107 * 1.01 = 108.07
+        const validShortTrade = createTestTrade({
+          side: 'short',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 108.07,
+          stopPrice: 105,
+          exitTime: testCandles[6].timestamp,
+          duration: 6,
+        });
+        const passOutput = buildBacktestReport(
+          makeCustomReportInput(validShortTrade, { stopCheckMode: 'close', slippagePercent: 1 })
+        );
+        const passInv = (passOutput.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(passInv.status).toBe('PASS');
+
+        // Breach short close slippage (109.5 > 108.07) -> FAIL
+        const breachShortTrade = { ...validShortTrade, exitPrice: 109.5 };
+        const failOutput = buildBacktestReport(
+          makeCustomReportInput(breachShortTrade, { stopCheckMode: 'close', slippagePercent: 1 })
+        );
+        const failInv = (failOutput.json.invariants as Array<{ name: string; status: string; violations: number }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(failInv.status).toBe('FAIL');
+        expect(failInv.violations).toBe(1);
+      });
+
+      it('validates Long and Short trailingStop under close mode', () => {
+        const trailingLong = createTestTrade({
+          side: 'long',
+          exitReason: 'trailingStop',
+          entryPrice: 100,
+          exitPrice: 93,
+          stopPrice: 95,
+          exitTime: testCandles[5].timestamp,
+          duration: 5,
+        });
+        const longOut = buildBacktestReport(makeCustomReportInput(trailingLong, { stopCheckMode: 'close' }));
+        const longInv = (longOut.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(longInv.status).toBe('PASS');
+
+        const trailingShort = createTestTrade({
+          side: 'short',
+          exitReason: 'trailingStop',
+          entryPrice: 100,
+          exitPrice: 107,
+          stopPrice: 105,
+          exitTime: testCandles[6].timestamp,
+          duration: 6,
+        });
+        const shortOut = buildBacktestReport(makeCustomReportInput(trailingShort, { stopCheckMode: 'close' }));
+        const shortInv = (shortOut.json.invariants as Array<{ name: string; status: string }>).find(
+          (i) => i.name === 'Stop Fill Integrity (Close Slippage)'
+        )!;
+        expect(shortInv.status).toBe('PASS');
+      });
+
+      it('reports INCOMPLETE when stopPrice is missing in close mode', () => {
+        const missingStopTrade = createTestTrade({
+          side: 'long',
+          exitReason: 'stopLoss',
+          entryPrice: 100,
+          exitPrice: 93,
+          stopPrice: undefined,
+          exitTime: testCandles[5].timestamp,
+          duration: 5,
+        });
+        const output = buildBacktestReport(makeCustomReportInput(missingStopTrade, { stopCheckMode: 'close' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Close Slippage)')!;
+        expect(inv.status).toBe('INCOMPLETE');
+        expect(inv.violations).toBe(0);
+        expect(inv.details).toContain('uncheckable due to missing stop price or exit candle');
+        expect(output.markdown).toContain('| **Stop Fill Integrity (Close Slippage)** | ⚠️ INCOMPLETE |');
+      });
+
+      it('reports NOT_APPLICABLE when zero stop exits exist in close mode', () => {
+        const tpTrade = createTestTrade({
+          side: 'long',
+          exitReason: 'takeProfit',
+          entryPrice: 100,
+          exitPrice: 110,
+          exitTime: testCandles[1].timestamp,
+        });
+        const output = buildBacktestReport(makeCustomReportInput(tpTrade, { stopCheckMode: 'close' }));
+        const invs = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
+        const inv = invs.find((i) => i.name === 'Stop Fill Integrity (Close Slippage)')!;
+        expect(inv.status).toBe('NOT_APPLICABLE');
+        expect(inv.violations).toBe(0);
+        expect(output.markdown).toContain('| **Stop Fill Integrity (Close Slippage)** | ⚪ N/A | 0 |');
+      });
+    });
+
+    describe('Markdown and JSON Agreement', () => {
+      it('ensures status, violations, and details match exactly between JSON and Markdown in all cases', () => {
+        const scenarios: Array<{ name: string; trade: Trade; config: Record<string, unknown> }> = [
+          {
+            name: 'intrabar PASS',
+            trade: createTestTrade({
+              side: 'long',
+              exitReason: 'stopLoss',
+              entryPrice: 100,
+              exitPrice: 95,
+              stopPrice: 95,
+              exitTime: testCandles[1].timestamp,
+            }),
+            config: { stopCheckMode: 'intrabar' },
+          },
+          {
+            name: 'close PASS',
+            trade: createTestTrade({
+              side: 'long',
+              exitReason: 'stopLoss',
+              entryPrice: 100,
+              exitPrice: 93,
+              stopPrice: 95,
+              exitTime: testCandles[5].timestamp,
+              duration: 5,
+            }),
+            config: { stopCheckMode: 'close' },
+          },
+          {
+            name: 'close FAIL',
+            trade: createTestTrade({
+              side: 'long',
+              exitReason: 'stopLoss',
+              entryPrice: 100,
+              exitPrice: 88,
+              stopPrice: 95,
+              exitTime: testCandles[5].timestamp,
+              duration: 5,
+            }),
+            config: { stopCheckMode: 'close' },
+          },
+        ];
+
+        for (const s of scenarios) {
+          const output = buildBacktestReport(makeCustomReportInput(s.trade, s.config));
+          const jsonInvariants = output.json.invariants as Array<{
+            name: string;
+            status: string;
+            violations: number;
+            details: string;
+          }>;
+
+          for (const inv of jsonInvariants) {
+            let iconText: string;
+            if (inv.status === 'PASS') iconText = '✅ PASS';
+            else if (inv.status === 'FAIL') iconText = '❌ FAIL';
+            else if (inv.status === 'INCOMPLETE') iconText = '⚠️ INCOMPLETE';
+            else iconText = '⚪ N/A';
+
+            const expectedRow = `| **${inv.name}** | ${iconText} | ${inv.violations} | ${inv.details} |`;
+            expect(output.markdown).toContain(expectedRow);
+          }
+        }
+      });
+    });
+  });
 });
 

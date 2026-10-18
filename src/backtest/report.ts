@@ -29,6 +29,9 @@ export interface BacktestReportConfig {
   startTime?: number;
   endTime?: number;
   asOf?: number;
+  isCapped?: boolean;
+  coverageStatus?: string;
+  coverageWarning?: string;
   datasetFingerprint?: string;
   // Strategy
   tenkan?: number;
@@ -162,6 +165,9 @@ function computeConfigHash(config: BacktestReportConfig): string {
         k !== 'gitCommit' &&
         k !== 'isDirty' &&
         k !== 'datasetFingerprint' &&
+        k !== 'isCapped' &&
+        k !== 'coverageStatus' &&
+        k !== 'coverageWarning' &&
         (config as unknown as Record<string, unknown>)[k] !== undefined
     )
     .sort();
@@ -525,6 +531,13 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   // --- SECTION C: Automated Warning Flags ---
   const flags: Array<{ level: 'CRITICAL' | 'WARNING' | 'NOTICE'; message: string }> = [];
 
+  if (config.coverageWarning) {
+    flags.push({
+      level: 'WARNING',
+      message: `Window Coverage: ${config.coverageWarning}`,
+    });
+  }
+
   if (totalTradesCount === 0) {
     flags.push({
       level: 'CRITICAL',
@@ -783,12 +796,18 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   });
 
   // Check 2: Stop Fill Integrity
+  const stopCheckMode = config.stopCheckMode ?? 'intrabar';
+  const stopInvariantName =
+    stopCheckMode === 'close'
+      ? 'Stop Fill Integrity (Close Slippage)'
+      : 'Stop Fill Integrity (Intrabar Gap/Slippage)';
+
   const applicableStopTrades = trades.filter(
     (t) => t.exitReason === 'stopLoss' || t.exitReason === 'trailingStop'
   );
   if (applicableStopTrades.length === 0) {
     invariantResults.push({
-      name: 'Stop Fill Integrity (Intrabar Gap/Slippage)',
+      name: stopInvariantName,
       status: 'NOT_APPLICABLE',
       violations: 0,
       details: 'No stop-loss or trailing-stop exits in trade sample (0 applicable trades)',
@@ -809,15 +828,29 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       }
       checkedCount++;
       let isViolation = false;
+      let expectedBase: number;
+
+      if (stopCheckMode === 'close') {
+        expectedBase = c.close;
+      } else {
+        expectedBase =
+          t.side === 'long'
+            ? c.open <= t.stopPrice
+              ? c.open
+              : t.stopPrice
+            : c.open >= t.stopPrice
+              ? c.open
+              : t.stopPrice;
+      }
+
       if (t.side === 'long') {
-        const expectedBase = c.open <= t.stopPrice ? c.open : t.stopPrice;
         const allowedWorst = expectedBase * (1 - slip);
         if (t.exitPrice < allowedWorst - 1e-5) isViolation = true;
       } else {
-        const expectedBase = c.open >= t.stopPrice ? c.open : t.stopPrice;
         const allowedWorst = expectedBase * (1 + slip);
         if (t.exitPrice > allowedWorst + 1e-5) isViolation = true;
       }
+
       if (isViolation) {
         stopViolations++;
       } else {
@@ -825,21 +858,23 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       }
     }
 
+    const modeDesc =
+      stopCheckMode === 'close' ? 'candle close + slippage' : 'allowed stopPrice + gap slippage';
     let stopStatus: InvariantStatus;
     let stopDetails: string;
     if (stopViolations > 0) {
       stopStatus = 'FAIL';
-      stopDetails = `Exit price was worse than allowed stopPrice + gap slippage in ${stopViolations}/${checkedCount} checked stop trades${uncheckableCount > 0 ? ` (${uncheckableCount} uncheckable)` : ''}`;
+      stopDetails = `Exit price was worse than ${modeDesc} in ${stopViolations}/${checkedCount} checked stop trades${uncheckableCount > 0 ? ` (${uncheckableCount} uncheckable)` : ''}`;
     } else if (uncheckableCount > 0) {
       stopStatus = 'INCOMPLETE';
       stopDetails = `${passedCount}/${checkedCount} checked stop exits verified (${uncheckableCount}/${applicableStopTrades.length} uncheckable due to missing stop price or exit candle)`;
     } else {
       stopStatus = 'PASS';
-      stopDetails = `Exit price was at or better than allowed stopPrice + gap slippage in ${passedCount}/${checkedCount} applicable stop trades`;
+      stopDetails = `Exit price was at or better than ${modeDesc} in ${passedCount}/${checkedCount} applicable stop trades`;
     }
 
     invariantResults.push({
-      name: 'Stop Fill Integrity (Intrabar Gap/Slippage)',
+      name: stopInvariantName,
       status: stopStatus,
       violations: stopViolations,
       details: stopDetails,
