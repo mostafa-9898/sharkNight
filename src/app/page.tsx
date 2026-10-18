@@ -171,12 +171,12 @@ export default function DashboardPage() {
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
 
-  // Trailing Stop & Execution Mode (3% initial stop, 2% trigger/step, 2% raise/trail per best test)
+  // Trailing Stop & Execution Mode (1.5% initial stop, 1.0% trigger, 0.8% trail calibrated for 15m swings)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
   const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
-  const [initialStopPercent, setInitialStopPercent] = useState(3);
-  const [trailStepPercent, setTrailStepPercent] = useState(2);
-  const [trailRaisePercent, setTrailRaisePercent] = useState(2);
+  const [initialStopPercent, setInitialStopPercent] = useState(1.5);
+  const [trailStepPercent, setTrailStepPercent] = useState(1.0);
+  const [trailRaisePercent, setTrailRaisePercent] = useState(0.8);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -1352,9 +1352,9 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '11px', color: '#8b949e' }}>Initial:</span>
                     <input
                       type="number"
-                      min={1}
+                      min={0.1}
                       max={50}
-                      step={1}
+                      step={0.1}
                       disabled={!trailingStopEnabled}
                       value={initialStopPercent}
                       onChange={(e) => setInitialStopPercent(Number(e.target.value))}
@@ -1366,7 +1366,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '45px',
+                        width: '50px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />
@@ -1378,9 +1378,9 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '11px', color: '#8b949e' }}>Trigger:</span>
                     <input
                       type="number"
-                      min={1}
+                      min={0.1}
                       max={50}
-                      step={1}
+                      step={0.1}
                       disabled={!trailingStopEnabled}
                       value={trailStepPercent}
                       onChange={(e) => setTrailStepPercent(Number(e.target.value))}
@@ -1392,7 +1392,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '45px',
+                        width: '50px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />
@@ -1404,9 +1404,9 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '11px', color: '#8b949e' }}>Lock/Raise:</span>
                     <input
                       type="number"
-                      min={1}
+                      min={0.1}
                       max={50}
-                      step={0.5}
+                      step={0.1}
                       disabled={!trailingStopEnabled}
                       value={trailRaisePercent}
                       onChange={(e) => setTrailRaisePercent(Number(e.target.value))}
@@ -1418,7 +1418,7 @@ export default function DashboardPage() {
                         borderRadius: '6px',
                         padding: '4px 6px',
                         fontSize: '11px',
-                        width: '45px',
+                        width: '50px',
                         cursor: trailingStopEnabled ? 'text' : 'not-allowed',
                       }}
                     />

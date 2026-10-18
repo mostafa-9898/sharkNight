@@ -124,9 +124,9 @@ export async function POST(request: Request) {
     let trailingStop: TrailingStopConfig | undefined;
 
     if (trailingStopEnabled) {
-      const initialStopPercent = Number(body.initialStopPercent ?? 5);
-      const trailStepPercent = Number(body.trailStepPercent ?? 10);
-      const trailRaisePercent = Number(body.trailRaisePercent ?? 5);
+      const initialStopPercent = Number(body.initialStopPercent ?? 1.5);
+      const trailStepPercent = Number(body.trailStepPercent ?? 1.0);
+      const trailRaisePercent = Number(body.trailRaisePercent ?? 0.8);
 
       if (!Number.isFinite(initialStopPercent) || initialStopPercent <= 0 || initialStopPercent > 50) {
         return NextResponse.json(
