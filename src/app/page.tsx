@@ -24,6 +24,7 @@ interface BacktestDiagnostics {
 }
 
 interface BacktestResultData {
+  strategyName?: string;
   symbol: string;
   interval: CandleInterval;
   ichimokuTenkan: number;
@@ -167,9 +168,11 @@ export default function DashboardPage() {
   const [tradeMode, setTradeMode] = useState<TradeMode>('long-short');
 
   // Position Sizing & Cloud Filter
-  const [positionSizePercent, setPositionSizePercent] = useState<number>(20);
+  const [positionSizePercent, setPositionSizePercent] = useState<number>(10);
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
+  const [kijunSlopeFilter, setKijunSlopeFilter] = useState(false);
+  const [structureFilter, setStructureFilter] = useState(false);
 
   // Trailing Stop & Execution Mode (Calibrated for trend riding: 3% initial stop, 3% trigger, 1.5% trail)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
@@ -255,6 +258,8 @@ export default function DashboardPage() {
           positionSizePercent,
           riskPerTradePercent,
           cloudFilter,
+          kijunSlopeFilter,
+          structureFilter,
           ichimokuTenkan,
           ichimokuKijun,
           ichimokuSenkouB,
@@ -296,6 +301,7 @@ export default function DashboardPage() {
 
       const candles: Candle[] = data.candles ?? [];
       const result: BacktestResultData = {
+        strategyName: data.strategyName ?? 'MultiTimeframe',
         symbol: btSymbol,
         interval: btInterval,
         period: btPeriod,
@@ -360,6 +366,8 @@ export default function DashboardPage() {
     positionSizePercent,
     riskPerTradePercent,
     cloudFilter,
+    kijunSlopeFilter,
+    structureFilter,
     strategyType,
     stochKPeriod,
     stochDPeriod,
@@ -877,6 +885,32 @@ export default function DashboardPage() {
                 <option value="strongCross">Strong Cross (TK vs Cloud)</option>
               </select>
             </div>
+
+            {/* Kijun Slope Filter Checkbox */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={kijunSlopeFilter}
+                onChange={(e) => setKijunSlopeFilter(e.target.checked)}
+                style={{ accentColor: '#38bdf8', width: '14px', height: '14px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '12px', color: kijunSlopeFilter ? '#38bdf8' : '#8b949e', fontWeight: 600 }}>
+                Kijun Slope
+              </span>
+            </label>
+
+            {/* Structure Filter Checkbox */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={structureFilter}
+                onChange={(e) => setStructureFilter(e.target.checked)}
+                style={{ accentColor: '#38bdf8', width: '14px', height: '14px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '12px', color: structureFilter ? '#38bdf8' : '#8b949e', fontWeight: 600 }}>
+                Structure Filter
+              </span>
+            </label>
           </div>
 
           {/* Line 2: Relative Strength Index (RSI) Box */}
@@ -1715,13 +1749,8 @@ export default function DashboardPage() {
                 )}
                 <span style={{ color: '#8b949e', marginLeft: '10px' }}>
                   Strategy:{' '}
-                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>
-                    Ichimoku ({backtestResult.ichimokuTenkan}/{backtestResult.ichimokuKijun}/
-                    {backtestResult.ichimokuSenkouB})
-                  </span>{' '}
-                  +{' '}
-                  <span style={{ color: '#c084fc', fontWeight: 600 }}>
-                    RSI ({backtestResult.rsiPeriod})
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+                    {backtestResult.strategyName ?? 'MultiTimeframe'}
                   </span>{' '}
                   • Mode:{' '}
                   <span style={{ color: '#f0f6fc', fontWeight: 600 }}>

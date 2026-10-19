@@ -84,7 +84,10 @@ export async function POST(request: Request) {
       Number(body.rsiRecoveryCap) >= 0
         ? Number(body.rsiRecoveryCap)
         : undefined;
+    const htfMode: 'strict' | 'legacy' = body.htfMode === 'legacy' ? 'legacy' : 'strict';
+    const entryMode: 'cross' | 'legacy' = body.entryMode === 'legacy' ? 'legacy' : 'cross';
     const kijunSlopeFilter = Boolean(body.kijunSlopeFilter);
+    const structureFilter = Boolean(body.structureFilter);
 
     const tradeMode: TradeMode =
       body.tradeMode === 'short-only'
@@ -329,6 +332,10 @@ export async function POST(request: Request) {
     // Run Strategy Backtest using MultiTimeframeStrategy or IchimokuRsiStrategy
     const strategy = mtfEnabled
       ? new MultiTimeframeStrategy({
+          htfMode,
+          entryMode,
+          kijunSlopeFilter,
+          structureFilter,
           htf4hCandles,
           htf1hCandles,
           tenkan: ichimokuTenkan,
@@ -523,6 +530,11 @@ export async function POST(request: Request) {
           interval,
           period,
           dataSource,
+          strategy: mtfEnabled ? 'mtf' : 'ichimoku-rsi',
+          strategyName: mtfEnabled ? 'MultiTimeframe' : 'IchimokuRsi',
+          htfMode,
+          entryMode,
+          structureFilter,
           tenkan: ichimokuTenkan,
           kijun: ichimokuKijun,
           senkouB: ichimokuSenkouB,
@@ -554,8 +566,11 @@ export async function POST(request: Request) {
       console.warn('Failed to generate backtest review report:', reportErr);
     }
 
+    const strategyName = mtfEnabled ? 'MultiTimeframe' : 'IchimokuRsi';
+
     return NextResponse.json({
       success: true,
+      strategyName,
       symbol,
       interval,
       totalCandles: candles.length,

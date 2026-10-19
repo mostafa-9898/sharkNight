@@ -35,6 +35,11 @@ export interface BacktestReportConfig {
   coverageWarning?: string;
   datasetFingerprint?: string;
   // Strategy
+  strategy?: string;
+  strategyName?: string;
+  htfMode?: 'strict' | 'legacy';
+  entryMode?: 'cross' | 'legacy';
+  structureFilter?: boolean;
   tenkan?: number;
   kijun?: number;
   senkouB?: number;
@@ -159,8 +164,28 @@ export function computeDatasetFingerprint(candles: readonly Candle[]): string {
   return hash.digest('hex').slice(0, 16);
 }
 
+export function formatStrategyDisplayName(config: BacktestReportConfig): string {
+  const isMtf =
+    config.strategy === 'mtf' ||
+    config.strategyName === 'MultiTimeframe';
+
+  const kijunStatus = config.kijunSlopeFilter ? 'enabled' : 'disabled';
+  const structStatus = config.structureFilter ? 'enabled' : 'disabled';
+
+  if (isMtf) {
+    const htf = config.htfMode ?? 'strict';
+    const entry = config.entryMode ?? 'cross';
+    return `MultiTimeframe (${htf}, ${entry}) (kijunSlopeFilter: ${kijunStatus}, structureFilter: ${structStatus})`;
+  } else {
+    return `IchimokuRsi (kijunSlopeFilter: ${kijunStatus}, structureFilter: ${structStatus})`;
+  }
+}
+
 function computeConfigHash(config: BacktestReportConfig): string {
   const normalized: Record<string, unknown> = {};
+  const strategyName = formatStrategyDisplayName(config);
+  normalized['strategy'] = strategyName;
+
   const keys = Object.keys(config)
     .filter(
       (k) =>
@@ -529,6 +554,32 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   // Average bars
   const totalBarsHeld = trajectories.reduce((sum, tr) => sum + tr.barsHeld, 0);
   const avgBarsHeld = trades.length > 0 ? roundTo(totalBarsHeld / trades.length, 1) : 0;
+  const totalTradePnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+
+  // Best trade & return without best trade & median trade
+  let bestTradeItem: Trade | undefined = undefined;
+  let bestTradePct = 0;
+  let bestTradeDate = 'N/A';
+  let returnWithoutBestPercent = 0;
+  let pnlWithoutBest = 0;
+  let medianTradePct = 0;
+
+  if (trades.length > 0) {
+    const sortedTrades = [...trades].sort((a, b) => (b.pnlPercent ?? 0) - (a.pnlPercent ?? 0));
+    bestTradeItem = sortedTrades[0];
+    bestTradePct = bestTradeItem.pnlPercent ?? 0;
+    bestTradeDate = formatDate(bestTradeItem.entryTime);
+
+    pnlWithoutBest = totalTradePnl - (bestTradeItem.pnl || 0);
+    returnWithoutBestPercent = roundTo((pnlWithoutBest / initialBalance) * 100, 2);
+
+    const sortedPnlPcts = trades.map((t) => t.pnlPercent ?? 0).sort((a, b) => a - b);
+    const midIdx = Math.floor(sortedPnlPcts.length / 2);
+    medianTradePct =
+      sortedPnlPcts.length % 2 !== 0
+        ? sortedPnlPcts[midIdx]
+        : roundTo((sortedPnlPcts[midIdx - 1] + sortedPnlPcts[midIdx]) / 2, 2);
+  }
 
   // --- SECTION C: Automated Warning Flags ---
   const flags: Array<{ level: 'CRITICAL' | 'WARNING' | 'NOTICE'; message: string }> = [];
@@ -537,6 +588,18 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     flags.push({
       level: 'WARNING',
       message: `Window Coverage: ${config.coverageWarning}`,
+    });
+  }
+
+  if (
+    bestTradeItem &&
+    (bestTradeItem.pnl || 0) > 0 &&
+    grossProfit > 0 &&
+    (bestTradeItem.pnl || 0) / grossProfit > 0.4
+  ) {
+    flags.push({
+      level: 'WARNING',
+      message: 'Profit concentrated in a single trade',
     });
   }
 
@@ -787,7 +850,6 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   const invariantResults: InvariantResult[] = [];
 
   // Check 1: Cash Conservation Identity
-  const totalTradePnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
   const finalEquity = equity[equity.length - 1] ?? initialBalance;
   const cashDiscrepancy = Math.abs(initialBalance + totalTradePnl - finalEquity);
   invariantResults.push({
@@ -958,10 +1020,14 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(``);
 
   // Section A: Run Header
+  const strategyDisplayName = formatStrategyDisplayName(config);
+  const isMtf = config.strategy === 'mtf' || config.strategyName === 'MultiTimeframe';
+
   lines.push(`## Section A: Run Header`);
   lines.push(`| Property | Value |`);
   lines.push(`|---|---|`);
   lines.push(`| **Git Commit** | \`${gitInfo.commit}\` (${gitInfo.isDirty ? '⚠️ dirty' : '✅ clean'}) |`);
+  lines.push(`| **Strategy** | ${strategyDisplayName} |`);
   lines.push(`| **Symbol / Interval / Period** | \`${config.symbol}\` / \`${config.interval}\` / \`${config.period ?? 'all'}\` |`);
   lines.push(`| **Total Candles** | ${candles.length.toLocaleString()} |`);
   lines.push(`| **Start Time (UTC)** | ${formatDate(firstCandle?.timestamp)} |`);
@@ -977,11 +1043,19 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Parameter Group | Parameter | Value |`);
   lines.push(`|---|---|---|`);
   lines.push(`| Ichimoku | Tenkan / Kijun / SenkouB / Displacement | \`${tenkan}\` / \`${kijun}\` / \`${senkouB}\` / \`${displacement}\` |`);
-  lines.push(`| RSI | Period / Lookback | \`${rsiPeriod}\` / \`${config.rsiLookback ?? 10}\` |`);
-  lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`[${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}]\` / \`[${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}]\` |`);
-  lines.push(`| Cloud Filter | Mode | \`${config.cloudFilter ?? 'off'}\` |`);
-  lines.push(`| RSI Recovery Cap | Value | \`${config.rsiRecoveryCap !== undefined ? `+${config.rsiRecoveryCap}` : 'off'}\` |`);
+  if (isMtf) {
+    lines.push(`| RSI | Period / Lookback | \`disabled\` |`);
+    lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`disabled\` |`);
+    lines.push(`| Cloud Filter | Mode | \`disabled\` |`);
+    lines.push(`| RSI Recovery Cap | Value | \`disabled\` |`);
+  } else {
+    lines.push(`| RSI | Period / Lookback | \`${rsiPeriod}\` / \`${config.rsiLookback ?? 10}\` |`);
+    lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`[${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}]\` / \`[${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}]\` |`);
+    lines.push(`| Cloud Filter | Mode | \`${config.cloudFilter ?? 'off'}\` |`);
+    lines.push(`| RSI Recovery Cap | Value | \`${config.rsiRecoveryCap !== undefined ? `+${config.rsiRecoveryCap}` : 'off'}\` |`);
+  }
   lines.push(`| Kijun Slope Filter | Status | \`${config.kijunSlopeFilter ? 'enabled' : 'disabled'}\` |`);
+  lines.push(`| Structure Filter | Status | \`${config.structureFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Execution | Trade Mode / Exit Mode | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` |`);
   lines.push(`| Time Stop | maxBarsInTrade | \`${config.maxBarsInTrade ?? 'none'}\` |`);
   lines.push(`| Fixed Stop / TP | Stop Loss % / Take Profit % | \`${config.stopLossPercent ?? 'none'}\` / \`${config.takeProfitPercent ?? 'none'}\` |`);
@@ -1019,6 +1093,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Metric | Value | Baseline / Context |`);
   lines.push(`|---|---|---|`);
   lines.push(`| **Net Return** | **${formatPercent(metrics.totalPnlPercent)}** (${formatCurrency(metrics.totalPnl)}) | Initial: ${formatCurrency(initialBalance)} → Final: ${formatCurrency(metrics.finalBalance)} |`);
+  lines.push(`| **Best Trade** | ${totalTradesCount > 0 ? `**${formatPercent(bestTradePct)}** (${bestTradeDate})` : '**N/A**'} | Percentage and entry date of best trade |`);
+  lines.push(`| **Return without best trade** | ${totalTradesCount > 0 ? `**${formatPercent(returnWithoutBestPercent)}** (${formatCurrency(pnlWithoutBest)})` : '**N/A**'} | Total return excluding best trade |`);
+  lines.push(`| **Median trade %** | ${totalTradesCount > 0 ? `**${formatPercent(medianTradePct)}**` : '**N/A**'} | 50th percentile trade return |`);
   lines.push(`| **Buy & Hold Return** | **${formatPercent(buyAndHoldReturn)}** | Market performance over same candle window |`);
   lines.push(`| **Max Drawdown** | **${metrics.maxDrawdownPercent.toFixed(2)}%** | Peak to trough depth on continuous equity |`);
   lines.push(`| **Total Trades** | **${metrics.totalTrades}** | Long: ${metrics.long.totalTrades} / Short: ${metrics.short.totalTrades} |`);
@@ -1364,6 +1441,10 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       finalBalance: metrics.finalBalance,
       netReturnPercent: metrics.totalPnlPercent,
       netReturnDollar: metrics.totalPnl,
+      bestTradePercent: totalTradesCount > 0 ? bestTradePct : null,
+      bestTradeDate: totalTradesCount > 0 ? bestTradeDate : null,
+      returnWithoutBestTradePercent: totalTradesCount > 0 ? returnWithoutBestPercent : null,
+      medianTradePercent: totalTradesCount > 0 ? medianTradePct : null,
       buyAndHoldReturnPercent: buyAndHoldReturn,
       maxDrawdownPercent: metrics.maxDrawdownPercent,
       totalTrades: metrics.totalTrades,
@@ -1576,6 +1657,7 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   lines.push(`|---|---|---|`);
   lines.push(`| **Run Timestamp (UTC)** | \`${new Date().toISOString()}\` | Deterministic backtest execution |`);
   lines.push(`| **Git Revision** | \`${gitCommit}\` | Working tree: \`${isDirty ? 'DIRTY' : 'CLEAN'}\` |`);
+  lines.push(`| **Strategy** | **${formatStrategyDisplayName(config)}** | Strategy engine configuration |`);
   lines.push(`| **Symbol & Timeframe** | \`${config.symbol}\` / \`${config.interval}\` | Higher-timeframe context |`);
   lines.push(`| **Evaluation Type** | **${evalType}** | Out-of-sample / In-sample protocol |`);
   lines.push(
@@ -1914,6 +1996,7 @@ export function formatHistoryRow(params: {
   commitShort: string;
   confHash: string;
   symIntPer: string;
+  strategy?: string;
   netReturnPercent: number;
   totalTrades: number;
   maxDrawdownPercent: number;
@@ -1924,7 +2007,8 @@ export function formatHistoryRow(params: {
   const maxDd = `${params.maxDrawdownPercent.toFixed(2)}%`;
   const wr = formatHistoryWinRate(params.winRate, params.totalTrades);
   const relLink = `[Report](history/${params.filename})`;
-  return `| ${params.dateFormatted} | \`${params.commitShort}\` | \`${params.confHash}\` | ${params.symIntPer} | **${retPct}** | ${params.totalTrades} | ${maxDd} | ${wr} | ${relLink} |`;
+  const displaySym = params.strategy ? `${params.symIntPer} (${params.strategy})` : params.symIntPer;
+  return `| ${params.dateFormatted} | \`${params.commitShort}\` | \`${params.confHash}\` | ${displaySym} | **${retPct}** | ${params.totalTrades} | ${maxDd} | ${wr} | ${relLink} |`;
 }
 
 export async function saveBacktestReport(output: BacktestReportOutput): Promise<{
@@ -1957,22 +2041,7 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
     await fs.writeFile(diagnosticsMdPath, output.diagnosticsMarkdown, 'utf-8');
   }
 
-  // 3. Prune history: keep only the latest 30 runs
-  try {
-    const historyFiles = await fs.readdir(historyDir);
-    const mdFiles = historyFiles
-      .filter((f) => f.endsWith('.md'))
-      .sort(); // Lexicographical sort by timestamp filename
-
-    if (mdFiles.length > 30) {
-      const filesToDelete = mdFiles.slice(0, mdFiles.length - 30);
-      for (const f of filesToDelete) {
-        await fs.unlink(path.join(historyDir, f)).catch(() => {});
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to prune history directory:', err);
-  }
+  // 3. Prune history: preservation policy (do not delete any historical runs)
 
   // 4. Update HISTORY.md index table
   let historyIndexUpdated = false;
@@ -1989,6 +2058,8 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
     const trCount = (summary.totalTrades as number) ?? 0;
     const maxDd = (summary.maxDrawdownPercent as number) ?? 0;
     const wrVal = summary.winRate as number | null | undefined;
+    const configObj = (meta.config as BacktestReportConfig) ?? {};
+    const strategyName = formatStrategyDisplayName(configObj);
 
     const tableHeader = `# Backtest Run History\n\n| Timestamp (UTC) | Git Commit | Config Hash | Symbol / Interval / Period | Return % | Trades | Max DD % | Win Rate % | Archive |\n|---|---|---|---|---|---|---|---|---|`;
     const newRow = formatHistoryRow({
@@ -1996,6 +2067,7 @@ export async function saveBacktestReport(output: BacktestReportOutput): Promise<
       commitShort,
       confHash,
       symIntPer,
+      strategy: strategyName,
       netReturnPercent: retPct,
       totalTrades: trCount,
       maxDrawdownPercent: maxDd,

@@ -1,7 +1,12 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
 import { JsonStorage } from '../data/storage/json-storage';
 import { getIntervalMs, type Candle, type CandleInterval } from '../data/models/candle';
 import { BacktestEngine } from '../backtest/engine';
 import { IchimokuRsiStrategy, type CloudFilter } from '../strategies/ichimoku-rsi-strategy';
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { generateAndSaveBacktestReport } from '../backtest/report';
@@ -12,6 +17,53 @@ import type {
   TrailingStopConfig,
   BacktestMetrics,
 } from '../backtest/types';
+
+const gunzip = promisify(zlib.gunzip);
+
+export async function loadCandlesFromStorageOrData(
+  storage: JsonStorage,
+  symbol: string,
+  interval: CandleInterval
+): Promise<Candle[] | null> {
+  // 1. Try JsonStorage
+  try {
+    const cached = await storage.loadCandles(symbol, interval);
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+  } catch {
+    // continue to fallback
+  }
+
+  // 2. Try docs/review/data/${symbol}_${interval}.csv.gz
+  const gzPath = path.resolve(process.cwd(), 'docs', 'review', 'data', `${symbol}_${interval}.csv.gz`);
+  try {
+    const compressed = await fs.readFile(gzPath);
+    const uncompressed = await gunzip(compressed);
+    const text = uncompressed.toString('utf-8');
+    const lines = text.trim().split('\n');
+    const candles: Candle[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const [timestamp, open, high, low, close, volume] = line.split(',');
+      candles.push({
+        timestamp: Number(timestamp),
+        open: Number(open),
+        high: Number(high),
+        low: Number(low),
+        close: Number(close),
+        volume: Number(volume),
+      });
+    }
+    candles.sort((a, b) => a.timestamp - b.timestamp);
+    if (candles.length > 0) return candles;
+  } catch {
+    // not found
+  }
+
+  return null;
+}
 
 export function parseArg(
   key: string,
@@ -107,6 +159,15 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const rawPeriod = parseArg('period', '6y', argv) ?? '6y';
   const period = validatePeriod(rawPeriod);
 
+  // Strategy selection
+  const rawStrategy = parseArg('strategy', 'mtf', argv)?.toLowerCase() ?? 'mtf';
+  if (rawStrategy !== 'mtf' && rawStrategy !== 'ichimoku-rsi') {
+    throw new Error(
+      `Invalid strategy: "${rawStrategy}". Supported strategies are: mtf, ichimoku-rsi.`
+    );
+  }
+  const strategy: 'mtf' | 'ichimoku-rsi' = rawStrategy;
+
   // Strategy params
   const tenkan = parseNumArg('tenkan', 9, argv)!;
   const kijun = parseNumArg('kijun', 26, argv)!;
@@ -120,21 +181,34 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const rsiLookback = parseNumArg('rsiLookback', 20, argv)!;
   const cloudFilter = (parseArg('cloudFilter', 'trend', argv) ?? 'trend') as CloudFilter;
   const rsiRecoveryCap = parseNumArg('rsiRecoveryCap', undefined, argv);
-  const kijunSlopeFilter = parseBoolArg('kijunSlopeFilter', false, argv);
+
+  const hasKijunKebab = argv.some((a) => a === '--kijun-slope-filter' || a.startsWith('--kijun-slope-filter='));
+  const kijunSlopeFilter = hasKijunKebab
+    ? parseBoolArg('kijun-slope-filter', false, argv)
+    : parseBoolArg('kijunSlopeFilter', false, argv);
+
+  const hasStructureKebab = argv.some((a) => a === '--structure-filter' || a.startsWith('--structure-filter='));
+  const structureFilter = hasStructureKebab
+    ? parseBoolArg('structure-filter', false, argv)
+    : parseBoolArg('structureFilter', false, argv);
 
   // Engine params
   const tradeMode = (parseArg('tradeMode', 'long-short', argv) ?? 'long-short') as TradeMode;
-  const exitMode = (parseArg('exitMode', 'tkCross', argv) ?? 'tkCross') as ExitMode;
+  const defaultExitMode: ExitMode = strategy === 'mtf' ? 'trailingOnly' : 'tkCross';
+  const exitMode = (parseArg('exitMode', defaultExitMode, argv) ?? defaultExitMode) as ExitMode;
   const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
   const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
   const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
-  const positionSizePercent = parseNumArg('positionSizePercent', 20, argv)!;
+  const positionSizePercent = parseNumArg('positionSizePercent', 10, argv)!;
   const riskPerTradePercent = parseNumArg('riskPerTradePercent', 1, argv)!;
   const slippagePercent = parseNumArg('slippagePercent', 0, argv)!;
   const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
 
   // Trailing stop
-  let trailingStop: TrailingStopConfig | undefined = undefined;
+  let trailingStop: TrailingStopConfig | undefined =
+    strategy === 'mtf'
+      ? { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 }
+      : undefined;
   const trailingArg = parseArg('trailingStop', undefined, argv);
   if (trailingArg === 'false' || trailingArg === 'off' || trailingArg === '0') {
     trailingStop = undefined;
@@ -167,6 +241,9 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     symbol,
     interval,
     period,
+    strategy,
+    htfMode: 'strict' as const,
+    entryMode: 'cross' as const,
     startTime,
     endTime,
     asOf,
@@ -183,6 +260,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     cloudFilter,
     rsiRecoveryCap,
     kijunSlopeFilter,
+    structureFilter,
     tradeMode,
     exitMode,
     maxBarsInTrade,
@@ -368,6 +446,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     symbol,
     interval,
     period,
+    strategy: strategyType,
     startTime,
     endTime,
     asOf,
@@ -384,6 +463,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     cloudFilter,
     rsiRecoveryCap,
     kijunSlopeFilter,
+    structureFilter,
     tradeMode,
     exitMode,
     maxBarsInTrade,
@@ -400,16 +480,34 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 
   console.log(`\n======================================================`);
   console.log(`🤖 Starting Headless Backtest Report Generator`);
-  console.log(`Target: ${symbol} (${interval}) | Period: ${period}`);
+  console.log(`Target: ${symbol} (${interval}) | Period: ${period} | Strategy: ${strategyType}`);
   console.log(`======================================================\n`);
 
-  // 1. Load real data from storage
+  // 1. Load real data from storage or docs/review/data
   const storage = new JsonStorage();
-  const rawCandles = await storage.loadCandles(symbol, interval);
+  const rawCandles = await loadCandlesFromStorageOrData(storage, symbol, interval);
   if (!rawCandles || rawCandles.length === 0) {
-    console.error(`❌ Error: No cached candle data found for ${symbol} (${interval}).`);
+    console.error(`❌ Error: No cached candle data found for ${symbol} (${interval}) in storage or docs/review/data.`);
     console.error(`Please download historical data first: npm run download -- --symbols=${symbol} --intervals=${interval}`);
     process.exit(1);
+  }
+
+  // Pre-load HTF candles if in MTF mode
+  let htf1hCandles: Candle[] | undefined;
+  let htf4hCandles: Candle[] | undefined;
+  if (strategyType === 'mtf') {
+    const c1h = await loadCandlesFromStorageOrData(storage, symbol, '1h');
+    if (!c1h || c1h.length === 0) {
+      console.error(`❌ Error: Higher timeframe 1h candle data for ${symbol} not found in storage or docs/review/data.`);
+      process.exit(1);
+    }
+    const c4h = await loadCandlesFromStorageOrData(storage, symbol, '4h');
+    if (!c4h || c4h.length === 0) {
+      console.error(`❌ Error: Higher timeframe 4h candle data for ${symbol} not found in storage or docs/review/data.`);
+      process.exit(1);
+    }
+    htf1hCandles = c1h;
+    htf4hCandles = c4h;
   }
 
   const initialCandleCount = rawCandles.length;
@@ -438,21 +536,35 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
   console.log(`Window: ${new Date(candles[0].timestamp).toISOString()} to ${new Date(candles[candles.length - 1].timestamp).toISOString()}`);
 
   // 2. Initialize Strategy & BacktestEngine
-  const strategy = new IchimokuRsiStrategy({
-    tenkan,
-    kijun,
-    senkouB,
-    displacement,
-    rsiPeriod,
-    rsiBuyMin,
-    rsiBuyMax,
-    rsiSellMin,
-    rsiSellMax,
-    rsiLookback,
-    cloudFilter,
-    rsiRecoveryCap,
-    kijunSlopeFilter,
-  });
+  const isMtf = strategyType === 'mtf';
+  const strategy = isMtf
+    ? new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles,
+        htf4hCandles,
+        kijunSlopeFilter,
+        structureFilter,
+        tenkan,
+        kijun,
+        senkouB,
+        displacement,
+      })
+    : new IchimokuRsiStrategy({
+        tenkan,
+        kijun,
+        senkouB,
+        displacement,
+        rsiPeriod,
+        rsiBuyMin,
+        rsiBuyMax,
+        rsiSellMin,
+        rsiSellMax,
+        rsiLookback,
+        cloudFilter,
+        rsiRecoveryCap,
+        kijunSlopeFilter,
+      });
 
   const engine = new BacktestEngine();
   console.log(`⚡ Executing backtest simulation with passive event tracing...`);
@@ -498,6 +610,11 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       interval,
       period,
       dataSource: 'cache',
+      strategy: strategyType,
+      strategyName: isMtf ? 'MultiTimeframe' : 'IchimokuRsi',
+      htfMode: isMtf ? 'strict' : undefined,
+      entryMode: isMtf ? 'cross' : undefined,
+      structureFilter,
       startTime,
       endTime,
       asOf,
@@ -508,14 +625,14 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       kijun,
       senkouB,
       displacement,
-      rsiPeriod,
-      rsiBuyMin,
-      rsiBuyMax,
-      rsiSellMin,
-      rsiSellMax,
-      rsiLookback,
-      cloudFilter,
-      rsiRecoveryCap,
+      rsiPeriod: isMtf ? undefined : rsiPeriod,
+      rsiBuyMin: isMtf ? undefined : rsiBuyMin,
+      rsiBuyMax: isMtf ? undefined : rsiBuyMax,
+      rsiSellMin: isMtf ? undefined : rsiSellMin,
+      rsiSellMax: isMtf ? undefined : rsiSellMax,
+      rsiLookback: isMtf ? undefined : rsiLookback,
+      cloudFilter: isMtf ? undefined : cloudFilter,
+      rsiRecoveryCap: isMtf ? undefined : rsiRecoveryCap,
       kijunSlopeFilter,
       tradeMode,
       exitMode,

@@ -83,6 +83,16 @@
 | 2026-10-18 12:39:33 | `d1321ca` | `533ef66e` | BTCUSDT / 15m / all | **-55.55%** | 1791 | 58.17% | 49.7% | [Report](history/20261018_123932_BTCUSDT_15m_533ef66e.md) |
 | 2026-10-18 12:42:21 | `d1321ca` | `578794b7` | BTCUSDT / 15m / all | **-55.55%** | 1791 | 58.17% | 49.7% | [Report](history/20261018_124220_BTCUSDT_15m_578794b7.md) |
 | 2026-10-19 12:34:47 | `5d22b32` | `533ef66e` | BTCUSDT / 15m / all | **-26.40%** | 1038 | 32.49% | 50.0% | [Report](history/20261019_123447_BTCUSDT_15m_533ef66e.md) |
+| 2026-10-19 12:47:26 | `72bdd9c` | `656c8de8` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_124726_BTCUSDT_4h_656c8de8.md) |
+| 2026-10-19 12:50:41 | `72bdd9c` | `2adf4908` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_125041_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-19 12:51:37 | `72bdd9c` | `2adf4908` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_125137_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-19 12:53:08 | `72bdd9c` | `2adf4908` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_125308_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-19 12:54:30 | `72bdd9c` | `2adf4908` | BTCUSDT / 4h / all | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_125430_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-19 12:54:39 | `72bdd9c` | `faeae26f` | BTCUSDT / 15m / 6y | **-41.34%** | 2764 | 43.51% | 30.7% | [Report](history/20261019_125439_BTCUSDT_15m_faeae26f.md) |
+| 2026-10-19 12:55:35 | `72bdd9c` | `1b695408` | BTCUSDT / 15m / 6y | **+22.02%** | 94 | 20.16% | 21.3% | [Report](history/20261019_125535_BTCUSDT_15m_1b695408.md) |
+| 2026-10-19 12:56:11 | `72bdd9c` | `1b695408` | BTCUSDT / 15m / 6y | **+22.02%** | 94 | 20.16% | 21.3% | [Report](history/20261019_125611_BTCUSDT_15m_1b695408.md) |
+| 2026-10-19 12:58:25 | `72bdd9c` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261019_125825_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-19 12:58:31 | `72bdd9c` | `1b695408` | BTCUSDT / 15m / 6y (MultiTimeframe (strict, cross) (kijunSlopeFilter: disabled, structureFilter: disabled)) | **+22.02%** | 94 | 20.16% | 21.3% | [Report](history/20261019_125831_BTCUSDT_15m_1b695408.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).
