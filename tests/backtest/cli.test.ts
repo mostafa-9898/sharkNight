@@ -9,7 +9,7 @@ import {
   validatePeriod,
   SUPPORTED_PERIODS,
 } from '@/scripts/backtest-report';
-import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
+import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
 import type { BacktestMetrics } from '@/backtest/types';
 import type { Candle } from '@/data/models/candle';
 
@@ -177,20 +177,13 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
       expect(opts.cloudFilter).toBe('trend');
       expect(opts.rsiRecoveryCap).toBe(10);
 
-      // Verify that IchimokuRsiStrategy receives the parameter correctly
-      const strategy = new IchimokuRsiStrategy({
+      // Verify that MultiTimeframeStrategy receives the parameter correctly
+      const strategy = new MultiTimeframeStrategy({
         tenkan: opts.tenkan,
         kijun: opts.kijun,
         senkouB: opts.senkouB,
         displacement: opts.displacement,
         rsiPeriod: opts.rsiPeriod,
-        rsiBuyMin: opts.rsiBuyMin,
-        rsiBuyMax: opts.rsiBuyMax,
-        rsiSellMin: opts.rsiSellMin,
-        rsiSellMax: opts.rsiSellMax,
-        rsiLookback: opts.rsiLookback,
-        cloudFilter: opts.cloudFilter,
-        rsiRecoveryCap: opts.rsiRecoveryCap,
         kijunSlopeFilter: opts.kijunSlopeFilter,
       });
 

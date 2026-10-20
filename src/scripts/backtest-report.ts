@@ -5,7 +5,6 @@ import { promisify } from 'util';
 import { JsonStorage } from '../data/storage/json-storage';
 import { getIntervalMs, type Candle, type CandleInterval } from '../data/models/candle';
 import { BacktestEngine } from '../backtest/engine';
-import { IchimokuRsiStrategy, type CloudFilter } from '../strategies/ichimoku-rsi-strategy';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
@@ -179,7 +178,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const rsiSellMin = parseNumArg('rsiSellMin', 60, argv)!;
   const rsiSellMax = parseNumArg('rsiSellMax', 80, argv)!;
   const rsiLookback = parseNumArg('rsiLookback', 20, argv)!;
-  const cloudFilter = (parseArg('cloudFilter', 'trend', argv) ?? 'trend') as CloudFilter;
+  const cloudFilter = (parseArg('cloudFilter', 'trend', argv) ?? 'trend') as 'none' | 'trend' | 'confirmed';
   const rsiRecoveryCap = parseNumArg('rsiRecoveryCap', undefined, argv);
 
   const hasKijunKebab = argv.some((a) => a === '--kijun-slope-filter' || a.startsWith('--kijun-slope-filter='));
@@ -305,6 +304,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     minBarsBetweenEntries,
     slippagePercent,
     stopCheckMode,
+    fisherMode,
+    fisherKind,
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
@@ -511,6 +512,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     minBarsBetweenEntries,
     slippagePercent,
     stopCheckMode,
+    fisherMode,
+    fisherKind,
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
@@ -574,37 +577,21 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
   console.log(`Window: ${new Date(candles[0].timestamp).toISOString()} to ${new Date(candles[candles.length - 1].timestamp).toISOString()}`);
 
   // 2. Initialize Strategy & BacktestEngine
-  const isMtf = strategyType === 'mtf';
-  const strategy = isMtf
-    ? new MultiTimeframeStrategy({
-        htfMode: 'strict',
-        entryMode: 'cross',
-        htf1hCandles,
-        htf4hCandles,
-        kijunSlopeFilter,
-        structureFilter,
-        fisherMode,
-        fisherKind,
-        tenkan,
-        kijun,
-        senkouB,
-        displacement,
-      })
-    : new IchimokuRsiStrategy({
-        tenkan,
-        kijun,
-        senkouB,
-        displacement,
-        rsiPeriod,
-        rsiBuyMin,
-        rsiBuyMax,
-        rsiSellMin,
-        rsiSellMax,
-        rsiLookback,
-        cloudFilter,
-        rsiRecoveryCap,
-        kijunSlopeFilter,
-      });
+  const strategy = new MultiTimeframeStrategy({
+    htfMode: 'strict',
+    entryMode: 'cross',
+    htf1hCandles,
+    htf4hCandles,
+    kijunSlopeFilter,
+    structureFilter,
+    fisherMode,
+    fisherKind,
+    tenkan,
+    kijun,
+    senkouB,
+    displacement,
+    rsiPeriod,
+  });
 
   const engine = new BacktestEngine();
   console.log(`⚡ Executing backtest simulation with passive event tracing...`);
@@ -651,9 +638,11 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       period,
       dataSource: 'cache',
       strategy: strategyType,
-      strategyName: isMtf ? 'MultiTimeframe' : 'IchimokuRsi',
-      htfMode: isMtf ? 'strict' : undefined,
-      entryMode: isMtf ? 'cross' : undefined,
+      strategyName: 'MultiTimeframe',
+      htfMode: 'strict',
+      entryMode: 'cross',
+      fisherMode,
+      fisherKind,
       structureFilter,
       startTime,
       endTime,
@@ -665,14 +654,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       kijun,
       senkouB,
       displacement,
-      rsiPeriod: isMtf ? undefined : rsiPeriod,
-      rsiBuyMin: isMtf ? undefined : rsiBuyMin,
-      rsiBuyMax: isMtf ? undefined : rsiBuyMax,
-      rsiSellMin: isMtf ? undefined : rsiSellMin,
-      rsiSellMax: isMtf ? undefined : rsiSellMax,
-      rsiLookback: isMtf ? undefined : rsiLookback,
-      cloudFilter: isMtf ? undefined : cloudFilter,
-      rsiRecoveryCap: isMtf ? undefined : rsiRecoveryCap,
+      rsiPeriod,
       kijunSlopeFilter,
       tradeMode,
       exitMode,

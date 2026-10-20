@@ -1,5 +1,5 @@
 import { BacktestEngine } from '@/backtest/engine';
-import { IchimokuRsiStrategy } from '@/strategies/ichimoku-rsi-strategy';
+import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
 import {
   buildBacktestReport,
   buildTradeDiagnosticsReport,
@@ -70,7 +70,7 @@ describe('Backtest Report Builder & Tracing', () => {
   const makeReportInput = (trades: Trade[], overrides: Partial<typeof baseMetrics> = {}): BacktestReportInput => {
     const metrics = { ...baseMetrics, ...overrides };
     const backtestResult: BacktestResult = {
-      config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+      config: { strategy: new MultiTimeframeStrategy(), initialBalance: 10000 },
       trades,
       metrics,
       equity: [10000, 10000],
@@ -88,22 +88,18 @@ describe('Backtest Report Builder & Tracing', () => {
 
   describe('1. Trace Non-Interference', () => {
     it('should produce 100% bit-identical trades and equity curve with vs without trace', () => {
-      const strategyWithoutTrace = new IchimokuRsiStrategy({
+      const strategyWithoutTrace = new MultiTimeframeStrategy({
         tenkan: 4,
         kijun: 8,
         senkouB: 16,
         displacement: 4,
-        rsiPeriod: 7,
-        rsiLookback: 5,
       });
 
-      const strategyWithTrace = new IchimokuRsiStrategy({
+      const strategyWithTrace = new MultiTimeframeStrategy({
         tenkan: 4,
         kijun: 8,
         senkouB: 16,
         displacement: 4,
-        rsiPeriod: 7,
-        rsiLookback: 5,
       });
 
       const engine = new BacktestEngine();
@@ -155,8 +151,8 @@ describe('Backtest Report Builder & Tracing', () => {
     });
 
     it('should yield identical signals from strategy analyze with or without trace collector', () => {
-      const strategy1 = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
-      const strategy2 = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
+      const strategy1 = new MultiTimeframeStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
+      const strategy2 = new MultiTimeframeStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
 
       strategy2.setTraceCollector({ onTkCross: () => {} });
 
@@ -172,13 +168,11 @@ describe('Backtest Report Builder & Tracing', () => {
 
   describe('2. Report Builder Structure & Order', () => {
     it('should format sections A through K in exact sequential order', () => {
-      const strategy = new IchimokuRsiStrategy({
+      const strategy = new MultiTimeframeStrategy({
         tenkan: 4,
         kijun: 8,
         senkouB: 16,
         displacement: 4,
-        rsiPeriod: 7,
-        rsiLookback: 5,
       });
       const engine = new BacktestEngine();
       const backtestResult = engine.run({
@@ -250,7 +244,7 @@ describe('Backtest Report Builder & Tracing', () => {
     });
 
     it('should include full machine-readable JSON structure', () => {
-      const strategy = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
+      const strategy = new MultiTimeframeStrategy({ tenkan: 4, kijun: 8, senkouB: 16, displacement: 4 });
       const engine = new BacktestEngine();
       const backtestResult = engine.run({
         strategy,
@@ -890,16 +884,13 @@ describe('Backtest Report Builder & Tracing', () => {
 
   describe('5. Signal and Rejection Accounting Invariants', () => {
     it('should strictly account for every TK cross: total = sum(rejections) + emitted signals', () => {
-      const strategy = new IchimokuRsiStrategy({
+      const strategy = new MultiTimeframeStrategy({
         tenkan: 4,
         kijun: 8,
         senkouB: 16,
         displacement: 4,
         rsiPeriod: 7,
-        rsiLookback: 5,
-        cloudFilter: 'trend',
         kijunSlopeFilter: true,
-        rsiRecoveryCap: 15,
       });
 
       const engine = new BacktestEngine();
@@ -980,7 +971,7 @@ describe('Backtest Report Builder & Tracing', () => {
     });
 
     it('should clearly indicate missing trace when collectTrace is false without distorting report', () => {
-      const strategy = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16 });
+      const strategy = new MultiTimeframeStrategy({ tenkan: 4, kijun: 8, senkouB: 16 });
       const engine = new BacktestEngine();
       const backtestResult = engine.run({
         strategy,
@@ -1222,7 +1213,7 @@ describe('Backtest Report Builder & Tracing', () => {
 
   describe('8. Section D Diagnostic Semantics Note (Step 4)', () => {
     it('should include clear diagnostic semantics note in Section D', () => {
-      const strategy = new IchimokuRsiStrategy({ tenkan: 4, kijun: 8, senkouB: 16 });
+      const strategy = new MultiTimeframeStrategy({ tenkan: 4, kijun: 8, senkouB: 16 });
       const engine = new BacktestEngine();
       const backtestResult = engine.run({
         strategy,
@@ -1332,7 +1323,7 @@ describe('Backtest Report Builder & Tracing', () => {
 
       const input: BacktestReportInput = {
         backtestResult: {
-          config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+          config: { strategy: new MultiTimeframeStrategy(), initialBalance: 10000 },
           trades: [zeroTrade],
           metrics: {
             ...baseMetrics,
@@ -1513,7 +1504,7 @@ describe('Backtest Report Builder & Tracing', () => {
       configOverrides: Record<string, unknown> = {}
     ): BacktestReportInput => {
       const backtestResult: BacktestResult = {
-        config: { strategy: new IchimokuRsiStrategy(), initialBalance: 10000 },
+        config: { strategy: new MultiTimeframeStrategy(), initialBalance: 10000 },
         trades: [trade],
         metrics: { ...baseMetrics, totalTrades: 1, losingTrades: 1, totalPnl: trade.pnl ?? -100 },
         equity: [10000, 10000 + (trade.pnl ?? -100)],

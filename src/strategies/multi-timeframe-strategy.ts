@@ -2,7 +2,6 @@ import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from './types';
 import type { ExitMode, TkCrossTraceEvent } from '../backtest/types';
 import { calculateIchimoku, type IchimokuResult } from '../indicators/ichimoku';
-import { calculateRSI } from '../indicators/rsi';
 import { calculateStochastic, type StochasticResult } from '../indicators/stochastic';
 import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../indicators/fisher-rsi';
 import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
@@ -12,8 +11,8 @@ export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
 export type FisherKind = 'fisher' | 'ift';
 
 export interface MultiTimeframeConfig {
-  htfMode?: 'strict' | 'legacy';
-  entryMode?: 'cross' | 'legacy';
+  htfMode?: 'strict';
+  entryMode?: 'cross';
   kijunSlopeFilter?: boolean;
   structureFilter?: boolean;
   htf4hCandles?: readonly Candle[];
@@ -29,12 +28,8 @@ export interface MultiTimeframeConfig {
   senkouB?: number;
   displacement?: number;
 
-  // RSI parameters (default: 14, Buy: [20, 50], Sell: [50, 80])
+  // RSI Period for Fisher/IFT (default: 14)
   rsiPeriod?: number;
-  rsiBuyMin?: number;
-  rsiBuyMax?: number;
-  rsiSellMin?: number;
-  rsiSellMax?: number;
 
   // Stochastic parameters (default: 14, 3, 3, Oversold: 30, Overbought: 70)
   stochKPeriod?: number;
@@ -47,18 +42,11 @@ export interface MultiTimeframeConfig {
   initialStopPercent?: number; // default 5%
   useTdrStop?: boolean;        // default false
   tdrMultiplier?: number;      // default 1.5
-
-  // Strategy logic
-  trendRequirement?: '4h_and_1h' | '4h_only' | 'either';
-  requireLtfCloudAlignment?: boolean;
-  lookbackBars?: number;       // default 3
-  minConfirmations?: number;   // default 2
 }
 
 interface CachedIndicators {
   // LTF indicators
   ltfIchimoku: IchimokuResult;
-  ltfRsi: number[];
   ltfStoch: StochasticResult;
   ltfAtr: number[];
   ltfSwings?: ConfirmedSwingsResult;
@@ -68,16 +56,10 @@ interface CachedIndicators {
   // HTF 4h indicators
   htf4hCandles: readonly Candle[];
   htf4hIchimoku: IchimokuResult;
-  htf4hRsi: number[];
-  htf4hStoch: StochasticResult;
-  htf4hAtr: number[];
 
   // HTF 1h indicators
   htf1hCandles: readonly Candle[];
   htf1hIchimoku: IchimokuResult;
-  htf1hRsi: number[];
-  htf1hStoch: StochasticResult;
-  htf1hAtr: number[];
 }
 
 /**
@@ -201,16 +183,16 @@ export function computeStrictHtfTrend(
 
 /**
  * Multi-Timeframe Strategy:
- * - Macro & Intermediate Trend: Determined on 4h & 1h using Ichimoku (Price vs Cloud, Cloud Twist, TK alignment).
- * - Confirmation: Evaluated on 15m / 5m using 3 indicators:
- *   1. Stochastic cross in key zone (%K cross %D in oversold <= 30 for Buy / overbought >= 70 for Sell)
- *   2. RSI in pullback/entry range ([20, 50] for Buy / [50, 80] for Sell)
- *   3. Ichimoku LTF confirmation (TK cross / bullish cloud alignment for Buy; bearish for Sell)
+ * - Macro & Intermediate Trend: Strict 4h & 1h Ichimoku alignment (Price vs Cloud, TK alignment).
+ * - Confirmation: Evaluated on LTF (15m/1h/4h) using cross triggers:
+ *   1. Stochastic cross (%K cross %D)
+ *   2. Ichimoku TK cross (Tenkan cross Kijun)
+ *   3. Fisher RSI / IFT-RSI trigger or confirmation
  * - Look-ahead free and strictly causal.
  */
 export class MultiTimeframeStrategy implements Strategy {
   readonly name: string;
-  readonly description = 'Multi-timeframe trend (4h/1h) with 3-indicator LTF confirmation (Ichimoku + RSI + Stochastic)';
+  readonly description = 'Multi-timeframe trend (4h/1h strict) with LTF cross trigger (Ichimoku + Stochastic + Fisher RSI/IFT)';
   readonly requiredCandles: number;
 
   readonly tenkan: number;
@@ -219,10 +201,6 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly displacement: number;
 
   readonly rsiPeriod: number;
-  readonly rsiBuyMin: number;
-  readonly rsiBuyMax: number;
-  readonly rsiSellMin: number;
-  readonly rsiSellMax: number;
 
   readonly stochKPeriod: number;
   readonly stochDPeriod: number;
@@ -230,18 +208,13 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly stochOversold: number;
   readonly stochOverbought: number;
 
-  readonly htfMode: 'strict' | 'legacy';
-  readonly entryMode: 'cross' | 'legacy';
+  readonly htfMode = 'strict' as const;
+  readonly entryMode = 'cross' as const;
   readonly kijunSlopeFilter: boolean;
   readonly structureFilter: boolean;
   readonly ltfIntervalMs?: number;
   readonly fisherMode: FisherMode;
   readonly fisherKind: FisherKind;
-
-  readonly trendRequirement: '4h_and_1h' | '4h_only' | 'either';
-  readonly requireLtfCloudAlignment: boolean;
-  readonly lookbackBars: number;
-  readonly minConfirmations: number;
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -258,8 +231,6 @@ export class MultiTimeframeStrategy implements Strategy {
   }
 
   constructor(config?: MultiTimeframeConfig) {
-    this.htfMode = config?.htfMode ?? 'strict';
-    this.entryMode = config?.entryMode ?? 'cross';
     this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
     this.structureFilter = config?.structureFilter ?? false;
     this.ltfIntervalMs = config?.ltfIntervalMs;
@@ -275,10 +246,6 @@ export class MultiTimeframeStrategy implements Strategy {
     this.displacement = config?.displacement ?? 26;
 
     this.rsiPeriod = config?.rsiPeriod ?? 14;
-    this.rsiBuyMin = config?.rsiBuyMin ?? 20;
-    this.rsiBuyMax = config?.rsiBuyMax ?? 50;
-    this.rsiSellMin = config?.rsiSellMin ?? 50;
-    this.rsiSellMax = config?.rsiSellMax ?? 80;
 
     this.stochKPeriod = config?.stochKPeriod ?? 14;
     this.stochDPeriod = config?.stochDPeriod ?? 3;
@@ -286,17 +253,12 @@ export class MultiTimeframeStrategy implements Strategy {
     this.stochOversold = config?.stochOversold ?? 30;
     this.stochOverbought = config?.stochOverbought ?? 70;
 
-    this.trendRequirement = config?.trendRequirement ?? 'either';
-    this.requireLtfCloudAlignment = config?.requireLtfCloudAlignment ?? true;
-    this.lookbackBars = Math.max(1, config?.lookbackBars ?? 3);
-    this.minConfirmations = Math.max(1, Math.min(3, config?.minConfirmations ?? 2));
-
     this.initialStopPercent = config?.initialStopPercent ?? 5;
     this.useTdrStop = config?.useTdrStop ?? false;
     this.tdrMultiplier = config?.tdrMultiplier ?? 1.5;
 
     this.requiredCandles = Math.max(this.senkouB + this.displacement, this.rsiPeriod + 5, 50);
-    this.name = `MTF_Ichimoku_${this.tenkan}_${this.kijun}_RSI${this.rsiPeriod}_Stoch${this.stochKPeriod}`;
+    this.name = `MTF_Ichimoku_${this.tenkan}_${this.kijun}_Stoch${this.stochKPeriod}`;
   }
 
   private getIndicators(candles: readonly Candle[]): CachedIndicators {
@@ -311,7 +273,6 @@ export class MultiTimeframeStrategy implements Strategy {
 
       // 1. LTF Indicators
       const ltfIchimoku = calculateIchimoku(candles, ichiConfig);
-      const ltfRsi = calculateRSI(candles.map((c) => c.close), this.rsiPeriod);
       const ltfStoch = calculateStochastic(candles, {
         kPeriod: this.stochKPeriod,
         dPeriod: this.stochDPeriod,
@@ -325,13 +286,6 @@ export class MultiTimeframeStrategy implements Strategy {
           ? this.explicitHtf4h
           : aggregateCandles(candles, 4 * 60 * 60 * 1000);
       const htf4hIchimoku = calculateIchimoku(htf4hCandles, ichiConfig);
-      const htf4hRsi = calculateRSI(htf4hCandles.map((c) => c.close), this.rsiPeriod);
-      const htf4hStoch = calculateStochastic(htf4hCandles, {
-        kPeriod: this.stochKPeriod,
-        dPeriod: this.stochDPeriod,
-        smooth: this.stochSmooth,
-      });
-      const htf4hAtr = calculateATR(htf4hCandles, 14);
 
       // 3. HTF 1h Candles & Indicators
       const htf1hCandles =
@@ -339,13 +293,6 @@ export class MultiTimeframeStrategy implements Strategy {
           ? this.explicitHtf1h
           : aggregateCandles(candles, 60 * 60 * 1000);
       const htf1hIchimoku = calculateIchimoku(htf1hCandles, ichiConfig);
-      const htf1hRsi = calculateRSI(htf1hCandles.map((c) => c.close), this.rsiPeriod);
-      const htf1hStoch = calculateStochastic(htf1hCandles, {
-        kPeriod: this.stochKPeriod,
-        dPeriod: this.stochDPeriod,
-        smooth: this.stochSmooth,
-      });
-      const htf1hAtr = calculateATR(htf1hCandles, 14);
 
       const ltfSwings = this.structureFilter ? confirmedSwings(candles, 3) : undefined;
 
@@ -361,7 +308,6 @@ export class MultiTimeframeStrategy implements Strategy {
 
       cached = {
         ltfIchimoku,
-        ltfRsi,
         ltfStoch,
         ltfAtr,
         ltfSwings,
@@ -369,14 +315,8 @@ export class MultiTimeframeStrategy implements Strategy {
         ltfIft,
         htf4hCandles,
         htf4hIchimoku,
-        htf4hRsi,
-        htf4hStoch,
-        htf4hAtr,
         htf1hCandles,
         htf1hIchimoku,
-        htf1hRsi,
-        htf1hStoch,
-        htf1hAtr,
       };
 
       this.indicatorCache.set(candles, cached);
@@ -409,59 +349,15 @@ export class MultiTimeframeStrategy implements Strategy {
 
     const ms4h = 4 * 60 * 60 * 1000;
     const ms1h = 60 * 60 * 1000;
+    const ltfEndTime = timestamp + ltfMs;
 
-    if (this.htfMode === 'strict') {
-      const ltfEndTime = timestamp + ltfMs;
-
-      // Find the latest closed 4h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
-      let htf4hIdx = -1;
-      let low4h = 0;
-      let high4h = htf4hCandles.length - 1;
-      while (low4h <= high4h) {
-        const mid = (low4h + high4h) >> 1;
-        if (htf4hCandles[mid].timestamp + ms4h <= ltfEndTime) {
-          htf4hIdx = mid;
-          low4h = mid + 1;
-        } else {
-          high4h = mid - 1;
-        }
-      }
-
-      // Find the latest closed 1h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
-      let htf1hIdx = -1;
-      let low1h = 0;
-      let high1h = htf1hCandles.length - 1;
-      while (low1h <= high1h) {
-        const mid = (low1h + high1h) >> 1;
-        if (htf1hCandles[mid].timestamp + ms1h <= ltfEndTime) {
-          htf1hIdx = mid;
-          low1h = mid + 1;
-        } else {
-          high1h = mid - 1;
-        }
-      }
-
-      if (htf4hIdx < 0 || htf1hIdx < 0) {
-        return { bullish: false, bearish: false, htf4hIdx, htf1hIdx };
-      }
-
-      const trend4h = computeStrictHtfTrend(htf4hCandles[htf4hIdx], htf4hIchimoku, htf4hIdx);
-      const trend1h = computeStrictHtfTrend(htf1hCandles[htf1hIdx], htf1hIchimoku, htf1hIdx);
-
-      // جهت مجاز فقط وقتی غیر صفر است که روند ۱h و ۴h هر دو برابر باشند
-      const bullish = trend4h === 1 && trend1h === 1;
-      const bearish = trend4h === -1 && trend1h === -1;
-
-      return { bullish, bearish, htf4hIdx, htf1hIdx };
-    }
-
-    // Find the latest closed 4h candle strictly before or at timestamp using binary search
+    // Find the latest closed 4h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
     let htf4hIdx = -1;
     let low4h = 0;
     let high4h = htf4hCandles.length - 1;
     while (low4h <= high4h) {
       const mid = (low4h + high4h) >> 1;
-      if (htf4hCandles[mid].timestamp + ms4h <= timestamp) {
+      if (htf4hCandles[mid].timestamp + ms4h <= ltfEndTime) {
         htf4hIdx = mid;
         low4h = mid + 1;
       } else {
@@ -469,13 +365,13 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
-    // Find the latest closed 1h candle strictly before or at timestamp using binary search
+    // Find the latest closed 1h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
     let htf1hIdx = -1;
     let low1h = 0;
     let high1h = htf1hCandles.length - 1;
     while (low1h <= high1h) {
       const mid = (low1h + high1h) >> 1;
-      if (htf1hCandles[mid].timestamp + ms1h <= timestamp) {
+      if (htf1hCandles[mid].timestamp + ms1h <= ltfEndTime) {
         htf1hIdx = mid;
         low1h = mid + 1;
       } else {
@@ -487,102 +383,12 @@ export class MultiTimeframeStrategy implements Strategy {
       return { bullish: false, bearish: false, htf4hIdx, htf1hIdx };
     }
 
-    // 4h Trend Evaluation (Ichimoku + RSI + Stochastic + TDR)
-    const c4h = htf4hCandles[htf4hIdx];
-    const spanA4h = htf4hIchimoku.senkouA[htf4hIdx];
-    const spanB4h = htf4hIchimoku.senkouB[htf4hIdx];
-    const cloudTop4h = Math.max(spanA4h, spanB4h);
-    const cloudBtm4h = Math.min(spanA4h, spanB4h);
-    const tenkan4h = htf4hIchimoku.tenkan[htf4hIdx];
-    const kijun4h = htf4hIchimoku.kijun[htf4hIdx];
+    const trend4h = computeStrictHtfTrend(htf4hCandles[htf4hIdx], htf4hIchimoku, htf4hIdx);
+    const trend1h = computeStrictHtfTrend(htf1hCandles[htf1hIdx], htf1hIchimoku, htf1hIdx);
 
-    const rsi4h = cached.htf4hRsi[htf4hIdx];
-    const stoch4hK = cached.htf4hStoch.k[htf4hIdx];
-    const stoch4hD = cached.htf4hStoch.d[htf4hIdx];
-
-    const ichiBull4h =
-      tenkan4h >= kijun4h &&
-      (c4h.close >= kijun4h || (!Number.isFinite(cloudTop4h) || c4h.close > cloudTop4h));
-
-    const ichiBear4h =
-      tenkan4h <= kijun4h &&
-      (c4h.close <= kijun4h || (!Number.isFinite(cloudBtm4h) || c4h.close < cloudBtm4h));
-
-    const rsiBull4h = !Number.isFinite(rsi4h) || rsi4h >= 45;
-    const rsiBear4h = !Number.isFinite(rsi4h) || rsi4h <= 55;
-
-    const stochBull4h = !Number.isFinite(stoch4hK) || stoch4hK >= stoch4hD || stoch4hK >= 30;
-    const stochBear4h = !Number.isFinite(stoch4hK) || stoch4hK <= stoch4hD || stoch4hK <= 70;
-
-    const isBull4h = ichiBull4h && rsiBull4h && stochBull4h;
-    const isBear4h = ichiBear4h && rsiBear4h && stochBear4h;
-
-    // 1h Trend Evaluation (Ichimoku + RSI + Stochastic + TDR)
-    const c1h = htf1hCandles[htf1hIdx];
-    const spanA1h = htf1hIchimoku.senkouA[htf1hIdx];
-    const spanB1h = htf1hIchimoku.senkouB[htf1hIdx];
-    const cloudTop1h = Math.max(spanA1h, spanB1h);
-    const cloudBtm1h = Math.min(spanA1h, spanB1h);
-    const tenkan1h = htf1hIchimoku.tenkan[htf1hIdx];
-    const kijun1h = htf1hIchimoku.kijun[htf1hIdx];
-
-    const rsi1h = cached.htf1hRsi[htf1hIdx];
-    const stoch1hK = cached.htf1hStoch.k[htf1hIdx];
-    const stoch1hD = cached.htf1hStoch.d[htf1hIdx];
-
-    const ichiBull1h =
-      tenkan1h >= kijun1h &&
-      (c1h.close >= kijun1h || (!Number.isFinite(cloudTop1h) || c1h.close > cloudTop1h));
-
-    const ichiBear1h =
-      tenkan1h <= kijun1h &&
-      (c1h.close <= kijun1h || (!Number.isFinite(cloudBtm1h) || c1h.close < cloudBtm1h));
-
-    const rsiBull1h = !Number.isFinite(rsi1h) || rsi1h >= 45;
-    const rsiBear1h = !Number.isFinite(rsi1h) || rsi1h <= 55;
-
-    const stochBull1h = !Number.isFinite(stoch1hK) || stoch1hK >= stoch1hD || stoch1hK >= 30;
-    const stochBear1h = !Number.isFinite(stoch1hK) || stoch1hK <= stoch1hD || stoch1hK <= 70;
-
-    const isBull1h = ichiBull1h && rsiBull1h && stochBull1h;
-    const isBear1h = ichiBear1h && rsiBear1h && stochBear1h;
-
-    let bullish = false;
-    let bearish = false;
-
-    if (this.trendRequirement === '4h_only') {
-      bullish = isBull4h;
-      bearish = isBear4h;
-    } else if (this.trendRequirement === 'either') {
-      // 1h is primary for 15m; if 1h has a clear direction, it takes priority; otherwise 4h macro decides
-      if (isBull1h && !isBear1h) {
-        bullish = true;
-      } else if (isBear1h && !isBull1h) {
-        bearish = true;
-      } else if (isBull4h && !isBear4h) {
-        bullish = true;
-      } else if (isBear4h && !isBull4h) {
-        bearish = true;
-      }
-    } else {
-      // '4h_and_1h' (default):
-      // 1. Both aligned: (isBull4h && isBull1h) => bullish
-      // 2. 1h breakout with 4h not strongly dumping: isBull1h && (!isBear4h || c4h.close >= kijun4h)
-      // 3. 4h strong trend with 1h dip recovery: isBull4h && !isBear1h
-      if (isBull4h && isBull1h) {
-        bullish = true;
-      } else if (isBear4h && isBear1h) {
-        bearish = true;
-      } else if (isBull1h && !isBear1h && (!isBear4h || c4h.close >= kijun4h)) {
-        bullish = true;
-      } else if (isBear1h && !isBull1h && (!isBull4h || c4h.close <= kijun4h)) {
-        bearish = true;
-      } else if (isBull4h && !isBear1h) {
-        bullish = true;
-      } else if (isBear4h && !isBull1h) {
-        bearish = true;
-      }
-    }
+    // جهت مجاز فقط وقتی غیر صفر است که روند ۱h و ۴h هر دو برابر باشند
+    const bullish = trend4h === 1 && trend1h === 1;
+    const bearish = trend4h === -1 && trend1h === -1;
 
     return { bullish, bearish, htf4hIdx, htf1hIdx };
   }
@@ -746,449 +552,276 @@ export class MultiTimeframeStrategy implements Strategy {
       return defaultSignal;
     }
 
-    if (this.entryMode === 'cross') {
-      const { ltfIchimoku, ltfStoch, ltfAtr } = cached;
-
-      const tenkan = ltfIchimoku.tenkan[currentIndex];
-      const kijun = ltfIchimoku.kijun[currentIndex];
-      const prevTenkan = ltfIchimoku.tenkan[currentIndex - 1];
-      const prevKijun = ltfIchimoku.kijun[currentIndex - 1];
-
-      const k = ltfStoch.k[currentIndex];
-      const d = ltfStoch.d[currentIndex];
-      const prevK = ltfStoch.k[currentIndex - 1];
-      const prevD = ltfStoch.d[currentIndex - 1];
-
-      const tkBullCross =
-        Number.isFinite(tenkan) &&
-        Number.isFinite(kijun) &&
-        Number.isFinite(prevTenkan) &&
-        Number.isFinite(prevKijun) &&
-        prevTenkan <= prevKijun &&
-        tenkan > kijun;
-
-      const tkBearCross =
-        Number.isFinite(tenkan) &&
-        Number.isFinite(kijun) &&
-        Number.isFinite(prevTenkan) &&
-        Number.isFinite(prevKijun) &&
-        prevTenkan >= prevKijun &&
-        tenkan < kijun;
-
-      const stochBullCross =
-        Number.isFinite(k) &&
-        Number.isFinite(d) &&
-        Number.isFinite(prevK) &&
-        Number.isFinite(prevD) &&
-        prevK <= prevD &&
-        k > d;
-
-      const stochBearCross =
-        Number.isFinite(k) &&
-        Number.isFinite(d) &&
-        Number.isFinite(prevK) &&
-        Number.isFinite(prevD) &&
-        prevK >= prevD &&
-        k < d;
-
-      // Fisher / IFT events
-      let fisherEventBull = false;
-      let fisherEventBear = false;
-      let fisherBullConfirmed = true;
-      let fisherBearConfirmed = true;
-
-      if (this.fisherMode !== 'off') {
-        const fisherArr = cached.ltfFisher?.fisher;
-        const signalArr = cached.ltfFisher?.signal;
-        const iftArr = cached.ltfIft;
-
-        const fCurr = fisherArr ? fisherArr[currentIndex] : NaN;
-        const sCurr = signalArr ? signalArr[currentIndex] : NaN;
-        const fPrev = fisherArr ? fisherArr[currentIndex - 1] : NaN;
-        const sPrev = signalArr ? signalArr[currentIndex - 1] : NaN;
-
-        const iftCurr = iftArr ? iftArr[currentIndex] : NaN;
-        const iftPrev = iftArr ? iftArr[currentIndex - 1] : NaN;
-
-        const fisherBullCross =
-          Number.isFinite(fCurr) &&
-          Number.isFinite(sCurr) &&
-          Number.isFinite(fPrev) &&
-          Number.isFinite(sPrev) &&
-          fPrev <= sPrev &&
-          fCurr > sCurr;
-
-        const fisherBearCross =
-          Number.isFinite(fCurr) &&
-          Number.isFinite(sCurr) &&
-          Number.isFinite(fPrev) &&
-          Number.isFinite(sPrev) &&
-          fPrev >= sPrev &&
-          fCurr < sCurr;
-
-        const iftBullCross =
-          Number.isFinite(iftCurr) &&
-          Number.isFinite(iftPrev) &&
-          iftPrev <= -0.5 &&
-          iftCurr > -0.5;
-
-        const iftBearCross =
-          Number.isFinite(iftCurr) &&
-          Number.isFinite(iftPrev) &&
-          iftPrev >= 0.5 &&
-          iftCurr < 0.5;
-
-        fisherEventBull = this.fisherKind === 'fisher' ? fisherBullCross : iftBullCross;
-        fisherEventBear = this.fisherKind === 'fisher' ? fisherBearCross : iftBearCross;
-
-        if (this.fisherMode === 'confirm') {
-          fisherBullConfirmed =
-            this.fisherKind === 'fisher'
-              ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr > sCurr
-              : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr > iftPrev;
-
-          fisherBearConfirmed =
-            this.fisherKind === 'fisher'
-              ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr < sCurr
-              : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr < iftPrev;
-        }
-      }
-
-      let bullTrigger = false;
-      let bearTrigger = false;
-      let bullBlockedByOpposite = false;
-      let bearBlockedByOpposite = false;
-
-      if (this.fisherMode === 'off') {
-        bullTrigger = tkBullCross || stochBullCross;
-        bullBlockedByOpposite = tkBearCross || stochBearCross;
-        bearTrigger = tkBearCross || stochBearCross;
-        bearBlockedByOpposite = tkBullCross || stochBullCross;
-      } else if (this.fisherMode === 'extra-trigger') {
-        bullTrigger = tkBullCross || stochBullCross || fisherEventBull;
-        bullBlockedByOpposite = tkBearCross || stochBearCross || fisherEventBear;
-        bearTrigger = tkBearCross || stochBearCross || fisherEventBear;
-        bearBlockedByOpposite = tkBullCross || stochBullCross || fisherEventBull;
-      } else if (this.fisherMode === 'replace-stoch') {
-        bullTrigger = tkBullCross || fisherEventBull;
-        bullBlockedByOpposite = tkBearCross || fisherEventBear;
-        bearTrigger = tkBearCross || fisherEventBear;
-        bearBlockedByOpposite = tkBullCross || fisherEventBull;
-      } else if (this.fisherMode === 'confirm') {
-        bullTrigger = (tkBullCross || stochBullCross) && fisherBullConfirmed;
-        bullBlockedByOpposite = tkBearCross || stochBearCross;
-        bearTrigger = (tkBearCross || stochBearCross) && fisherBearConfirmed;
-        bearBlockedByOpposite = tkBullCross || stochBullCross;
-      }
-
-      if (this.traceCollector?.onTkCross) {
-        if (tkBullCross) {
-          this.traceCollector.onTkCross({
-            index: currentIndex,
-            timestamp: candle.timestamp,
-            direction: 'up',
-            price: candle.close,
-            rsi: 50,
-            inRsiZone: false,
-            signalEmitted: Boolean(htfBullish && bullTrigger && !bullBlockedByOpposite),
-          });
-        } else if (tkBearCross) {
-          this.traceCollector.onTkCross({
-            index: currentIndex,
-            timestamp: candle.timestamp,
-            direction: 'down',
-            price: candle.close,
-            rsi: 50,
-            inRsiZone: false,
-            signalEmitted: Boolean(htfBearish && bearTrigger && !bearBlockedByOpposite),
-          });
-        }
-      }
-
-      if (htfBullish) {
-        // Aligned cross & opposite check
-        if (bullBlockedByOpposite || !bullTrigger) {
-          return defaultSignal;
-        }
-
-        if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
-          return defaultSignal;
-        }
-
-        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-        const maxStopPercent = 5.0;
-
-        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-          return defaultSignal;
-        }
-
-        const effectiveStopPercent = this.useTdrStop
-          ? Math.min(tdrStopPercent, maxStopPercent)
-          : this.initialStopPercent;
-        const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
-
-        return {
-          action: 'BUY',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull}) + Stop ${effectiveStopPercent}%`,
-          metadata: {
-            stochK: k,
-            stochD: d,
-            tenkan,
-            kijun,
-            atr,
-            tdrStopPercent,
-            stopPrice,
-            initialStopPercent: effectiveStopPercent,
-            confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0) + (fisherEventBull ? 1 : 0),
-            ichiCross: tkBullCross,
-            stochCross: stochBullCross,
-            fisherCross: fisherEventBull,
-            fisherMode: this.fisherMode,
-            fisherKind: this.fisherKind,
-          },
-        };
-      }
-
-      if (htfBearish) {
-        // Aligned cross & opposite check
-        if (bearBlockedByOpposite || !bearTrigger) {
-          return defaultSignal;
-        }
-
-        if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
-          return defaultSignal;
-        }
-
-        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-        const maxStopPercent = 5.0;
-
-        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-          return defaultSignal;
-        }
-
-        const effectiveStopPercent = this.useTdrStop
-          ? Math.min(tdrStopPercent, maxStopPercent)
-          : this.initialStopPercent;
-        const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
-
-        return {
-          action: 'SELL',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear}) + Stop ${effectiveStopPercent}%`,
-          metadata: {
-            stochK: k,
-            stochD: d,
-            tenkan,
-            kijun,
-            atr,
-            tdrStopPercent,
-            stopPrice,
-            initialStopPercent: effectiveStopPercent,
-            confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0) + (fisherEventBear ? 1 : 0),
-            ichiCross: tkBearCross,
-            stochCross: stochBearCross,
-            fisherCross: fisherEventBear,
-            fisherMode: this.fisherMode,
-            fisherKind: this.fisherKind,
-          },
-        };
-      }
-
-      return defaultSignal;
-    }
-
-    const { ltfIchimoku, ltfRsi, ltfStoch, ltfAtr } = cached;
-
-    // LTF Indicator values
-    const k = ltfStoch.k[currentIndex];
-    const d = ltfStoch.d[currentIndex];
-
-    const rsi = ltfRsi[currentIndex];
+    const { ltfIchimoku, ltfStoch, ltfAtr } = cached;
 
     const tenkan = ltfIchimoku.tenkan[currentIndex];
     const kijun = ltfIchimoku.kijun[currentIndex];
     const prevTenkan = ltfIchimoku.tenkan[currentIndex - 1];
     const prevKijun = ltfIchimoku.kijun[currentIndex - 1];
 
-    const spanA = ltfIchimoku.senkouA[currentIndex];
-    const spanB = ltfIchimoku.senkouB[currentIndex];
-    const cloudTop = Math.max(spanA, spanB);
-    const cloudBtm = Math.min(spanA, spanB);
+    const k = ltfStoch.k[currentIndex];
+    const d = ltfStoch.d[currentIndex];
+    const prevK = ltfStoch.k[currentIndex - 1];
+    const prevD = ltfStoch.d[currentIndex - 1];
 
-    if (
-      !Number.isFinite(k) ||
-      !Number.isFinite(d) ||
-      !Number.isFinite(rsi) ||
-      !Number.isFinite(tenkan) ||
-      !Number.isFinite(kijun)
-    ) {
-      return defaultSignal;
+    const tkBullCross =
+      Number.isFinite(tenkan) &&
+      Number.isFinite(kijun) &&
+      Number.isFinite(prevTenkan) &&
+      Number.isFinite(prevKijun) &&
+      prevTenkan <= prevKijun &&
+      tenkan > kijun;
+
+    const tkBearCross =
+      Number.isFinite(tenkan) &&
+      Number.isFinite(kijun) &&
+      Number.isFinite(prevTenkan) &&
+      Number.isFinite(prevKijun) &&
+      prevTenkan >= prevKijun &&
+      tenkan < kijun;
+
+    const stochBullCross =
+      Number.isFinite(k) &&
+      Number.isFinite(d) &&
+      Number.isFinite(prevK) &&
+      Number.isFinite(prevD) &&
+      prevK <= prevD &&
+      k > d;
+
+    const stochBearCross =
+      Number.isFinite(k) &&
+      Number.isFinite(d) &&
+      Number.isFinite(prevK) &&
+      Number.isFinite(prevD) &&
+      prevK >= prevD &&
+      k < d;
+
+    // Fisher / IFT events
+    let fisherEventBull = false;
+    let fisherEventBear = false;
+    let fisherBullConfirmed = true;
+    let fisherBearConfirmed = true;
+
+    if (this.fisherMode !== 'off') {
+      const fisherArr = cached.ltfFisher?.fisher;
+      const signalArr = cached.ltfFisher?.signal;
+      const iftArr = cached.ltfIft;
+
+      const fCurr = fisherArr ? fisherArr[currentIndex] : NaN;
+      const sCurr = signalArr ? signalArr[currentIndex] : NaN;
+      const fPrev = fisherArr ? fisherArr[currentIndex - 1] : NaN;
+      const sPrev = signalArr ? signalArr[currentIndex - 1] : NaN;
+
+      const iftCurr = iftArr ? iftArr[currentIndex] : NaN;
+      const iftPrev = iftArr ? iftArr[currentIndex - 1] : NaN;
+
+      const fisherBullCross =
+        Number.isFinite(fCurr) &&
+        Number.isFinite(sCurr) &&
+        Number.isFinite(fPrev) &&
+        Number.isFinite(sPrev) &&
+        fPrev <= sPrev &&
+        fCurr > sCurr;
+
+      const fisherBearCross =
+        Number.isFinite(fCurr) &&
+        Number.isFinite(sCurr) &&
+        Number.isFinite(fPrev) &&
+        Number.isFinite(sPrev) &&
+        fPrev >= sPrev &&
+        fCurr < sCurr;
+
+      const iftBullCross =
+        Number.isFinite(iftCurr) &&
+        Number.isFinite(iftPrev) &&
+        iftPrev <= -0.5 &&
+        iftCurr > -0.5;
+
+      const iftBearCross =
+        Number.isFinite(iftCurr) &&
+        Number.isFinite(iftPrev) &&
+        iftPrev >= 0.5 &&
+        iftCurr < 0.5;
+
+      fisherEventBull = this.fisherKind === 'fisher' ? fisherBullCross : iftBullCross;
+      fisherEventBear = this.fisherKind === 'fisher' ? fisherBearCross : iftBearCross;
+
+      if (this.fisherMode === 'confirm') {
+        fisherBullConfirmed =
+          this.fisherKind === 'fisher'
+            ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr > sCurr
+            : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr > iftPrev;
+
+        fisherBearConfirmed =
+          this.fisherKind === 'fisher'
+            ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr < sCurr
+            : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr < iftPrev;
+      }
     }
 
-    // Scan lookback window for crossover triggers (Ichimoku TK cross & Stochastic cross)
-    let ichiBullCross = false;
-    let ichiBearCross = false;
-    let stochBullCross = false;
-    let stochBearCross = false;
+    let bullTrigger = false;
+    let bearTrigger = false;
+    let bullBlockedByOpposite = false;
+    let bearBlockedByOpposite = false;
 
-    const startBar = Math.max(1, currentIndex - this.lookbackBars + 1);
-    for (let c = startBar; c <= currentIndex; c++) {
-      // 1. Ichimoku TK cross
-      if (ltfIchimoku.tenkan[c - 1] <= ltfIchimoku.kijun[c - 1] && ltfIchimoku.tenkan[c] > ltfIchimoku.kijun[c]) {
-        ichiBullCross = true;
-      }
-      if (ltfIchimoku.tenkan[c - 1] >= ltfIchimoku.kijun[c - 1] && ltfIchimoku.tenkan[c] < ltfIchimoku.kijun[c]) {
-        ichiBearCross = true;
-      }
-
-      // 2. Stochastic cross
-      if (ltfStoch.k[c - 1] <= ltfStoch.d[c - 1] && ltfStoch.k[c] > ltfStoch.d[c]) {
-        stochBullCross = true;
-      }
-      if (ltfStoch.k[c - 1] >= ltfStoch.d[c - 1] && ltfStoch.k[c] < ltfStoch.d[c]) {
-        stochBearCross = true;
-      }
+    if (this.fisherMode === 'off') {
+      bullTrigger = tkBullCross || stochBullCross;
+      bullBlockedByOpposite = tkBearCross || stochBearCross;
+      bearTrigger = tkBearCross || stochBearCross;
+      bearBlockedByOpposite = tkBullCross || stochBullCross;
+    } else if (this.fisherMode === 'extra-trigger') {
+      bullTrigger = tkBullCross || stochBullCross || fisherEventBull;
+      bullBlockedByOpposite = tkBearCross || stochBearCross || fisherEventBear;
+      bearTrigger = tkBearCross || stochBearCross || fisherEventBear;
+      bearBlockedByOpposite = tkBullCross || stochBullCross || fisherEventBull;
+    } else if (this.fisherMode === 'replace-stoch') {
+      bullTrigger = tkBullCross || fisherEventBull;
+      bullBlockedByOpposite = tkBearCross || fisherEventBear;
+      bearTrigger = tkBearCross || fisherEventBear;
+      bearBlockedByOpposite = tkBullCross || fisherEventBull;
+    } else if (this.fisherMode === 'confirm') {
+      bullTrigger = (tkBullCross || stochBullCross) && fisherBullConfirmed;
+      bullBlockedByOpposite = tkBearCross || stochBearCross;
+      bearTrigger = (tkBearCross || stochBearCross) && fisherBearConfirmed;
+      bearBlockedByOpposite = tkBullCross || stochBullCross;
     }
-
-    // 3. RSI Slope in last lookbackBars closed candles
-    const rsiCur = ltfRsi[currentIndex];
-    const rsiPrev1 = ltfRsi[currentIndex - 1];
-    const rsiPrev2 = currentIndex >= 2 ? ltfRsi[currentIndex - 2] : rsiPrev1;
-    const rsiSlopingUp = Number.isFinite(rsiCur) && ((rsiCur > rsiPrev1) || (rsiCur > rsiPrev2));
-    const rsiSlopingDown = Number.isFinite(rsiCur) && ((rsiCur < rsiPrev1) || (rsiCur < rsiPrev2));
-
-    // Ichimoku alignment
-    const ltfTkCrossUp = prevTenkan <= prevKijun && tenkan > kijun;
-    const ltfTkCrossDown = prevTenkan >= prevKijun && tenkan < kijun;
-    const ltfCloudBullish = !this.requireLtfCloudAlignment || candle.close >= cloudBtm;
-    const ltfCloudBearish = !this.requireLtfCloudAlignment || candle.close <= cloudTop;
 
     if (this.traceCollector?.onTkCross) {
-      if (ltfTkCrossUp) {
+      if (tkBullCross) {
+        const passes = this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings);
+        const emitted = Boolean(htfBullish && bullTrigger && !bullBlockedByOpposite && passes);
+        const filterRejection = emitted
+          ? undefined
+          : !htfBullish
+          ? 'cloudFilter'
+          : !passes
+          ? 'kijunSlopeFilter'
+          : 'rsiOutOfZone';
         this.traceCollector.onTkCross({
           index: currentIndex,
           timestamp: candle.timestamp,
           direction: 'up',
           price: candle.close,
-          rsi: rsiCur,
-          inRsiZone: rsiSlopingUp,
-          signalEmitted: Boolean(htfBullish && (ichiBullCross || stochBullCross)),
+          rsi: 50,
+          inRsiZone: false,
+          filterRejection,
+          signalEmitted: emitted,
         });
-      } else if (ltfTkCrossDown) {
+      } else if (tkBearCross) {
+        const passes = this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings);
+        const emitted = Boolean(htfBearish && bearTrigger && !bearBlockedByOpposite && passes);
+        const filterRejection = emitted
+          ? undefined
+          : !htfBearish
+          ? 'cloudFilter'
+          : !passes
+          ? 'kijunSlopeFilter'
+          : 'rsiOutOfZone';
         this.traceCollector.onTkCross({
           index: currentIndex,
           timestamp: candle.timestamp,
           direction: 'down',
           price: candle.close,
-          rsi: rsiCur,
-          inRsiZone: rsiSlopingDown,
-          signalEmitted: Boolean(htfBearish && (ichiBearCross || stochBearCross)),
+          rsi: 50,
+          inRsiZone: false,
+          filterRejection,
+          signalEmitted: emitted,
         });
       }
     }
 
-    // Confluence BUY Signal (HTF Bullish + at least 2 of 3 confirmations in last lookbackBars)
     if (htfBullish) {
-      let confirmations = 0;
-      if (ichiBullCross || (ltfCloudBullish && tenkan >= kijun)) confirmations++;
-      if (stochBullCross) confirmations++;
-      if (rsiSlopingUp) confirmations++;
-
-      if (confirmations >= this.minConfirmations && (ichiBullCross || stochBullCross)) {
-        if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
-          return defaultSignal;
-        }
-
-        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-        const maxStopPercent = 5.0;
-
-        // User requirement: "اگر برآوردت بیشتر از 5 درصد بود باز نکن پوزیشن رو"
-        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-          return defaultSignal;
-        }
-
-        const effectiveStopPercent = this.useTdrStop
-          ? Math.min(tdrStopPercent, maxStopPercent)
-          : this.initialStopPercent;
-        const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
-
-        return {
-          action: 'BUY',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `MTF Bullish: 4h/1h Trend + LTF ${confirmations}-of-3 Confluence (ichi=${ichiBullCross}, stoch=${stochBullCross}, rsiUp=${rsiSlopingUp}) + Stop ${effectiveStopPercent}%`,
-          metadata: {
-            stochK: k,
-            stochD: d,
-            rsi: rsiCur,
-            tenkan,
-            kijun,
-            atr,
-            tdrStopPercent,
-            stopPrice,
-            initialStopPercent: effectiveStopPercent,
-            confirmations,
-            ichiCross: ichiBullCross,
-            stochCross: stochBullCross,
-            rsiSlope: rsiSlopingUp,
-          },
-        };
+      // Aligned cross & opposite check
+      if (bullBlockedByOpposite || !bullTrigger) {
+        return defaultSignal;
       }
+
+      if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
+        return defaultSignal;
+      }
+
+      const atr = ltfAtr[currentIndex] || candle.close * 0.02;
+      const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+      const maxStopPercent = 5.0;
+
+      if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+        return defaultSignal;
+      }
+
+      const effectiveStopPercent = this.useTdrStop
+        ? Math.min(tdrStopPercent, maxStopPercent)
+        : this.initialStopPercent;
+      const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
+
+      return {
+        action: 'BUY',
+        timestamp: candle.timestamp,
+        price: candle.close,
+        reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull}) + Stop ${effectiveStopPercent}%`,
+        metadata: {
+          stochK: k,
+          stochD: d,
+          tenkan,
+          kijun,
+          atr,
+          tdrStopPercent,
+          stopPrice,
+          initialStopPercent: effectiveStopPercent,
+          confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0) + (fisherEventBull ? 1 : 0),
+          ichiCross: tkBullCross,
+          stochCross: stochBullCross,
+          fisherCross: fisherEventBull,
+          fisherMode: this.fisherMode,
+          fisherKind: this.fisherKind,
+        },
+      };
     }
 
-    // Confluence SELL Signal (HTF Bearish + at least 2 of 3 confirmations in last lookbackBars)
     if (htfBearish) {
-      let confirmations = 0;
-      if (ichiBearCross || (ltfCloudBearish && tenkan <= kijun)) confirmations++;
-      if (stochBearCross) confirmations++;
-      if (rsiSlopingDown) confirmations++;
-
-      if (confirmations >= this.minConfirmations && (ichiBearCross || stochBearCross)) {
-        if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
-          return defaultSignal;
-        }
-        const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-        const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-        const maxStopPercent = 5.0;
-
-        // User requirement: "اگر برآوردت بیشتر از 5 درصد بود باز نکن پوزیشن رو"
-        if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-          return defaultSignal;
-        }
-
-        const effectiveStopPercent = this.useTdrStop
-          ? Math.min(tdrStopPercent, maxStopPercent)
-          : this.initialStopPercent;
-        const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
-
-        return {
-          action: 'SELL',
-          timestamp: candle.timestamp,
-          price: candle.close,
-          reason: `MTF Bearish: 4h/1h Trend + LTF ${confirmations}-of-3 Confluence (ichi=${ichiBearCross}, stoch=${stochBearCross}, rsiDown=${rsiSlopingDown}) + Stop ${effectiveStopPercent}%`,
-          metadata: {
-            stochK: k,
-            stochD: d,
-            rsi: rsiCur,
-            tenkan,
-            kijun,
-            atr,
-            tdrStopPercent,
-            stopPrice,
-            initialStopPercent: effectiveStopPercent,
-            confirmations,
-            ichiCross: ichiBearCross,
-            stochCross: stochBearCross,
-            rsiSlope: rsiSlopingDown,
-          },
-        };
+      // Aligned cross & opposite check
+      if (bearBlockedByOpposite || !bearTrigger) {
+        return defaultSignal;
       }
+
+      if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
+        return defaultSignal;
+      }
+
+      const atr = ltfAtr[currentIndex] || candle.close * 0.02;
+      const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
+      const maxStopPercent = 5.0;
+
+      if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
+        return defaultSignal;
+      }
+
+      const effectiveStopPercent = this.useTdrStop
+        ? Math.min(tdrStopPercent, maxStopPercent)
+        : this.initialStopPercent;
+      const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
+
+      return {
+        action: 'SELL',
+        timestamp: candle.timestamp,
+        price: candle.close,
+        reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear}) + Stop ${effectiveStopPercent}%`,
+        metadata: {
+          stochK: k,
+          stochD: d,
+          tenkan,
+          kijun,
+          atr,
+          tdrStopPercent,
+          stopPrice,
+          initialStopPercent: effectiveStopPercent,
+          confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0) + (fisherEventBear ? 1 : 0),
+          ichiCross: tkBearCross,
+          stochCross: stochBearCross,
+          fisherCross: fisherEventBear,
+          fisherMode: this.fisherMode,
+          fisherKind: this.fisherKind,
+        },
+      };
     }
 
     return defaultSignal;
@@ -1200,7 +833,6 @@ export class MultiTimeframeStrategy implements Strategy {
     side: 'long' | 'short',
     mode: ExitMode = 'trailingOnly'
   ): boolean {
-    // "پس برای خروج نیازی به سیگنال نیست ، فقط با حالت تریگر کردن استاپ برو جلو"
     if (mode === 'trailingOnly') {
       return false;
     }

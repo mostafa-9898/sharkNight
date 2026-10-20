@@ -39,6 +39,8 @@ export interface BacktestReportConfig {
   strategyName?: string;
   htfMode?: 'strict' | 'legacy';
   entryMode?: 'cross' | 'legacy';
+  fisherMode?: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+  fisherKind?: 'fisher' | 'ift';
   structureFilter?: boolean;
   tenkan?: number;
   kijun?: number;
@@ -165,20 +167,16 @@ export function computeDatasetFingerprint(candles: readonly Candle[]): string {
 }
 
 export function formatStrategyDisplayName(config: BacktestReportConfig): string {
-  const isMtf =
-    config.strategy === 'mtf' ||
-    config.strategyName === 'MultiTimeframe';
-
+  const htf = config.htfMode ?? 'strict';
+  const entry = config.entryMode ?? 'cross';
+  const fisher =
+    config.fisherMode === 'off'
+      ? 'off'
+      : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'ift'}`;
   const kijunStatus = config.kijunSlopeFilter ? 'enabled' : 'disabled';
   const structStatus = config.structureFilter ? 'enabled' : 'disabled';
 
-  if (isMtf) {
-    const htf = config.htfMode ?? 'strict';
-    const entry = config.entryMode ?? 'cross';
-    return `MultiTimeframe (${htf}, ${entry}) (kijunSlopeFilter: ${kijunStatus}, structureFilter: ${structStatus})`;
-  } else {
-    return `IchimokuRsi (kijunSlopeFilter: ${kijunStatus}, structureFilter: ${structStatus})`;
-  }
+  return `MultiTimeframe (${htf}, ${entry}, fisher=${fisher}) (kijunSlopeFilter: ${kijunStatus}, structureFilter: ${structStatus})`;
 }
 
 function computeConfigHash(config: BacktestReportConfig): string {
@@ -1047,17 +1045,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Parameter Group | Parameter | Value |`);
   lines.push(`|---|---|---|`);
   lines.push(`| Ichimoku | Tenkan / Kijun / SenkouB / Displacement | \`${tenkan}\` / \`${kijun}\` / \`${senkouB}\` / \`${displacement}\` |`);
-  if (isMtf) {
-    lines.push(`| RSI | Period / Lookback | \`disabled\` |`);
-    lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`disabled\` |`);
-    lines.push(`| Cloud Filter | Mode | \`disabled\` |`);
-    lines.push(`| RSI Recovery Cap | Value | \`disabled\` |`);
-  } else {
-    lines.push(`| RSI | Period / Lookback | \`${rsiPeriod}\` / \`${config.rsiLookback ?? 10}\` |`);
-    lines.push(`| RSI Zones | Buy Zone / Sell Zone | \`[${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}]\` / \`[${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}]\` |`);
-    lines.push(`| Cloud Filter | Mode | \`${config.cloudFilter ?? 'off'}\` |`);
-    lines.push(`| RSI Recovery Cap | Value | \`${config.rsiRecoveryCap !== undefined ? `+${config.rsiRecoveryCap}` : 'off'}\` |`);
-  }
+  lines.push(`| MTF Settings | HTF / Entry Mode | \`${config.htfMode ?? 'strict'}\` / \`${config.entryMode ?? 'cross'}\` |`);
+  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'} (${config.fisherKind ?? 'ift'})`;
+  lines.push(`| Fisher Oscillator | Mode / Kind | \`${fisherStr}\` |`);
   lines.push(`| Kijun Slope Filter | Status | \`${config.kijunSlopeFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Structure Filter | Status | \`${config.structureFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Execution | Trade Mode / Exit Mode | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` |`);
@@ -1691,11 +1681,12 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   lines.push(
     `| **Candle Dataset** | **${candles.length.toLocaleString()}** candles | Fingerprint: \`${datasetFingerprint}\` |`
   );
+  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'ift'}`;
   lines.push(
-    `| **Strategy Indicators** | Ichimoku (${config.tenkan ?? 9}, ${config.kijun ?? 26}, ${config.senkouB ?? 52}, ${config.displacement ?? 26}) | RSI (${config.rsiPeriod ?? 14}, Zones: [${config.rsiBuyMin ?? 20}, ${config.rsiBuyMax ?? 40}] / [${config.rsiSellMin ?? 60}, ${config.rsiSellMax ?? 80}], Lookback: ${config.rsiLookback ?? 20}) |`
+    `| **Strategy Indicators** | Ichimoku (${config.tenkan ?? 9}, ${config.kijun ?? 26}, ${config.senkouB ?? 52}, ${config.displacement ?? 26}) | MTF (${config.htfMode ?? 'strict'}, ${config.entryMode ?? 'cross'}, Fisher: ${fisherStr}) |`
   );
   lines.push(
-    `| **Filters Applied** | Cloud: \`${config.cloudFilter ?? 'off'}\` | Kijun Slope: \`${config.kijunSlopeFilter ? 'ON' : 'OFF'}\`, RSI Cap: \`${config.rsiRecoveryCap ?? 'N/A'}\` |`
+    `| **Filters Applied** | Kijun Slope: \`${config.kijunSlopeFilter ? 'ON' : 'OFF'}\` | Structure: \`${config.structureFilter ? 'ON' : 'OFF'}\` |`
   );
   lines.push(
     `| **Execution & Trade Mode** | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` | Intrabar stop checking: \`${config.stopCheckMode ?? 'intrabar'}\` |`

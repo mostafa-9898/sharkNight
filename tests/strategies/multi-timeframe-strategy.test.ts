@@ -181,58 +181,6 @@ describe('MultiTimeframeStrategy', () => {
     expect(result.metrics).toBeDefined();
   });
 
-  it('supports 2-of-3 confluence confirmation over lookbackBars window', () => {
-    const candles15m = createMockCandles(200, 15, 100);
-    const strategy = new MultiTimeframeStrategy({
-      lookbackBars: 3,
-      minConfirmations: 2,
-      initialStopPercent: 3.0,
-    });
-
-    expect(strategy.lookbackBars).toBe(3);
-    expect(strategy.minConfirmations).toBe(2);
-
-    const engine = new BacktestEngine();
-    const result = engine.run({
-      strategy,
-      candles: candles15m,
-      initialBalance: 10000,
-      trailingStop: {
-        initialStopPercent: 3,
-        stepPercent: 3,
-        raisePercent: 1.5,
-      },
-    });
-
-    expect(result).toBeDefined();
-    expect(result.metrics.totalTrades).toBeGreaterThanOrEqual(0);
-  });
-
-  it('triggers BUY at 3 Sep 2026 02:30 UTC when 1h trend is bullish and LTF confluence confirms', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require('fs');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const path = require('path');
-    const fixturePath = path.join(__dirname, '../fixtures/btc_15m_sep3_slice.json');
-    if (!fs.existsSync(fixturePath)) return;
-    const candles = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
-    const targetTime = new Date('2026-09-03T02:30:00Z').getTime();
-    const idx = candles.findIndex((c: Candle) => c.timestamp === targetTime);
-    expect(idx).toBeGreaterThan(0);
-
-    const strategy = new MultiTimeframeStrategy({
-      htfMode: 'legacy',
-      entryMode: 'legacy',
-      lookbackBars: 3,
-      minConfirmations: 2,
-    });
-
-    const signal = strategy.analyze(candles, idx);
-    expect(signal.action).toBe('BUY');
-    expect(signal.price).toBe(77766.2);
-    expect(signal.metadata?.confirmations).toBeGreaterThanOrEqual(2);
-  });
-
   it('does not emit signal when 1h and 4h HTF trends are opposing', () => {
     const start = 1700000000000;
     // 1h bullish: prices rising

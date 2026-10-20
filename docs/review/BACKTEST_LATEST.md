@@ -1,27 +1,25 @@
 # Automated Backtest Review Report
-Generated: **2026-10-20T08:30:41.439Z** | Config Hash: `2adf4908`
+Generated: **2026-10-20T11:38:20.695Z** | Config Hash: `f71c9fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `51ffe7c` (⚠️ dirty) |
-| **Strategy** | IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled) |
+| **Git Commit** | `81d40ef` (⚠️ dirty) |
+| **Strategy** | MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `4h` / `all` |
 | **Total Candles** | 7 |
 | **Start Time (UTC)** | 2020-09-13T12:26:40Z |
 | **End Time (UTC)** | 2020-09-13T18:26:40Z |
 | **Dataset Fingerprint** | `709ae6876010f4ad` |
 | **Data Source** | `cache` ✅ |
-| **Config Hash** | `2adf4908` |
+| **Config Hash** | `f71c9fab` |
 
 ### Full Configuration Parameters
 | Parameter Group | Parameter | Value |
 |---|---|---|
 | Ichimoku | Tenkan / Kijun / SenkouB / Displacement | `9` / `26` / `52` / `26` |
-| RSI | Period / Lookback | `14` / `10` |
-| RSI Zones | Buy Zone / Sell Zone | `[20, 40]` / `[60, 80]` |
-| Cloud Filter | Mode | `off` |
-| RSI Recovery Cap | Value | `off` |
+| MTF Settings | HTF / Entry Mode | `strict` / `cross` |
+| Fisher Oscillator | Mode / Kind | `confirm (ift)` |
 | Kijun Slope Filter | Status | `disabled` |
 | Structure Filter | Status | `disabled` |
 | Execution | Trade Mode / Exit Mode | `long-short` / `reverse` |

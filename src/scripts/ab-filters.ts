@@ -171,8 +171,9 @@ async function main(): Promise<void> {
             let avgHoldingHours = 0;
             if (res.trades.length > 0) {
               const totalMs = res.trades.reduce((sum, t) => {
-                const exitT = t.exitTime ?? t.entryTime;
-                return sum + Math.max(0, exitT - t.entryTime);
+                const entryT = t.entryTime ?? 0;
+                const exitT = t.exitTime ?? entryT;
+                return sum + Math.max(0, exitT - entryT);
               }, 0);
               avgHoldingHours = roundTo(totalMs / (res.trades.length * 1000 * 60 * 60), 1);
             }

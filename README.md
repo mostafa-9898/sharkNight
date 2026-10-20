@@ -1,31 +1,32 @@
 # TradeBot
 
-Crypto trading bot, backtesting engine, parameter optimizer, and interactive Next.js dashboard.
+Crypto trading bot, backtesting engine, multi-position portfolio simulator, and interactive Next.js dashboard.
 
 ## Features
 
 - **Strategies:**
-  - **Ichimoku + RSI Strategy (`IchimokuRsiStrategy`):** Trend-following and momentum confluence strategy based on Tenkan/Kijun crossover on current candle and recent RSI extreme zone hits within a configurable lookback window (`rsiLookback`).
+  - **Multi-Timeframe Strategy (`MultiTimeframeStrategy`):**
+    - **Macro & Intermediate Trend (HTF):** Evaluated strictly causally on 4h & 1h candles using Ichimoku Cloud (Price vs Cloud top/bottom and Tenkan vs Kijun). Both timeframes must strictly agree.
+    - **LTF Entry Triggers:** Evaluated on lower timeframe candles via Tenkan/Kijun crossover, Stochastic (%K/%D) crossover, and Fisher RSI / IFT-RSI.
+    - **Fisher RSI / IFT-RSI Integration:** Standalone RSI has been deprecated and replaced with Fisher Transform RSI / Inverse Fisher Transform RSI (`fisherMode: 'confirm'`, `fisherKind: 'ift'` by default).
+    - **Filters:** Causal Kijun-sen slope filter (`kijunSlopeFilter`) and market structure pivot filter (`structureFilter`).
   - **SMA Crossover Strategy (`SmaCrossoverStrategy`):** Baseline moving-average crossover.
-- **Backtesting Engine (`BacktestEngine`):**
-  - **Trade Modes:** `long-short` (reverses on opposite signals) and `long-only` (flat on sell/stop).
-  - **1x Short Selling:** Cash-backed, unleveraged short accounting with mark-to-market continuous equity and realistic maker/taker fees.
-  - **Engine-Level TP/SL:** Take-profit and stop-loss execution configurable via `stopCheckMode` (`intrabar` with intrabar gap/slippage modeling or `close` on candle close), evaluated prior to signal processing without accidental reversals.
-  - **Breakdown Metrics:** Long vs. short trade count, win rate, and net PnL breakdown.
+- **Backtesting & Multi-Position Engine (`BacktestEngine`):**
+  - **Multi-Position Execution:** Supports concurrent same-direction positions via `maxOpenPositions`, dynamic equity-based allocation, notional exposure limits (`maxTotalExposurePercent`), and minimum bars between entries (`minBarsBetweenEntries`).
+  - **Trade Modes:** `long-only` and `long-short` execution.
+  - **Advanced Trailing Stops:** Stepped trailing stop with ratchet mechanisms (Candidate D: 3% initial stop, 3% step trigger, 1.5% raise), break-even preservation, intrabar gap modeling, and adverse slippage.
+  - **Independent Position Tracking:** Each concurrent position maintains its own ID, entry price, sizing, trailing stop ratchet, and commission.
 - **Interactive Dashboard (Next.js / Lightweight-Charts v5):**
   - Candlestick chart with custom canvas primitive for Ichimoku Cloud fill (green / red spans) projected `displacement` candles into the future.
-  - Multi-series indicators: Tenkan-sen, Kijun-sen, Chikou span, Senkou A, Senkou B.
-  - Synchronized RSI subchart with visual strategy buy/sell boundary levels.
-  - Execution markers displaying side (`BUY`, `SELL`, `TP`, `SL`) and trade exit PnL percentage.
-  - Signal Funnel diagnostics explaining zero-trade conditions.
-- **Parameter Optimizer (`src/scripts/optimize.ts`):**
-  - Chronological 70% train / 30% test walk-forward validation on real multi-year Binance/KuCoin data.
-  - Calmar-like ranking and parameter neighborhood stability analysis.
-  - Enforces minimum sample size (>= 5,000 1h / 4,000 4h candles) and rejects synthetic data.
-- **Backtest Review Report Generator (`src/scripts/backtest-report.ts`):**
-  - Produces reproducible, comprehensive Section A-K backtest review reports in Markdown and machine-readable JSON (`BACKTEST_LATEST.md`, `backtest-latest.json`), with automated versioned archives in `docs/review/history/` and index tracking in `docs/review/HISTORY.md`. Supports reproducible dataset windowing via deterministic anchor and overrides (`--asOf`, `--startTime`, `--endTime`).
-- **Legacy Review Notes Generator (`src/scripts/review-notes.ts`):**
-  - Produces standalone audit snapshot files (`docs/review/CLAUDE_REVIEW_NOTES.md` and `docs/review/last-backtest.json`). Preserved for historical review and audit traceability.
+  - Multi-series indicators: Tenkan-sen, Kijun-sen, Senkou A, Senkou B, and Stochastic oscillator.
+  - Strategy selector with MTF strict filters and Fisher RSI / IFT-RSI configuration.
+  - Execution markers displaying trade entries, exits, side (`BUY`, `SELL`, `TP`, `SL`), and realized PnL.
+  - Diagnostics tracking signal funnel, filter attrition, and concurrency stats.
+- **Validation & Simulation Suites:**
+  - `src/scripts/validate-fisher.ts`: Empirical A/B testing of Fisher & IFT configurations across multi-year datasets.
+  - `src/scripts/validate-multi.ts`: Comprehensive multi-position capacity, concurrency, and synthetic/null testing across in-sample and out-of-sample markets.
+  - `src/scripts/portfolio.ts`: Portfolio simulation with pooled capital, dynamic capital sizing, and cross-market concurrency control.
+  - `src/scripts/backtest-report.ts`: Detailed Sections A-K backtest review report generation with versioned history archiving.
 
 ## Setup
 
@@ -45,44 +46,46 @@ npx tsc --noEmit
 # Run ESLint
 npm run lint
 
-# Run parameter optimizer
-npx tsx src/scripts/optimize.ts --symbol=BTCUSDT
-npx tsx src/scripts/optimize.ts --symbol=ETHUSDT
+# Run Fisher A/B validation
+npx tsx src/scripts/validate-fisher.ts
 
-# Generate reproducible backtest review report (Sections A-K, latest markdown & JSON, history archive)
+# Run multi-position validation
+npm run validate-multi
+
+# Run portfolio simulation
+npm run portfolio
+
+# Generate reproducible backtest review report
 npm run backtest-report
-
-# Generate legacy reviewer notes snapshot (CLAUDE_REVIEW_NOTES.md & last-backtest.json)
-npm run review-notes
 ```
 
-## Strategy Specification: Ichimoku + RSI
+## Strategy Specification: MultiTimeframe (`D*`)
 
-- **Indicators:**
-  - **Tenkan-sen:** Midpoint of highest high and lowest low over `tenkan` candles (default 9).
-  - **Kijun-sen:** Midpoint over `kijun` candles (default 26).
-  - **Senkou Span A:** `(Tenkan + Kijun) / 2` shifted forward by `displacement` (default 26).
-  - **Senkou Span B:** Midpoint over `senkouB` candles (default 52) shifted forward by `displacement`.
-  - **Chikou Span:** Close price shifted backward by `displacement`.
-  - **RSI:** Standard Wilder's RSI (default 14).
-- **Rules:**
-  - **BUY:** Tenkan crosses strictly UP through Kijun on the signal candle AND RSI is inside `[buyMin, buyMax]` (default `[20, 40]`) on the signal candle or within the last `rsiLookback` candles (default 10).
-  - **SELL:** Tenkan crosses strictly DOWN through Kijun on the signal candle AND RSI is inside `[sellMin, sellMax]` (default `[60, 80]`) on the signal candle or within the last `rsiLookback` candles.
-  - **Lookback Rationale:** Lagging TK crosses rarely coincide with the exact peak RSI extreme. The lookback parameter links the momentum setup to the trend trigger without look-ahead bias.
+- **HTF Trend (`strict`):**
+  - Evaluated on closed 4h and 1h candles strictly before or at the LTF candle timestamp.
+  - **Bullish:** `close > max(senkouA, senkouB)` AND `tenkan > kijun` on **both** 4h and 1h.
+  - **Bearish:** `close < min(senkouA, senkouB)` AND `tenkan < kijun` on **both** 4h and 1h.
+- **LTF Trigger & Confirmation:**
+  - **TK Cross:** Tenkan crosses strictly UP (for long) or DOWN (for short) through Kijun.
+  - **Stochastic Cross:** %K crosses %D in the direction of the trend.
+  - **Fisher RSI / IFT (`I3: confirm / ift`):** Confirms entry direction (`ift[i] > ift[i-1]` for long; `ift[i] < ift[i-1]` for short). Standalone RSI has been superseded by this indicator.
+- **Filters:**
+  - **Kijun Slope:** `kijun[i] > kijun[i-5]` for long; `kijun[i] < kijun[i-5]` for short.
+  - **Market Structure:** Validates higher-highs and higher-lows (HH/HL) for long; lower-highs and lower-lows (LH/LL) for short using causal swing pivots.
 
 ## Project Structure
 
 ```
 src/
 ├── app/                  # Next.js app, UI dashboard, and backtest API route
-├── backtest/             # Portfolio accounting, engine, metrics calculation
+├── backtest/             # Multi-position portfolio engine, execution invariants, reports
 ├── data/                 # Market data providers (Binance, KuCoin) and storage
-├── indicators/           # Technical indicators (Ichimoku, RSI, SMA, EMA, MACD, etc.)
-├── scripts/              # Optimization and review notes generators
-└── strategies/           # Trading strategy implementations
+├── indicators/           # Technical indicators (Ichimoku, Fisher RSI, IFT, Stochastic, ATR, Swings)
+├── scripts/              # Validation, portfolio simulation, and report generation
+└── strategies/           # MultiTimeframeStrategy and baseline strategies
 data/                     # Historical OHLCV JSON datasets and optimization CSVs
 docs/
-├── review/               # Generated reports (BACKTEST_LATEST.md, backtest-latest.json, HISTORY.md, history/ archives, and legacy CLAUDE_REVIEW_NOTES.md)
-└── strategies/           # Optimization reports and strategies log
-tests/                    # Jest unit and integration test suites
+├── review/               # Generated research & validation reports (PORTFOLIO.md, VALIDATION.md, FISHER_AB.md, OSC_LAG.md, etc.)
+└── strategies/           # Strategy research and logs
+tests/                    # Comprehensive Jest unit, regression, and property test suites
 ```

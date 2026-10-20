@@ -10,7 +10,6 @@ import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import { calculateStochastic } from '@/indicators/stochastic';
-import { IchimokuRsiStrategy, type CloudFilter } from '@/strategies/ichimoku-rsi-strategy';
 import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
 import { generateAndSaveBacktestReport } from '@/backtest/report';
 
@@ -176,7 +175,7 @@ export async function POST(request: Request) {
     }
 
     // Cloud filter
-    const cloudFilter: CloudFilter =
+    const cloudFilter: 'off' | 'trend' | 'strongCross' =
       body.cloudFilter === 'trend' || body.cloudFilter === 'strongCross'
         ? body.cloudFilter
         : 'off';
@@ -342,53 +341,30 @@ export async function POST(request: Request) {
       }
     }
 
-    // Run Strategy Backtest using MultiTimeframeStrategy or IchimokuRsiStrategy
-    const strategy = mtfEnabled
-      ? new MultiTimeframeStrategy({
-          htfMode,
-          entryMode,
-          kijunSlopeFilter,
-          structureFilter,
-          fisherMode,
-          fisherKind,
-          htf4hCandles,
-          htf1hCandles,
-          tenkan: ichimokuTenkan,
-          kijun: ichimokuKijun,
-          senkouB: ichimokuSenkouB,
-          displacement: ichimokuDisplacement,
-          rsiPeriod,
-          rsiBuyMin,
-          rsiBuyMax,
-          rsiSellMin,
-          rsiSellMax,
-          stochKPeriod,
-          stochDPeriod,
-          stochSmooth,
-          stochOversold,
-          stochOverbought,
-          trendRequirement,
-          lookbackBars,
-          minConfirmations,
-          initialStopPercent: trailingStopEnabled ? (trailingStop?.initialStopPercent ?? 5) : (stopLossPercent ?? 5),
-          useTdrStop,
-          tdrMultiplier,
-        })
-      : new IchimokuRsiStrategy({
-          tenkan: ichimokuTenkan,
-          kijun: ichimokuKijun,
-          senkouB: ichimokuSenkouB,
-          displacement: ichimokuDisplacement,
-          rsiPeriod,
-          rsiBuyMin,
-          rsiBuyMax,
-          rsiSellMin,
-          rsiSellMax,
-          rsiLookback,
-          cloudFilter,
-          rsiRecoveryCap,
-          kijunSlopeFilter,
-        });
+    // Run Strategy Backtest using MultiTimeframeStrategy
+    const strategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      kijunSlopeFilter,
+      structureFilter,
+      fisherMode,
+      fisherKind,
+      htf4hCandles,
+      htf1hCandles,
+      tenkan: ichimokuTenkan,
+      kijun: ichimokuKijun,
+      senkouB: ichimokuSenkouB,
+      displacement: ichimokuDisplacement,
+      rsiPeriod,
+      stochKPeriod,
+      stochDPeriod,
+      stochSmooth,
+      stochOversold,
+      stochOverbought,
+      initialStopPercent: trailingStopEnabled ? (trailingStop?.initialStopPercent ?? 5) : (stopLossPercent ?? 5),
+      useTdrStop,
+      tdrMultiplier,
+    });
 
     const engine = new BacktestEngine();
     const backtestResult = engine.run({

@@ -12,8 +12,8 @@ const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
 interface BacktestDiagnostics {
-  rsiBuyZoneCandles: number;
-  rsiSellZoneCandles: number;
+  rsiBuyZoneCandles?: number;
+  rsiSellZoneCandles?: number;
   tkCrossUpEvents: number;
   tkCrossDownEvents: number;
   buySetups: number;
@@ -32,11 +32,11 @@ interface BacktestResultData {
   ichimokuSenkouB: number;
   ichimokuDisplacement: number;
   rsiPeriod: number;
-  rsiBuyMin: number;
-  rsiBuyMax: number;
-  rsiSellMin: number;
-  rsiSellMax: number;
-  rsiLookback: number;
+  rsiBuyMin?: number;
+  rsiBuyMax?: number;
+  rsiSellMin?: number;
+  rsiSellMax?: number;
+  rsiLookback?: number;
   tradeMode: TradeMode;
   exitMode?: ExitMode;
   stopLossPercent?: number;
@@ -147,14 +147,8 @@ export default function DashboardPage() {
   const [ichimokuSenkouB, setIchimokuSenkouB] = useState(52);
   const [ichimokuDisplacement, setIchimokuDisplacement] = useState(26);
 
-  // RSI Parameters
+  // RSI Period (for Fisher RSI & IFT-RSI)
   const [rsiPeriod, setRsiPeriod] = useState(14);
-  const [rsiBuyMin, setRsiBuyMin] = useState(20);
-  const [rsiBuyMax, setRsiBuyMax] = useState(50);
-  const [rsiSellMin, setRsiSellMin] = useState(50);
-  const [rsiSellMax, setRsiSellMax] = useState(80);
-  const [rsiLookback, setRsiLookback] = useState(20);
-  const [rsiRecoveryCap, setRsiRecoveryCap] = useState<string>('');
 
   // Stochastic Parameters (LTF Confirmation)
   const [stochKPeriod, setStochKPeriod] = useState(14);
@@ -276,12 +270,6 @@ export default function DashboardPage() {
           ichimokuSenkouB,
           ichimokuDisplacement,
           rsiPeriod,
-          rsiBuyMin,
-          rsiBuyMax,
-          rsiSellMin,
-          rsiSellMax,
-          rsiLookback,
-          rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
           tradeMode,
           exitMode,
           stopLossPercent,
@@ -331,17 +319,11 @@ export default function DashboardPage() {
         tdrMultiplier,
         exitMode,
         stopLossPercent,
-        rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
         ichimokuTenkan,
         ichimokuKijun,
         ichimokuSenkouB,
         ichimokuDisplacement,
         rsiPeriod,
-        rsiBuyMin,
-        rsiBuyMax,
-        rsiSellMin,
-        rsiSellMax,
-        rsiLookback,
         tradeMode,
         initialBalance: btInitialBalance,
         metrics: data.backtest?.metrics,
@@ -396,12 +378,6 @@ export default function DashboardPage() {
     ichimokuSenkouB,
     ichimokuDisplacement,
     rsiPeriod,
-    rsiBuyMin,
-    rsiBuyMax,
-    rsiSellMin,
-    rsiSellMax,
-    rsiLookback,
-    rsiRecoveryCap,
     tradeMode,
     exitMode,
     stopLossPercent,
@@ -953,172 +929,6 @@ export default function DashboardPage() {
             </label>
           </div>
 
-          {/* Line 2: Relative Strength Index (RSI) Box */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '16px',
-              backgroundColor: 'rgba(168, 85, 247, 0.05)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              borderRadius: '6px',
-              padding: '10px 14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '240px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc' }}>
-                🟣 Relative Strength Index (RSI)
-              </span>
-            </div>
-
-            {/* RSI Period */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Period:</label>
-              <input
-                type="number"
-                min={2}
-                max={50}
-                value={rsiPeriod}
-                onChange={(e) => setRsiPeriod(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#e6edf3',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  fontSize: '12px',
-                  width: '65px',
-                }}
-              />
-            </div>
-
-            {/* Buy Zone */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Buy Zone:</label>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={rsiBuyMin}
-                onChange={(e) => setRsiBuyMin(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#3fb950',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-              <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={rsiBuyMax}
-                onChange={(e) => setRsiBuyMax(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#3fb950',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-            </div>
-
-            {/* Sell Zone */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Sell Zone:</label>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={rsiSellMin}
-                onChange={(e) => setRsiSellMin(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#f85149',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-              <span style={{ color: '#8b949e', fontSize: '12px' }}>-</span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={rsiSellMax}
-                onChange={(e) => setRsiSellMax(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#f85149',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-            </div>
-
-            {/* Lookback */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>RSI Lookback:</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={rsiLookback}
-                onChange={(e) => setRsiLookback(Number(e.target.value))}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#c084fc',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
-            </div>
-
-            {/* Stale-RSI Guard (Cap) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>RSI Cap:</label>
-              <input
-                type="number"
-                min={0}
-                placeholder="Off"
-                value={rsiRecoveryCap}
-                onChange={(e) => setRsiRecoveryCap(e.target.value)}
-                style={{
-                  backgroundColor: '#0d1117',
-                  color: '#c084fc',
-                  fontWeight: 600,
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  fontSize: '12px',
-                  width: '55px',
-                }}
-              />
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>pts</span>
-            </div>
-          </div>
 
           {/* Line 2.5: Stochastic Oscillator Box (LTF Confirmation) */}
           <div
@@ -1367,6 +1177,27 @@ export default function DashboardPage() {
                   <option value="fisher">Fisher RSI</option>
                   <option value="ift">IFT-RSI</option>
                 </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>RSI Period:</label>
+                <input
+                  type="number"
+                  min={2}
+                  max={50}
+                  value={rsiPeriod}
+                  onChange={(e) => setRsiPeriod(Number(e.target.value))}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                    width: '55px',
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -1856,10 +1687,6 @@ export default function DashboardPage() {
           ichimokuSenkouB={ichimokuSenkouB}
           ichimokuDisplacement={ichimokuDisplacement}
           rsiPeriod={rsiPeriod}
-          rsiBuyMin={rsiBuyMin}
-          rsiBuyMax={rsiBuyMax}
-          rsiSellMin={rsiSellMin}
-          rsiSellMax={rsiSellMax}
           stochKPeriod={stochKPeriod}
           stochDPeriod={stochDPeriod}
           stochSmooth={stochSmooth}
@@ -2009,39 +1836,6 @@ export default function DashboardPage() {
                   gap: '10px',
                 }}
               >
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    RSI Buy Zone [{backtestResult.rsiBuyMin}-{backtestResult.rsiBuyMax}]
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#38bdf8', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.rsiBuyZoneCandles}{' '}
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    RSI Sell Zone [{backtestResult.rsiSellMin}-{backtestResult.rsiSellMax}]
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f85149', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.rsiSellZoneCandles}{' '}
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>candles</span>
-                  </div>
-                </div>
 
                 <div
                   style={{

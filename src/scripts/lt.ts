@@ -1,6 +1,6 @@
 import { JsonStorage } from '../data/storage/json-storage';
 import { BacktestEngine } from '../backtest/engine';
-import { IchimokuRsiStrategy } from '../strategies/ichimoku-rsi-strategy';
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { getIntervalMs, type Candle, type CandleInterval } from '../data/models/candle';
@@ -192,9 +192,9 @@ export class MultiTimeframeSimulator {
 
     if (entryMode === 'htf_baseline') {
       // Use standard BacktestEngine directly for reference & baseline
-      const strategy = new IchimokuRsiStrategy({
-        rsiLookback: 20,
-        cloudFilter: 'trend',
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
       });
 
       const engine = new BacktestEngine();

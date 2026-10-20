@@ -1,21 +1,21 @@
 # Trade Diagnostics Report — Latest Backtest Run
 
-> **Canonical Diagnostic Log** | Generated: `2026-10-20T08:30:41.440Z` | Git: `51ffe7c` (dirty) | Config Hash: `2adf4908`
+> **Canonical Diagnostic Log** | Generated: `2026-10-20T11:38:20.696Z` | Git: `81d40ef` (dirty) | Config Hash: `f71c9fab`
 
 ---
 
 ## Section 1: Run Identity & Reproducibility
 | Parameter | Value | Specification Details |
 |---|---|---|
-| **Run Timestamp (UTC)** | `2026-10-20T08:30:41.440Z` | Deterministic backtest execution |
-| **Git Revision** | `51ffe7c` | Working tree: `DIRTY` |
-| **Strategy** | **IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
+| **Run Timestamp (UTC)** | `2026-10-20T11:38:20.696Z` | Deterministic backtest execution |
+| **Git Revision** | `81d40ef` | Working tree: `DIRTY` |
+| **Strategy** | **MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
 | **Symbol & Timeframe** | `BTCUSDT` / `4h` | Higher-timeframe context |
 | **Evaluation Type** | **Standard Evaluation Window** | Out-of-sample / In-sample protocol |
 | **Effective Data Window** | `2020-09-13T12:26:40Z` → `2020-09-13T18:26:40Z` | Period: `all` |
 | **Candle Dataset** | **7** candles | Fingerprint: `709ae6876010f4ad` |
-| **Strategy Indicators** | Ichimoku (9, 26, 52, 26) | RSI (14, Zones: [20, 40] / [60, 80], Lookback: 20) |
-| **Filters Applied** | Cloud: `off` | Kijun Slope: `OFF`, RSI Cap: `N/A` |
+| **Strategy Indicators** | Ichimoku (9, 26, 52, 26) | MTF (strict, cross, Fisher: confirm/ift) |
+| **Filters Applied** | Kijun Slope: `OFF` | Structure: `OFF` |
 | **Execution & Trade Mode** | `long-short` / `reverse` | Intrabar stop checking: `intrabar` |
 | **Position Sizing & Risk** | Size: **20%** | Risk per trade: **1%** (Initial Capital: $10,000) |
 | **Cost Model** | Fee: **0.1%** per side | Adverse exit slippage: **0%** |
@@ -84,4 +84,4 @@
   ```bash
   npx tsx src/scripts/backtest-report.ts --symbol=BTCUSDT --period=6y
   ```
-- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `709ae6876010f4ad` and config hash `2adf4908`.
+- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `709ae6876010f4ad` and config hash `f71c9fab`.
