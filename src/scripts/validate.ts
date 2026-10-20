@@ -111,6 +111,7 @@ interface CandidateConfig {
   exitMode: 'reverse' | 'trailingOnly';
   tradeMode: 'long-short' | 'long-only';
   stopLossPercent?: number;
+  positionSizePercent?: number;
   trailingStop?: {
     initialStopPercent: number;
     stepPercent: number;
@@ -148,11 +149,12 @@ const CANDIDATES: CandidateConfig[] = [
   },
   {
     id: 'D',
-    name: 'Long-Only Trailing 3/3/1.5 (Dual Filter)',
+    name: 'Long-Only Trailing 3/3/1.5 (Dual Filter, Size 5%)',
     kijunSlopeFilter: true,
     structureFilter: true,
     exitMode: 'trailingOnly',
     tradeMode: 'long-only',
+    positionSizePercent: 5,
     trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
   },
 ];
@@ -353,7 +355,7 @@ async function main(): Promise<void> {
 
         const baseEngineConfig = {
           initialBalance,
-          positionSizePercent: baseSize,
+          positionSizePercent: candidate.positionSizePercent ?? baseSize,
           tradeFeePercent: baseFee,
           tradeMode: candidate.tradeMode,
           exitMode: candidate.exitMode,
@@ -504,7 +506,7 @@ async function main(): Promise<void> {
 
         const simEngineConfig = {
           initialBalance,
-          positionSizePercent: baseSize,
+          positionSizePercent: candidate.positionSizePercent ?? baseSize,
           tradeFeePercent: baseFee,
           tradeMode: candidate.tradeMode,
           exitMode: candidate.exitMode,
@@ -646,7 +648,7 @@ async function main(): Promise<void> {
           const stopPercentAtEntry = candidate.trailingStop
             ? candidate.trailingStop.initialStopPercent
             : (candidate.stopLossPercent ?? 0);
-          const positionSizePercent = 10;
+          const positionSizePercent = candidate.positionSizePercent ?? 10;
           return `${entryTime},${exitTime},${side},${entryPrice},${exitPrice},${pnlPercent},${exitReason},${barsHeld},${mfePercent},${maePercent},${stopPercentAtEntry},${positionSizePercent}`;
         });
 
@@ -996,15 +998,16 @@ async function main(): Promise<void> {
   lines.push('');
 
   // 1. Verdict Table for B and D
-  lines.push('### 1. Final Verdict Matrix (Candidates B & D)');
+  lines.push('### 1. Final Verdict Matrix (Candidates B & D@5%)');
   lines.push('| Market | Cfg | Mode | C1: Test>0 | C2: NoBest>0 | C3: DD≤12% | C4: CostRob | C5: Null≥90 | Verdict |');
   lines.push('|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|');
   const tick = (b: boolean) => (b ? '✅' : '❌');
   for (const v of verdictRowsBD) {
-    const modeStr = v.cfg === 'B' ? 'Long-Short' : 'Long-Only';
+    const cfgLabel = v.cfg === 'D' ? 'D@5%' : v.cfg;
+    const modeStr = v.cfg === 'B' ? 'Long-Short' : 'Long-Only (5%)';
     const vStr = v.pass ? '**PASS**' : 'FAIL';
     lines.push(
-      `| \`${v.market}\` | ${v.cfg} | ${modeStr} | ${tick(v.c1)} | ${tick(v.c2)} | ${tick(v.c3)} | ${tick(v.c4)} | ${tick(v.c5)} | ${vStr} |`
+      `| \`${v.market}\` | ${cfgLabel} | ${modeStr} | ${tick(v.c1)} | ${tick(v.c2)} | ${tick(v.c3)} | ${tick(v.c4)} | ${tick(v.c5)} | ${vStr} |`
     );
   }
   lines.push('');
@@ -1019,9 +1022,10 @@ async function main(): Promise<void> {
     const btcPass = rows.some((r) => r.market.startsWith('BTC') && r.pass);
     const ethPass = rows.some((r) => r.market.startsWith('ETH') && r.pass);
     const finalOk = passCount >= 2 && btcPass && ethPass;
-    const desc = cfg === 'B' ? 'Dual Filter, Long-Short Trailing 3/3/1.5' : 'Dual Filter, Long-Only Trailing 3/3/1.5';
+    const nameStr = cfg === 'D' ? '**Candidate D@5%**' : `**Candidate ${cfg}**`;
+    const desc = cfg === 'B' ? 'Dual Filter, Long-Short Trailing 3/3/1.5' : 'Dual Filter, Long-Only Trailing 3/3/1.5, Size 5%';
     lines.push(
-      `| **Candidate ${cfg}** | ${desc} | ${passCount} / 6 | ${btcPass ? '✅ Yes' : '❌ No'} | ${ethPass ? '✅ Yes' : '❌ No'} | ${finalOk ? '**ACCEPTED**' : '**REJECTED**'} |`
+      `| ${nameStr} | ${desc} | ${passCount} / 6 | ${btcPass ? '✅ Yes' : '❌ No'} | ${ethPass ? '✅ Yes' : '❌ No'} | ${finalOk ? '**ACCEPTED**' : '**REJECTED**'} |`
     );
   }
   lines.push('');

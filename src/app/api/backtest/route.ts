@@ -92,13 +92,13 @@ export async function POST(request: Request) {
     const tradeMode: TradeMode =
       body.tradeMode === 'short-only'
         ? 'short-only'
-        : body.tradeMode === 'long-only'
-        ? 'long-only'
-        : 'long-short';
+        : body.tradeMode === 'long-short'
+        ? 'long-short'
+        : 'long-only';
     const exitMode: ExitMode =
-      body.exitMode === 'tkCross' || body.exitMode === 'kijun' || body.exitMode === 'trailingOnly'
+      body.exitMode === 'tkCross' || body.exitMode === 'kijun' || body.exitMode === 'reverse'
         ? body.exitMode
-        : 'reverse';
+        : 'trailingOnly';
     const maxBarsInTrade =
       body.maxBarsInTrade !== undefined &&
       body.maxBarsInTrade !== null &&
@@ -122,14 +122,17 @@ export async function POST(request: Request) {
         ? Number(body.stopLossPercent)
         : 3;
 
-    // Trailing Stop parameters
-    const trailingStopEnabled = Boolean(body.trailingStopEnabled);
+    // Trailing Stop parameters (Default Candidate D: 3/3/1.5)
+    const trailingStopEnabled =
+      body.trailingStopEnabled !== undefined
+        ? Boolean(body.trailingStopEnabled)
+        : exitMode === 'trailingOnly';
     let trailingStop: TrailingStopConfig | undefined;
 
     if (trailingStopEnabled) {
-      const initialStopPercent = Number(body.initialStopPercent ?? 1.5);
-      const trailStepPercent = Number(body.trailStepPercent ?? 1.0);
-      const trailRaisePercent = Number(body.trailRaisePercent ?? 0.8);
+      const initialStopPercent = Number(body.initialStopPercent ?? 3.0);
+      const trailStepPercent = Number(body.trailStepPercent ?? 3.0);
+      const trailRaisePercent = Number(body.trailRaisePercent ?? 1.5);
 
       if (!Number.isFinite(initialStopPercent) || initialStopPercent <= 0 || initialStopPercent > 50) {
         return NextResponse.json(
@@ -196,14 +199,19 @@ export async function POST(request: Request) {
     const lookbackBars = Math.max(1, Number(body.lookbackBars ?? 3));
     const minConfirmations = Math.max(1, Math.min(3, Number(body.minConfirmations ?? 2)));
 
-    // Position Sizing & Risk
+    // Position Sizing & Risk (Default Candidate D: 5%)
     const positionSizePercent =
       body.positionSizePercent !== undefined &&
       body.positionSizePercent !== null &&
       body.positionSizePercent !== '' &&
       Number(body.positionSizePercent) > 0
         ? Math.min(100, Math.max(0.0001, Number(body.positionSizePercent)))
-        : undefined;
+        : 5;
+
+    // Multi-position parameters (Step 3 forwarding)
+    const maxOpenPositions = Math.max(1, Math.floor(Number(body.maxOpenPositions ?? 1)));
+    const maxTotalExposurePercent = Math.min(100, Math.max(1, Number(body.maxTotalExposurePercent ?? 100)));
+    const minBarsBetweenEntries = Math.max(0, Math.floor(Number(body.minBarsBetweenEntries ?? 0)));
 
     const riskPerTradePercent =
       body.riskPerTradePercent !== undefined &&
@@ -389,6 +397,9 @@ export async function POST(request: Request) {
       takeProfitPercent,
       stopLossPercent: trailingStopEnabled ? undefined : stopLossPercent,
       trailingStop,
+      maxOpenPositions,
+      maxTotalExposurePercent,
+      minBarsBetweenEntries,
       slippagePercent,
       stopCheckMode,
       collectTrace: true,

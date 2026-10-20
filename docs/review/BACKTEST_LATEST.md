@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-20T07:55:32.324Z** | Config Hash: `2adf4908`
+Generated: **2026-10-20T08:30:41.439Z** | Config Hash: `2adf4908`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `7b4c542` (⚠️ dirty) |
+| **Git Commit** | `51ffe7c` (⚠️ dirty) |
 | **Strategy** | IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `4h` / `all` |
 | **Total Candles** | 7 |

@@ -79,6 +79,9 @@ export interface BacktestConfig {
   takeProfitPercent?: number;     // e.g., 5 for 5% TP
   stopLossPercent?: number;       // e.g., 3 for 3% SL
   trailingStop?: TrailingStopConfig;
+  maxOpenPositions?: number;       // DEFAULT: 1
+  maxTotalExposurePercent?: number;// DEFAULT: 100
+  minBarsBetweenEntries?: number;  // DEFAULT: 0
   slippagePercent?: number;       // default 0, applied adversely on stop/TP exits
   stopCheckMode?: StopCheckMode;  // default 'intrabar'
   collectTrace?: boolean;         // optional passive trace collector

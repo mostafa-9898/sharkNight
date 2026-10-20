@@ -1,7 +1,7 @@
 # Multi-Timeframe Strategy Validation Report (Candidates B & D)
-> Generated: **2026-10-20T07:54:32.593Z** | Commit: `7b4c5424` | Capital: $10,000 | Fee: 0.1% | Trailing: 3/3/1.5
+> Generated: **2026-10-20T08:30:10.736Z** | Commit: `51ffe7ce` | Capital: $10,000 | Fee: 0.1% | Trailing: 3/3/1.5
 
-### 1. Final Verdict Matrix (Candidates B & D)
+### 1. Final Verdict Matrix (Candidates B & D@5%)
 | Market | Cfg | Mode | C1: Test>0 | C2: NoBest>0 | C3: DD≤12% | C4: CostRob | C5: Null≥90 | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | `BTC_15m` | B | Long-Short | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
@@ -10,34 +10,34 @@
 | `ETH_15m` | B | Long-Short | ✅ | ❌ | ❌ | ✅ | ❌ | FAIL |
 | `ETH_1h` | B | Long-Short | ✅ | ❌ | ❌ | ❌ | ❌ | FAIL |
 | `ETH_4h` | B | Long-Short | ✅ | ✅ | ✅ | ✅ | ❌ | FAIL |
-| `BTC_15m` | D | Long-Only | ✅ | ✅ | ❌ | ✅ | ✅ | FAIL |
-| `BTC_1h` | D | Long-Only | ✅ | ✅ | ❌ | ✅ | ✅ | FAIL |
-| `BTC_4h` | D | Long-Only | ✅ | ✅ | ❌ | ✅ | ✅ | FAIL |
-| `ETH_15m` | D | Long-Only | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
-| `ETH_1h` | D | Long-Only | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
-| `ETH_4h` | D | Long-Only | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `BTC_15m` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `BTC_1h` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `BTC_4h` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `ETH_15m` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `ETH_1h` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| `ETH_4h` | D@5% | Long-Only (5%) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 
 ### Verdict Summary
 | Candidate | Strategy Definition | Passed Markets (/6) | BTC Viable | ETH Viable | Final Status |
 |---|---|:---:|:---:|:---:|:---:|
 | **Candidate B** | Dual Filter, Long-Short Trailing 3/3/1.5 | 3 / 6 | ✅ Yes | ❌ No | **REJECTED** |
-| **Candidate D** | Dual Filter, Long-Only Trailing 3/3/1.5 | 3 / 6 | ❌ No | ✅ Yes | **REJECTED** |
+| **Candidate D@5%** | Dual Filter, Long-Only Trailing 3/3/1.5, Size 5% | 6 / 6 | ✅ Yes | ✅ Yes | **ACCEPTED** |
 
 ### 2. Random-Entry Null Hypothesis Test (Trailing Exits, 200 Sims)
 | Market | Cfg | Actual Trades | Avg Sim Trades | Actual Ret% | Mean Null% | 95th Pct Null% | Actual Pctile | Null Pass (≥90) |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | `BTC_15m` | B | 71 | 65.5 | +27.5% | +4.1% | +13.9% | 100.0% | ✅ PASS |
-| `BTC_15m` | D | 47 | 46.4 | +38.3% | +8.4% | +21.0% | 100.0% | ✅ PASS |
+| `BTC_15m` | D | 47 | 46.4 | +18.5% | +4.2% | +10.1% | 100.0% | ✅ PASS |
 | `BTC_1h` | B | 71 | 71.6 | +23.3% | +5.0% | +16.1% | 98.0% | ✅ PASS |
-| `BTC_1h` | D | 55 | 54.6 | +27.2% | +9.8% | +23.6% | 97.5% | ✅ PASS |
+| `BTC_1h` | D | 55 | 54.6 | +13.3% | +4.9% | +11.6% | 97.5% | ✅ PASS |
 | `BTC_4h` | B | 58 | 57.3 | +26.5% | +4.3% | +14.4% | 100.0% | ✅ PASS |
-| `BTC_4h` | D | 33 | 34.0 | +32.1% | +6.5% | +18.5% | 100.0% | ✅ PASS |
+| `BTC_4h` | D | 33 | 34.0 | +15.4% | +3.2% | +9.0% | 100.0% | ✅ PASS |
 | `ETH_15m` | B | 181 | 176.0 | +11.3% | +4.8% | +17.3% | 85.5% | ❌ FAIL |
-| `ETH_15m` | D | 93 | 87.4 | +22.2% | +7.7% | +17.0% | 100.0% | ✅ PASS |
+| `ETH_15m` | D | 93 | 87.4 | +10.8% | +3.9% | +8.3% | 100.0% | ✅ PASS |
 | `ETH_1h` | B | 188 | 189.5 | -2.9% | +4.6% | +16.0% | 11.5% | ❌ FAIL |
-| `ETH_1h` | D | 94 | 87.8 | +17.0% | +8.1% | +17.3% | 95.0% | ✅ PASS |
+| `ETH_1h` | D | 94 | 87.8 | +8.3% | +4.0% | +8.4% | 95.0% | ✅ PASS |
 | `ETH_4h` | B | 95 | 98.5 | +6.7% | +3.6% | +13.8% | 72.5% | ❌ FAIL |
-| `ETH_4h` | D | 50 | 47.3 | +17.8% | +4.4% | +13.3% | 99.0% | ✅ PASS |
+| `ETH_4h` | D | 50 | 47.3 | +8.7% | +2.2% | +6.5% | 99.0% | ✅ PASS |
 
 ### 3. Position Size Sensitivity Summary (Candidate D)
 | Market | Size 5.0% (Ret% / MaxDD%) | Size 7.5% (Ret% / MaxDD%) | Size 10.0% (Ret% / MaxDD%) | Trades |

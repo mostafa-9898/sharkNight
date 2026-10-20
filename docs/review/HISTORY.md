@@ -103,6 +103,9 @@
 | 2026-10-20 06:54:37 | `6d554cf` | `2697b9fe` | BTCUSDT / 15m / all (MultiTimeframe (strict, cross) (kijunSlopeFilter: enabled, structureFilter: enabled)) | **+12.61%** | 251 | 10.51% | 22.7% | [Report](history/20261020_065436_BTCUSDT_15m_2697b9fe.md) |
 | 2026-10-20 07:05:15 | `7b4c542` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261020_070515_BTCUSDT_4h_2adf4908.md) |
 | 2026-10-20 07:55:32 | `7b4c542` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261020_075532_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-20 08:09:26 | `51ffe7c` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261020_080926_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-20 08:26:22 | `51ffe7c` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261020_082622_BTCUSDT_4h_2adf4908.md) |
+| 2026-10-20 08:30:41 | `51ffe7c` | `2adf4908` | BTCUSDT / 4h / all (IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261020_083041_BTCUSDT_4h_2adf4908.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).

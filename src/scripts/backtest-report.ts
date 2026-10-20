@@ -192,21 +192,52 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     ? parseBoolArg('structure-filter', true, argv)
     : parseBoolArg('structureFilter', true, argv);
 
-  // Engine params
-  const tradeMode = (parseArg('tradeMode', 'long-short', argv) ?? 'long-short') as TradeMode;
-  const exitMode = (parseArg('exitMode', 'reverse', argv) ?? 'reverse') as ExitMode;
+  // Engine params - Defaults to Candidate D:
+  // htfMode strict, entryMode cross, kijunSlopeFilter & structureFilter true,
+  // tradeMode long-only, exitMode trailingOnly with trailing 3/3/1.5, positionSize 5%, fee 0.1%
+  const tradeMode = (parseArg('tradeMode', 'long-only', argv) ?? 'long-only') as TradeMode;
+  const exitMode = (parseArg('exitMode', 'trailingOnly', argv) ?? 'trailingOnly') as ExitMode;
   const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
   const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
   const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
-  const positionSizePercent = parseNumArg('positionSizePercent', 10, argv)!;
+  const positionSizePercent = parseNumArg('positionSizePercent', 5, argv)!;
   const riskPerTradePercent = parseNumArg('riskPerTradePercent', 1, argv)!;
   const slippagePercent = parseNumArg('slippagePercent', 0, argv)!;
   const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
 
-  // Trailing stop (disabled by default)
-  let trailingStop: TrailingStopConfig | undefined = undefined;
+  // Multi-position CLI options (Step 3)
+  const maxOpenPositions =
+    parseNumArg('max-open-positions', undefined, argv) ??
+    parseNumArg('maxOpenPositions', 1, argv)!;
+  const maxTotalExposurePercent =
+    parseNumArg('max-total-exposure', undefined, argv) ??
+    parseNumArg('maxTotalExposurePercent', 100, argv)!;
+  const minBarsBetweenEntries =
+    parseNumArg('min-bars-between-entries', undefined, argv) ??
+    parseNumArg('minBarsBetweenEntries', 0, argv)!;
+
+  // Trailing stop (default candidate D: 3/3/1.5)
+  const hasTrailingArg = argv.some(
+    (a) => a === '--trailingStop' || a.startsWith('--trailingStop=')
+  );
+  const hasStopLossArg = argv.some(
+    (a) => a === '--stopLossPercent' || a.startsWith('--stopLossPercent=')
+  );
+
+  let trailingStop: TrailingStopConfig | undefined = {
+    initialStopPercent: 3,
+    stepPercent: 3,
+    raisePercent: 1.5,
+  };
   const trailingArg = parseArg('trailingStop', undefined, argv);
-  if (trailingArg === 'false' || trailingArg === 'off' || trailingArg === '0') {
+  if (
+    trailingArg === 'false' ||
+    trailingArg === 'off' ||
+    trailingArg === '0' ||
+    trailingArg === 'none' ||
+    (!hasTrailingArg && hasStopLossArg) ||
+    (!hasTrailingArg && exitMode === 'reverse')
+  ) {
     trailingStop = undefined;
   } else if (trailingArg && trailingArg.includes('/')) {
     const parts = trailingArg.split('/').map(Number);
@@ -264,6 +295,9 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     tradeFeePercent,
     positionSizePercent,
     riskPerTradePercent,
+    maxOpenPositions,
+    maxTotalExposurePercent,
+    minBarsBetweenEntries,
     slippagePercent,
     stopCheckMode,
     trailingStop,
@@ -467,6 +501,9 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     tradeFeePercent,
     positionSizePercent,
     riskPerTradePercent,
+    maxOpenPositions,
+    maxTotalExposurePercent,
+    minBarsBetweenEntries,
     slippagePercent,
     stopCheckMode,
     trailingStop,
