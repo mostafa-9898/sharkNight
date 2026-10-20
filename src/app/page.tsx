@@ -188,6 +188,8 @@ export default function DashboardPage() {
   const [lookbackBars, setLookbackBars] = useState(3);
   const [minConfirmations, setMinConfirmations] = useState(2);
   const [trendRequirement, setTrendRequirement] = useState<'either' | '4h_and_1h' | '4h_only'>('either');
+  const [fisherMode, setFisherMode] = useState<'off' | 'extra-trigger' | 'replace-stoch' | 'confirm'>('confirm');
+  const [fisherKind, setFisherKind] = useState<'fisher' | 'ift'>('ift');
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -267,6 +269,8 @@ export default function DashboardPage() {
           cloudFilter,
           kijunSlopeFilter,
           structureFilter,
+          fisherMode,
+          fisherKind,
           ichimokuTenkan,
           ichimokuKijun,
           ichimokuSenkouB,
@@ -1319,6 +1323,49 @@ export default function DashboardPage() {
                   <option value="either">1H or 4H (Responsive)</option>
                   <option value="4h_and_1h">1H & 4H (Strict Both)</option>
                   <option value="4h_only">4H Only (Macro)</option>
+                </select>
+              </div>
+
+              {/* Fisher RSI Mode & Kind */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>Fisher Mode:</label>
+                <select
+                  value={fisherMode}
+                  onChange={(e) => setFisherMode(e.target.value as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm')}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <option value="off">Off</option>
+                  <option value="extra-trigger">Extra Trigger</option>
+                  <option value="replace-stoch">Replace Stoch</option>
+                  <option value="confirm">Confirm</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>Fisher Kind:</label>
+                <select
+                  value={fisherKind}
+                  onChange={(e) => setFisherKind(e.target.value as 'fisher' | 'ift')}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <option value="fisher">Fisher RSI</option>
+                  <option value="ift">IFT-RSI</option>
                 </select>
               </div>
             </div>

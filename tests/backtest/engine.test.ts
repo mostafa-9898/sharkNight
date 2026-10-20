@@ -1185,6 +1185,7 @@ describe('BacktestEngine', () => {
         htf4hCandles: c4h,
         kijunSlopeFilter: true,
         structureFilter: true,
+        fisherMode: 'off',
       });
 
       const engine = new BacktestEngine();

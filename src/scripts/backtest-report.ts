@@ -216,6 +216,11 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     parseNumArg('min-bars-between-entries', undefined, argv) ??
     parseNumArg('minBarsBetweenEntries', 0, argv)!;
 
+  const fisherMode = (parseArg('fisher-mode', undefined, argv) ??
+    parseArg('fisherMode', 'confirm', argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+  const fisherKind = (parseArg('fisher-kind', undefined, argv) ??
+    parseArg('fisherKind', 'ift', argv)) as 'fisher' | 'ift';
+
   // Trailing stop (default candidate D: 3/3/1.5)
   const hasTrailingArg = argv.some(
     (a) => a === '--trailingStop' || a.startsWith('--trailingStop=')
@@ -578,6 +583,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
         htf4hCandles,
         kijunSlopeFilter,
         structureFilter,
+        fisherMode,
+        fisherKind,
         tenkan,
         kijun,
         senkouB,

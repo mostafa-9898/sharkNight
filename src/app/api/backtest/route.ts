@@ -88,6 +88,11 @@ export async function POST(request: Request) {
     const entryMode: 'cross' | 'legacy' = body.entryMode === 'legacy' ? 'legacy' : 'cross';
     const kijunSlopeFilter = body.kijunSlopeFilter !== undefined ? Boolean(body.kijunSlopeFilter) : true;
     const structureFilter = body.structureFilter !== undefined ? Boolean(body.structureFilter) : true;
+    const fisherMode: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' =
+      body.fisherMode === 'off' || body.fisherMode === 'extra-trigger' || body.fisherMode === 'replace-stoch' || body.fisherMode === 'confirm'
+        ? body.fisherMode
+        : 'confirm';
+    const fisherKind: 'fisher' | 'ift' = body.fisherKind === 'fisher' ? 'fisher' : 'ift';
 
     const tradeMode: TradeMode =
       body.tradeMode === 'short-only'
@@ -344,6 +349,8 @@ export async function POST(request: Request) {
           entryMode,
           kijunSlopeFilter,
           structureFilter,
+          fisherMode,
+          fisherKind,
           htf4hCandles,
           htf1hCandles,
           tenkan: ichimokuTenkan,

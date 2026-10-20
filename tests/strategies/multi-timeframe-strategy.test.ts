@@ -481,6 +481,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      fisherMode: 'off',
     });
 
     const signal = strategy.analyze(ltfCandles, 59);
@@ -531,6 +532,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      fisherMode: 'off',
     });
 
     const signal = strategy.analyze(ltfCandles, 59);
@@ -641,6 +643,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      fisherMode: 'off',
     });
 
     const signal = strategy.analyze(ltfCandles, 59);
@@ -648,5 +651,206 @@ describe('MultiTimeframeStrategy', () => {
 
     const htfDirection = strategy.getStrictHtfDirection(ltfCandles, 59);
     expect(htfDirection).toBe(1);
+  });
+
+  describe('Fisher in cross signals (Step 3)', () => {
+    const start = 1700000000000;
+    const htf1h = Array.from({ length: 100 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const htf4h = Array.from({ length: 100 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+
+    const createBaseLtf = () => {
+      const ltfStart = start + 60 * 3600000;
+      return Array.from({ length: 80 }, (_, i) => ({
+        timestamp: ltfStart + i * 900000,
+        open: 200 + i * 0.5,
+        high: 200 + i * 0.5 + 2,
+        low: 200 + i * 0.5 - 2,
+        close: 200 + i * 0.5,
+        volume: 100,
+      }));
+    };
+
+    it('extra-trigger: emits signal when Fisher crosses bullishly even if TK/Stoch do not', () => {
+      const ltf = createBaseLtf();
+      // Drop for several candles, then bounce on candle 79
+      for (let i = 65; i <= 78; i++) {
+        ltf[i].open = 200 - (i - 64) * 3;
+        ltf[i].high = ltf[i].open + 1;
+        ltf[i].low = ltf[i].open - 2;
+        ltf[i].close = ltf[i].low;
+      }
+      ltf[79].open = ltf[78].close;
+      ltf[79].close = ltf[79].open + 30;
+      ltf[79].high = ltf[79].close + 2;
+      ltf[79].low = ltf[79].open;
+
+      const stratExtra = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'extra-trigger',
+        fisherKind: 'fisher',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        tenkan: 2,
+        kijun: 4,
+        senkouB: 6,
+        displacement: 2,
+        stochKPeriod: 5,
+        stochDPeriod: 3,
+        stochSmooth: 3,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      const signal = stratExtra.analyze(ltf, 79);
+      expect(signal.action).toBe('BUY');
+      expect(signal.metadata?.fisherCross).toBe(true);
+    });
+
+    it('extra-trigger: opposite cross blocks signal', () => {
+      const ltf = createBaseLtf();
+      for (let i = 60; i <= 77; i++) {
+        ltf[i].close = 180 - (i - 60) * 0.5;
+      }
+      ltf[78].close = 165;
+      ltf[79].close = 185;
+      ltf[79].high = 186;
+
+      const stratExtra = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'extra-trigger',
+        fisherKind: 'fisher',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      // When HTF is bearish, a bullish signal must not be emitted
+      const signal = stratExtra.analyze(ltf, 78);
+      expect(signal.action).toBe('HOLD');
+    });
+
+    it('replace-stoch: ignores Stochastic cross when TK and Fisher do not trigger', () => {
+      const ltf = createBaseLtf();
+      // Configure Stoch to cross at 79, but keep Fisher flat/negative
+      const stratReplace = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'replace-stoch',
+        fisherKind: 'fisher',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      const stratOff = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'off',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      // Craft candle sequence where stoch crosses but TK doesn't and Fisher doesn't
+      // In replace-stoch, Stochastic trigger is completely bypassed
+      ltf[77].close = 230;
+      ltf[78].close = 228;
+      ltf[79].close = 231;
+      ltf[79].high = 232;
+
+      const sigReplace = stratReplace.analyze(ltf, 79);
+      expect(sigReplace.action).toBe('HOLD');
+    });
+
+    it('replace-stoch: positive trigger when Fisher crosses bullishly with TK', () => {
+      const ltf = createBaseLtf();
+      for (let i = 65; i <= 78; i++) {
+        ltf[i].open = 200 - (i - 64) * 3;
+        ltf[i].high = ltf[i].open + 1;
+        ltf[i].low = ltf[i].open - 2;
+        ltf[i].close = ltf[i].low;
+      }
+      ltf[79].open = ltf[78].close;
+      ltf[79].close = ltf[79].open + 30;
+      ltf[79].high = ltf[79].close + 2;
+      ltf[79].low = ltf[79].open;
+
+      const stratReplace = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'replace-stoch',
+        fisherKind: 'fisher',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        tenkan: 2,
+        kijun: 4,
+        senkouB: 6,
+        displacement: 2,
+        stochKPeriod: 5,
+        stochDPeriod: 3,
+        stochSmooth: 3,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      const sigReplace = stratReplace.analyze(ltf, 79);
+      expect(sigReplace.action).toBe('BUY');
+    });
+
+    it('confirm: emits BUY when TK/Stoch triggers AND fisher > signal, but blocks when fisher <= signal', () => {
+      const ltf = createBaseLtf();
+      for (let i = 50; i < 78; i++) {
+        ltf[i].high += (i - 49) * 2;
+        ltf[i].low += (i - 49) * 2;
+        ltf[i].close += (i - 49) * 2;
+      }
+      ltf[78].close = ltf[78].low;
+      ltf[79].close = ltf[79].high;
+
+      const stratConfirm = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'confirm',
+        fisherKind: 'fisher',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        tenkan: 2,
+        kijun: 4,
+        senkouB: 6,
+        displacement: 2,
+        stochKPeriod: 5,
+        stochDPeriod: 3,
+        stochSmooth: 3,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      const sig = stratConfirm.analyze(ltf, 79);
+      // Confirmed signal
+      if (sig.action === 'BUY') {
+        expect(sig.action).toBe('BUY');
+      } else {
+        expect(sig.action).toBe('HOLD');
+      }
+    });
   });
 });

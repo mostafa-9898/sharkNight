@@ -6,3 +6,4 @@ export * from './macd';
 export * from './bollinger-bands';
 export * from './ichimoku';
 export * from './stochastic';
+export * from './fisher-rsi';

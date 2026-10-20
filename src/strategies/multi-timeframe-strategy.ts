@@ -4,8 +4,12 @@ import type { ExitMode, TkCrossTraceEvent } from '../backtest/types';
 import { calculateIchimoku, type IchimokuResult } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { calculateStochastic, type StochasticResult } from '../indicators/stochastic';
+import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../indicators/fisher-rsi';
 import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
 import { roundTo } from '../utils/math';
+
+export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+export type FisherKind = 'fisher' | 'ift';
 
 export interface MultiTimeframeConfig {
   htfMode?: 'strict' | 'legacy';
@@ -15,6 +19,9 @@ export interface MultiTimeframeConfig {
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
   ltfIntervalMs?: number;
+
+  fisherMode?: FisherMode;
+  fisherKind?: FisherKind;
 
   // Ichimoku parameters (default: 9, 26, 52, 26)
   tenkan?: number;
@@ -55,6 +62,8 @@ interface CachedIndicators {
   ltfStoch: StochasticResult;
   ltfAtr: number[];
   ltfSwings?: ConfirmedSwingsResult;
+  ltfFisher?: FisherRsiResult;
+  ltfIft?: number[];
 
   // HTF 4h indicators
   htf4hCandles: readonly Candle[];
@@ -226,6 +235,8 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly kijunSlopeFilter: boolean;
   readonly structureFilter: boolean;
   readonly ltfIntervalMs?: number;
+  readonly fisherMode: FisherMode;
+  readonly fisherKind: FisherKind;
 
   readonly trendRequirement: '4h_and_1h' | '4h_only' | 'either';
   readonly requireLtfCloudAlignment: boolean;
@@ -252,6 +263,8 @@ export class MultiTimeframeStrategy implements Strategy {
     this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
     this.structureFilter = config?.structureFilter ?? false;
     this.ltfIntervalMs = config?.ltfIntervalMs;
+    this.fisherMode = config?.fisherMode ?? 'confirm';
+    this.fisherKind = config?.fisherKind ?? 'ift';
 
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;
@@ -336,12 +349,24 @@ export class MultiTimeframeStrategy implements Strategy {
 
       const ltfSwings = this.structureFilter ? confirmedSwings(candles, 3) : undefined;
 
+      const ltfCloses = candles.map((c) => c.close);
+      const ltfFisher =
+        this.fisherMode !== 'off'
+          ? calculateFisherRsi(ltfCloses, { rsiPeriod: this.rsiPeriod, window: 10 })
+          : undefined;
+      const ltfIft =
+        this.fisherMode !== 'off'
+          ? calculateIftRsi(ltfCloses, { rsiPeriod: this.rsiPeriod, wmaPeriod: 9 })
+          : undefined;
+
       cached = {
         ltfIchimoku,
         ltfRsi,
         ltfStoch,
         ltfAtr,
         ltfSwings,
+        ltfFisher,
+        ltfIft,
         htf4hCandles,
         htf4hIchimoku,
         htf4hRsi,
@@ -766,6 +791,96 @@ export class MultiTimeframeStrategy implements Strategy {
         prevK >= prevD &&
         k < d;
 
+      // Fisher / IFT events
+      let fisherEventBull = false;
+      let fisherEventBear = false;
+      let fisherBullConfirmed = true;
+      let fisherBearConfirmed = true;
+
+      if (this.fisherMode !== 'off') {
+        const fisherArr = cached.ltfFisher?.fisher;
+        const signalArr = cached.ltfFisher?.signal;
+        const iftArr = cached.ltfIft;
+
+        const fCurr = fisherArr ? fisherArr[currentIndex] : NaN;
+        const sCurr = signalArr ? signalArr[currentIndex] : NaN;
+        const fPrev = fisherArr ? fisherArr[currentIndex - 1] : NaN;
+        const sPrev = signalArr ? signalArr[currentIndex - 1] : NaN;
+
+        const iftCurr = iftArr ? iftArr[currentIndex] : NaN;
+        const iftPrev = iftArr ? iftArr[currentIndex - 1] : NaN;
+
+        const fisherBullCross =
+          Number.isFinite(fCurr) &&
+          Number.isFinite(sCurr) &&
+          Number.isFinite(fPrev) &&
+          Number.isFinite(sPrev) &&
+          fPrev <= sPrev &&
+          fCurr > sCurr;
+
+        const fisherBearCross =
+          Number.isFinite(fCurr) &&
+          Number.isFinite(sCurr) &&
+          Number.isFinite(fPrev) &&
+          Number.isFinite(sPrev) &&
+          fPrev >= sPrev &&
+          fCurr < sCurr;
+
+        const iftBullCross =
+          Number.isFinite(iftCurr) &&
+          Number.isFinite(iftPrev) &&
+          iftPrev <= -0.5 &&
+          iftCurr > -0.5;
+
+        const iftBearCross =
+          Number.isFinite(iftCurr) &&
+          Number.isFinite(iftPrev) &&
+          iftPrev >= 0.5 &&
+          iftCurr < 0.5;
+
+        fisherEventBull = this.fisherKind === 'fisher' ? fisherBullCross : iftBullCross;
+        fisherEventBear = this.fisherKind === 'fisher' ? fisherBearCross : iftBearCross;
+
+        if (this.fisherMode === 'confirm') {
+          fisherBullConfirmed =
+            this.fisherKind === 'fisher'
+              ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr > sCurr
+              : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr > iftPrev;
+
+          fisherBearConfirmed =
+            this.fisherKind === 'fisher'
+              ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr < sCurr
+              : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr < iftPrev;
+        }
+      }
+
+      let bullTrigger = false;
+      let bearTrigger = false;
+      let bullBlockedByOpposite = false;
+      let bearBlockedByOpposite = false;
+
+      if (this.fisherMode === 'off') {
+        bullTrigger = tkBullCross || stochBullCross;
+        bullBlockedByOpposite = tkBearCross || stochBearCross;
+        bearTrigger = tkBearCross || stochBearCross;
+        bearBlockedByOpposite = tkBullCross || stochBullCross;
+      } else if (this.fisherMode === 'extra-trigger') {
+        bullTrigger = tkBullCross || stochBullCross || fisherEventBull;
+        bullBlockedByOpposite = tkBearCross || stochBearCross || fisherEventBear;
+        bearTrigger = tkBearCross || stochBearCross || fisherEventBear;
+        bearBlockedByOpposite = tkBullCross || stochBullCross || fisherEventBull;
+      } else if (this.fisherMode === 'replace-stoch') {
+        bullTrigger = tkBullCross || fisherEventBull;
+        bullBlockedByOpposite = tkBearCross || fisherEventBear;
+        bearTrigger = tkBearCross || fisherEventBear;
+        bearBlockedByOpposite = tkBullCross || fisherEventBull;
+      } else if (this.fisherMode === 'confirm') {
+        bullTrigger = (tkBullCross || stochBullCross) && fisherBullConfirmed;
+        bullBlockedByOpposite = tkBearCross || stochBearCross;
+        bearTrigger = (tkBearCross || stochBearCross) && fisherBearConfirmed;
+        bearBlockedByOpposite = tkBullCross || stochBullCross;
+      }
+
       if (this.traceCollector?.onTkCross) {
         if (tkBullCross) {
           this.traceCollector.onTkCross({
@@ -775,7 +890,7 @@ export class MultiTimeframeStrategy implements Strategy {
             price: candle.close,
             rsi: 50,
             inRsiZone: false,
-            signalEmitted: Boolean(htfBullish && !tkBearCross && !stochBearCross),
+            signalEmitted: Boolean(htfBullish && bullTrigger && !bullBlockedByOpposite),
           });
         } else if (tkBearCross) {
           this.traceCollector.onTkCross({
@@ -785,15 +900,14 @@ export class MultiTimeframeStrategy implements Strategy {
             price: candle.close,
             rsi: 50,
             inRsiZone: false,
-            signalEmitted: Boolean(htfBearish && !tkBullCross && !stochBearCross),
+            signalEmitted: Boolean(htfBearish && bearTrigger && !bearBlockedByOpposite),
           });
         }
       }
 
       if (htfBullish) {
-        // Aligned cross: tkBullCross || stochBullCross
-        // If opposite cross occurred: do not signal
-        if (tkBearCross || stochBearCross || (!tkBullCross && !stochBullCross)) {
+        // Aligned cross & opposite check
+        if (bullBlockedByOpposite || !bullTrigger) {
           return defaultSignal;
         }
 
@@ -818,7 +932,7 @@ export class MultiTimeframeStrategy implements Strategy {
           action: 'BUY',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}) + Stop ${effectiveStopPercent}%`,
+          reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull}) + Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
@@ -828,17 +942,19 @@ export class MultiTimeframeStrategy implements Strategy {
             tdrStopPercent,
             stopPrice,
             initialStopPercent: effectiveStopPercent,
-            confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0),
+            confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0) + (fisherEventBull ? 1 : 0),
             ichiCross: tkBullCross,
             stochCross: stochBullCross,
+            fisherCross: fisherEventBull,
+            fisherMode: this.fisherMode,
+            fisherKind: this.fisherKind,
           },
         };
       }
 
       if (htfBearish) {
-        // Aligned cross: tkBearCross || stochBearCross
-        // If opposite cross occurred: do not signal
-        if (tkBullCross || stochBullCross || (!tkBearCross && !stochBearCross)) {
+        // Aligned cross & opposite check
+        if (bearBlockedByOpposite || !bearTrigger) {
           return defaultSignal;
         }
 
@@ -863,7 +979,7 @@ export class MultiTimeframeStrategy implements Strategy {
           action: 'SELL',
           timestamp: candle.timestamp,
           price: candle.close,
-          reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}) + Stop ${effectiveStopPercent}%`,
+          reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear}) + Stop ${effectiveStopPercent}%`,
           metadata: {
             stochK: k,
             stochD: d,
@@ -873,9 +989,12 @@ export class MultiTimeframeStrategy implements Strategy {
             tdrStopPercent,
             stopPrice,
             initialStopPercent: effectiveStopPercent,
-            confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0),
+            confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0) + (fisherEventBear ? 1 : 0),
             ichiCross: tkBearCross,
             stochCross: stochBearCross,
+            fisherCross: fisherEventBear,
+            fisherMode: this.fisherMode,
+            fisherKind: this.fisherKind,
           },
         };
       }
