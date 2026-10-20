@@ -41,6 +41,14 @@ const TARGETS: TargetConfig[] = [
   { symbol: 'ETHUSDT', interval: '5m' },
   { symbol: 'BTCUSDT', interval: '1m' },
   { symbol: 'ETHUSDT', interval: '1m' },
+  { symbol: 'SOLUSDT', interval: '1h' },
+  { symbol: 'SOLUSDT', interval: '4h' },
+  { symbol: 'BNBUSDT', interval: '1h' },
+  { symbol: 'BNBUSDT', interval: '4h' },
+  { symbol: 'XRPUSDT', interval: '1h' },
+  { symbol: 'XRPUSDT', interval: '4h' },
+  { symbol: 'ADAUSDT', interval: '1h' },
+  { symbol: 'ADAUSDT', interval: '4h' },
 ];
 
 async function main(): Promise<void> {

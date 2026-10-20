@@ -94,5 +94,69 @@
     "firstTimestamp": 1760747820000,
     "lastTimestamp": 1792305360000,
     "sha256": "fcb2a19ba08170beee8a617eb344d52f79f8b3161b0395d9c8858b4346c04958"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "interval": "1h",
+    "rows": 45670,
+    "firstTimestamp": 1628071200000,
+    "lastTimestamp": 1792479600000,
+    "sha256": "18d3c383415f9e08c6f4b08e99b0361704f14446f8ebdad363ab7aa22a02ef12"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "interval": "4h",
+    "rows": 11418,
+    "firstTimestamp": 1628064000000,
+    "lastTimestamp": 1792468800000,
+    "sha256": "71705ca1cf72f2d66006f6fe1aa0f35b757bf0255be6541aff21a15a09b8a8b2"
+  },
+  {
+    "symbol": "BNBUSDT",
+    "interval": "1h",
+    "rows": 52596,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792479600000,
+    "sha256": "75d0681231b54473a6d8f63f1637b4892fa3dd3a93ba6f8165b6653a01cea030"
+  },
+  {
+    "symbol": "BNBUSDT",
+    "interval": "4h",
+    "rows": 13149,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792468800000,
+    "sha256": "140c9689a12f141a7ea37142c39fda269eb63c363b2f91484f69bcc6cc0e68a3"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "interval": "1h",
+    "rows": 52596,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792479600000,
+    "sha256": "7d6ec29112da718478c8938427fffd6180312a5c0df024886d89678d5e30a438"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "interval": "4h",
+    "rows": 13149,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792468800000,
+    "sha256": "2bcea9b48414df1e76b87bc50ddbe449296c536b464b5ad24d42d48695e471d2"
+  },
+  {
+    "symbol": "ADAUSDT",
+    "interval": "1h",
+    "rows": 52596,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792479600000,
+    "sha256": "3b90ab66df7ca0d13254370c88ee7276ddc248df304785ed2132a2037ca96d45"
+  },
+  {
+    "symbol": "ADAUSDT",
+    "interval": "4h",
+    "rows": 13149,
+    "firstTimestamp": 1603137600000,
+    "lastTimestamp": 1792468800000,
+    "sha256": "1b0698cf91f38386dcb13656d894acea6a167409f5d792cd612e81455b8a41fc"
   }
 ]

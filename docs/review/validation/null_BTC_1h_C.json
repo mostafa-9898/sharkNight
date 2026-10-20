@@ -204,5 +204,7 @@
   ],
   "percentile": 7.5,
   "seeds": "42+i",
-  "entriesPerRun": 233
+  "entriesPerRun": 233,
+  "targetTrades": 233,
+  "avgSimTrades": 112.3
 }

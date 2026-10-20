@@ -1,6 +1,6 @@
 {
-  "gitCommit": "8eec631fda684f236b85e4b466e0b8100230affb",
-  "executionDate": "2026-10-20T06:47:32.949Z",
+  "gitCommit": "7b4c54242fee1bcaaddecaa6db86ff57fb48154a",
+  "executionDate": "2026-10-20T07:54:23.215Z",
   "nodeVersion": "v22.19.0",
   "datasetFingerprints": {
     "BTC_15m": "2416041ce5f3a240",
@@ -29,7 +29,8 @@
   },
   "candidateDefinitions": {
     "A": "Stop 3% + reverse, kijunSlopeFilter: true, structureFilter: true",
-    "B": "trailingOnly with 3/3/1.5, kijunSlopeFilter: true, structureFilter: true",
-    "C": "Stop 3% + reverse, kijunSlopeFilter: false, structureFilter: false"
+    "B": "trailingOnly with 3/3/1.5, tradeMode: long-short, kijunSlopeFilter: true, structureFilter: true",
+    "C": "Stop 3% + reverse, kijunSlopeFilter: false, structureFilter: false",
+    "D": "trailingOnly with 3/3/1.5, tradeMode: long-only, kijunSlopeFilter: true, structureFilter: true"
   }
 }
