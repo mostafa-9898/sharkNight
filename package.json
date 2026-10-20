@@ -12,6 +12,8 @@
     "backtest-report": "tsx src/scripts/backtest-report.ts",
     "export-candles": "tsx src/scripts/export-candles.ts",
     "validate": "tsx src/scripts/validate.ts",
+    "validate-multi": "tsx src/scripts/validate-multi.ts",
+    "portfolio": "tsx src/scripts/portfolio.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",

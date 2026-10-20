@@ -65,3 +65,38 @@
 - **Candidate D (Long-Only Trailing)** eliminates adverse short exposures during structural crypto bull regimes while maintaining tight maximum drawdowns.
 - **Random Entry Null Distribution**: Null hypothesis calibration ensures simulated trade counts align within ±12% of actual strategy executions.
 - **Out-of-Sample Robustness**: Fixed parameter candidate D demonstrates positive expectancy without parameter refitting on alternative large-cap assets.
+
+### 6. Multi-Position Evaluation (M1–M4)
+| Market | Cfg | Ret% | MaxDD% | Trades | NoTop3% | 2ndHalf% | AvgConc | WorstDay% | Pctile | Verdict |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `BTC_15m` | M1 | +19.5% | 9.8% | 42 | -1.1% | +6.2% | 0.8 | -2.2% | - | BASE |
+| `BTC_15m` | M2 | +37.1% | 15.5% | 70 | +8.7% | +12.2% | 1.2 | -3.9% | - | FAIL |
+| `BTC_15m` | M3 | +127.3% | 21.9% | 293 | +96.7% | +50.8% | 4.6 | -7.9% | 100% | FAIL |
+| `BTC_15m` | M4 | +31.4% | 8.9% | 275 | +23.0% | +14.1% | 4.6 | -3.0% | - | **PASS** |
+| `BTC_1h` | M1 | +8.7% | 4.7% | 55 | +0.2% | +5.5% | 0.6 | -1.7% | - | BASE |
+| `BTC_1h` | M2 | +15.5% | 8.6% | 96 | +4.8% | +10.7% | 1.1 | -3.0% | - | FAIL |
+| `BTC_1h` | M3 | +27.9% | 20.1% | 235 | +16.6% | +19.6% | 3.0 | -5.8% | 85% | FAIL |
+| `BTC_1h` | M4 | +7.9% | 7.3% | 229 | +4.4% | +6.0% | 3.0 | -2.1% | - | FAIL |
+| `BTC_4h` | M1 | +16.9% | 8.2% | 28 | +2.8% | +4.7% | 0.6 | -2.2% | - | BASE |
+| `BTC_4h` | M2 | +24.4% | 8.3% | 55 | +9.3% | +7.3% | 1.0 | -2.6% | - | **PASS** |
+| `BTC_4h` | M3 | +24.1% | 10.8% | 132 | +9.0% | +6.1% | 1.5 | -3.6% | 96% | **PASS** |
+| `BTC_4h` | M4 | +7.0% | 3.5% | 132 | +2.6% | +1.9% | 1.5 | -1.2% | - | FAIL |
+| `ETH_15m` | M1 | +11.3% | 5.0% | 85 | +2.6% | +7.1% | 0.5 | -2.3% | - | BASE |
+| `ETH_15m` | M2 | +19.6% | 8.2% | 168 | +9.7% | +13.9% | 1.0 | -4.3% | - | **PASS** |
+| `ETH_15m` | M3 | +62.9% | 23.2% | 472 | +52.4% | +59.1% | 3.0 | -9.2% | 100% | FAIL |
+| `ETH_15m` | M4 | +17.4% | 8.9% | 463 | +14.3% | +16.1% | 3.0 | -3.2% | - | FAIL |
+| `ETH_1h` | M1 | +5.6% | 6.3% | 88 | -1.1% | +3.6% | 0.4 | -2.3% | - | BASE |
+| `ETH_1h` | M2 | +7.2% | 10.0% | 156 | +0.5% | +7.8% | 0.7 | -2.7% | - | FAIL |
+| `ETH_1h` | M3 | +16.6% | 17.0% | 277 | +9.6% | +23.4% | 1.4 | -8.5% | 68% | FAIL |
+| `ETH_1h` | M4 | +5.0% | 6.1% | 276 | +3.0% | +6.7% | 1.4 | -3.0% | - | FAIL |
+| `ETH_4h` | M1 | +7.6% | 3.5% | 49 | +0.0% | +6.5% | 0.4 | -1.9% | - | BASE |
+| `ETH_4h` | M2 | +10.1% | 5.6% | 84 | +2.2% | +11.1% | 0.6 | -3.0% | - | FAIL |
+| `ETH_4h` | M3 | +12.5% | 9.6% | 138 | +4.9% | +15.2% | 0.9 | -3.2% | 88% | FAIL |
+| `ETH_4h` | M4 | +3.9% | 3.2% | 137 | +1.6% | +4.5% | 0.9 | -1.0% | - | FAIL |
+
+### Multi-Position Global Verdict
+| Config | Parameters | BTC/ETH Passed (/6) | Global Status |
+|---|---|:---:|:---:|
+| **M2** | maxPos 3, size 5%, cap 15% | 2 / 6 | **FAIL** |
+| **M3** | maxPos 10, size 5%, cap 50% | 1 / 6 | **FAIL** |
+| **M4** | maxPos 10, size 1.5%, cap 15% | 1 / 6 | **FAIL** |
