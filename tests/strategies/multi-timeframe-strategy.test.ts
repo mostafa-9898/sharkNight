@@ -591,4 +591,62 @@ describe('MultiTimeframeStrategy', () => {
     const passesFew = (strategy as any).passesFilters(fewCandles, 9, 'long', []);
     expect(passesFew).toBe(false);
   });
+
+  it('getStrictHtfDirection returns +1 when BUY signal is emitted on cross path', () => {
+    const start = 1700000000000;
+    const htf1h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 3600000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const htf4h = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: start + i * 14400000,
+      open: 100 + i * 5,
+      high: 100 + i * 5 + 2,
+      low: 100 + i * 5 - 2,
+      close: 100 + i * 5,
+      volume: 100,
+    }));
+    const ltfStart = start + 40 * 3600000;
+    const ltfCandles = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: ltfStart + i * 900000,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 100,
+    }));
+    // Rising kijun on LTF: prices increase from bar 50 to 60
+    for (let i = 50; i < 60; i++) {
+      ltfCandles[i].high += (i - 49) * 5;
+      ltfCandles[i].low += (i - 49) * 5;
+      ltfCandles[i].close += (i - 49) * 5;
+    }
+    ltfCandles[58].close = ltfCandles[58].low;
+    ltfCandles[59].close = ltfCandles[59].high;
+
+    const strategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      htf1hCandles: htf1h,
+      htf4hCandles: htf4h,
+      tenkan: 2,
+      kijun: 4,
+      senkouB: 6,
+      displacement: 2,
+      stochKPeriod: 5,
+      stochDPeriod: 3,
+      stochSmooth: 3,
+      kijunSlopeFilter: true,
+    });
+
+    const signal = strategy.analyze(ltfCandles, 59);
+    expect(signal.action).toBe('BUY');
+
+    const htfDirection = strategy.getStrictHtfDirection(ltfCandles, 59);
+    expect(htfDirection).toBe(1);
+  });
 });

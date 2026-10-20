@@ -1,0 +1,35 @@
+{
+  "gitCommit": "8eec631fda684f236b85e4b466e0b8100230affb",
+  "executionDate": "2026-10-20T06:47:32.949Z",
+  "nodeVersion": "v22.19.0",
+  "datasetFingerprints": {
+    "BTC_15m": "2416041ce5f3a240",
+    "BTC_1h": "006de41a38074c0c",
+    "BTC_4h": "2703e0cd0428d0e4",
+    "ETH_15m": "5e3a80aff721dd20",
+    "ETH_1h": "d1f367512328ef04",
+    "ETH_4h": "fc2ffebba0ecf092"
+  },
+  "fixedParameters": {
+    "htfMode": "strict",
+    "entryMode": "cross",
+    "baseFeePercent": 0.1,
+    "baseSlippagePercent": 0,
+    "positionSizePercent": 10,
+    "initialBalance": 10000,
+    "randomEntrySeeds": "mulberry32 with seed = 42 + i (i=0..199)",
+    "walkForwardSplitTimestamps": {
+      "BTC_15m": "2023-10-18T12:30:00.000Z",
+      "BTC_1h": "2023-10-17T19:00:00.000Z",
+      "BTC_4h": "2023-10-17T20:00:00.000Z",
+      "ETH_15m": "2023-10-18T12:30:00.000Z",
+      "ETH_1h": "2023-10-17T19:00:00.000Z",
+      "ETH_4h": "2023-10-17T20:00:00.000Z"
+    }
+  },
+  "candidateDefinitions": {
+    "A": "Stop 3% + reverse, kijunSlopeFilter: true, structureFilter: true",
+    "B": "trailingOnly with 3/3/1.5, kijunSlopeFilter: true, structureFilter: true",
+    "C": "Stop 3% + reverse, kijunSlopeFilter: false, structureFilter: false"
+  }
+}

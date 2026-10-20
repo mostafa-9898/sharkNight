@@ -184,18 +184,17 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
 
   const hasKijunKebab = argv.some((a) => a === '--kijun-slope-filter' || a.startsWith('--kijun-slope-filter='));
   const kijunSlopeFilter = hasKijunKebab
-    ? parseBoolArg('kijun-slope-filter', false, argv)
-    : parseBoolArg('kijunSlopeFilter', false, argv);
+    ? parseBoolArg('kijun-slope-filter', true, argv)
+    : parseBoolArg('kijunSlopeFilter', true, argv);
 
   const hasStructureKebab = argv.some((a) => a === '--structure-filter' || a.startsWith('--structure-filter='));
   const structureFilter = hasStructureKebab
-    ? parseBoolArg('structure-filter', false, argv)
-    : parseBoolArg('structureFilter', false, argv);
+    ? parseBoolArg('structure-filter', true, argv)
+    : parseBoolArg('structureFilter', true, argv);
 
   // Engine params
   const tradeMode = (parseArg('tradeMode', 'long-short', argv) ?? 'long-short') as TradeMode;
-  const defaultExitMode: ExitMode = strategy === 'mtf' ? 'trailingOnly' : 'tkCross';
-  const exitMode = (parseArg('exitMode', defaultExitMode, argv) ?? defaultExitMode) as ExitMode;
+  const exitMode = (parseArg('exitMode', 'reverse', argv) ?? 'reverse') as ExitMode;
   const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
   const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
   const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
@@ -204,11 +203,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const slippagePercent = parseNumArg('slippagePercent', 0, argv)!;
   const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
 
-  // Trailing stop
-  let trailingStop: TrailingStopConfig | undefined =
-    strategy === 'mtf'
-      ? { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 }
-      : undefined;
+  // Trailing stop (disabled by default)
+  let trailingStop: TrailingStopConfig | undefined = undefined;
   const trailingArg = parseArg('trailingStop', undefined, argv);
   if (trailingArg === 'false' || trailingArg === 'off' || trailingArg === '0') {
     trailingStop = undefined;
@@ -223,7 +219,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     }
   }
 
-  const stopLossPercent = parseNumArg('stopLossPercent', 5, argv);
+  const stopLossPercent = parseNumArg('stopLossPercent', 3, argv);
   const takeProfitPercent = parseNumArg('takeProfitPercent', undefined, argv);
 
   // Time window parameters (precedence: startTime/endTime > asOf > latest cached candle anchor)

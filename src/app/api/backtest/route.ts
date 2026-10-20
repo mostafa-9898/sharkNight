@@ -86,8 +86,8 @@ export async function POST(request: Request) {
         : undefined;
     const htfMode: 'strict' | 'legacy' = body.htfMode === 'legacy' ? 'legacy' : 'strict';
     const entryMode: 'cross' | 'legacy' = body.entryMode === 'legacy' ? 'legacy' : 'cross';
-    const kijunSlopeFilter = Boolean(body.kijunSlopeFilter);
-    const structureFilter = Boolean(body.structureFilter);
+    const kijunSlopeFilter = body.kijunSlopeFilter !== undefined ? Boolean(body.kijunSlopeFilter) : true;
+    const structureFilter = body.structureFilter !== undefined ? Boolean(body.structureFilter) : true;
 
     const tradeMode: TradeMode =
       body.tradeMode === 'short-only'
@@ -96,9 +96,9 @@ export async function POST(request: Request) {
         ? 'long-only'
         : 'long-short';
     const exitMode: ExitMode =
-      body.exitMode === 'tkCross' || body.exitMode === 'kijun' || body.exitMode === 'reverse'
+      body.exitMode === 'tkCross' || body.exitMode === 'kijun' || body.exitMode === 'trailingOnly'
         ? body.exitMode
-        : 'trailingOnly';
+        : 'reverse';
     const maxBarsInTrade =
       body.maxBarsInTrade !== undefined &&
       body.maxBarsInTrade !== null &&
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       body.stopLossPercent !== '' &&
       Number(body.stopLossPercent) > 0
         ? Number(body.stopLossPercent)
-        : undefined;
+        : 3;
 
     // Trailing Stop parameters
     const trailingStopEnabled = Boolean(body.trailingStopEnabled);

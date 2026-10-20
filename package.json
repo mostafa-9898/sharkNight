@@ -11,6 +11,7 @@
     "review-notes": "tsx src/scripts/review-notes.ts",
     "backtest-report": "tsx src/scripts/backtest-report.ts",
     "export-candles": "tsx src/scripts/export-candles.ts",
+    "validate": "tsx src/scripts/validate.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",

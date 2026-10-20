@@ -39,6 +39,8 @@ interface BacktestResultData {
   rsiLookback: number;
   tradeMode: TradeMode;
   exitMode?: ExitMode;
+  stopLossPercent?: number;
+  takeProfitPercent?: number;
   maxBarsInTrade?: number;
   rsiRecoveryCap?: number;
   period?: string;
@@ -130,7 +132,8 @@ interface BacktestResultData {
 export default function DashboardPage() {
   // Strategy Mode & Engine (Locked to Multi-Timeframe)
   const strategyType = 'mtf';
-  const exitMode: ExitMode = 'trailingOnly';
+  const [exitMode, setExitMode] = useState<ExitMode>('reverse');
+  const [stopLossPercent, setStopLossPercent] = useState<number>(3);
   const [btSymbol, setBtSymbol] = useState('BTCUSDT');
   const [btInterval, setBtInterval] = useState<CandleInterval>('15m');
   const [btPeriod, setBtPeriod] = useState<string>('all');
@@ -171,11 +174,11 @@ export default function DashboardPage() {
   const [positionSizePercent, setPositionSizePercent] = useState<number>(10);
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
-  const [kijunSlopeFilter, setKijunSlopeFilter] = useState(false);
-  const [structureFilter, setStructureFilter] = useState(false);
+  const [kijunSlopeFilter, setKijunSlopeFilter] = useState(true);
+  const [structureFilter, setStructureFilter] = useState(true);
 
   // Trailing Stop & Execution Mode (Calibrated for trend riding: 3% initial stop, 3% trigger, 1.5% trail)
-  const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
+  const [trailingStopEnabled, setTrailingStopEnabled] = useState(false);
   const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
   const [initialStopPercent, setInitialStopPercent] = useState(3.0);
   const [trailStepPercent, setTrailStepPercent] = useState(3.0);
@@ -273,6 +276,7 @@ export default function DashboardPage() {
           rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
           tradeMode,
           exitMode,
+          stopLossPercent,
           strategyType,
           stochKPeriod,
           stochDPeriod,
@@ -318,6 +322,7 @@ export default function DashboardPage() {
         useTdrStop,
         tdrMultiplier,
         exitMode,
+        stopLossPercent,
         rsiRecoveryCap: rsiRecoveryCap !== '' ? Number(rsiRecoveryCap) : undefined,
         ichimokuTenkan,
         ichimokuKijun,
@@ -388,6 +393,8 @@ export default function DashboardPage() {
     rsiLookback,
     rsiRecoveryCap,
     tradeMode,
+    exitMode,
+    stopLossPercent,
     trailingStopEnabled,
     trailingMode,
     initialStopPercent,
@@ -697,6 +704,29 @@ export default function DashboardPage() {
               <option value="long-short">معاملات دوطرفه (Long & Short)</option>
               <option value="long-only">فقط پوزیشن خرید (Long Only)</option>
               <option value="short-only">فقط پوزیشن فروش (Short Only)</option>
+            </select>
+          </div>
+
+          {/* Exit Mode */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Exit Mode</label>
+            <select
+              value={exitMode}
+              onChange={(e) => setExitMode(e.target.value as ExitMode)}
+              style={{
+                backgroundColor: '#0d1117',
+                color: '#38bdf8',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              <option value="reverse">Reverse on Signal</option>
+              <option value="trailingOnly">Trailing Stop Only</option>
+              <option value="tkCross">TK Cross Exit</option>
+              <option value="kijun">Kijun Cross Exit</option>
             </select>
           </div>
 
@@ -1342,6 +1372,30 @@ export default function DashboardPage() {
                 style={{
                   backgroundColor: '#0d1117',
                   color: '#eab308',
+                  fontWeight: 700,
+                  border: '1px solid #30363d',
+                  borderRadius: '6px',
+                  padding: '5px 8px',
+                  fontSize: '12px',
+                  width: '55px',
+                }}
+              />
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+            </div>
+
+            {/* Stop Loss % */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Stop Loss:</span>
+              <input
+                type="number"
+                min={0.1}
+                max={50}
+                step={0.5}
+                value={stopLossPercent}
+                onChange={(e) => setStopLossPercent(Number(e.target.value))}
+                style={{
+                  backgroundColor: '#0d1117',
+                  color: '#ef4444',
                   fontWeight: 700,
                   border: '1px solid #30363d',
                   borderRadius: '6px',

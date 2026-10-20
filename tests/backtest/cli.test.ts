@@ -138,7 +138,7 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
       expect(opts.tenkan).toBe(9);
       expect(opts.kijun).toBe(26);
       expect(opts.senkouB).toBe(52);
-      expect(opts.kijunSlopeFilter).toBe(false);
+      expect(opts.kijunSlopeFilter).toBe(true);
       expect(opts.cloudFilter).toBe('trend');
     });
 

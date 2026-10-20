@@ -1,40 +1,40 @@
 # Trade Diagnostics Report — Latest Backtest Run
 
-> **Canonical Diagnostic Log** | Generated: `2026-10-19T12:58:31.590Z` | Git: `72bdd9c` (dirty) | Config Hash: `1b695408`
+> **Canonical Diagnostic Log** | Generated: `2026-10-20T06:52:42.489Z` | Git: `50de9d2` (dirty) | Config Hash: `2adf4908`
 
 ---
 
 ## Section 1: Run Identity & Reproducibility
 | Parameter | Value | Specification Details |
 |---|---|---|
-| **Run Timestamp (UTC)** | `2026-10-19T12:58:31.590Z` | Deterministic backtest execution |
-| **Git Revision** | `72bdd9c` | Working tree: `DIRTY` |
-| **Strategy** | **MultiTimeframe (strict, cross) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
-| **Symbol & Timeframe** | `BTCUSDT` / `15m` | Higher-timeframe context |
-| **Evaluation Type** | **In-Sample Baseline (6y Historical Window)** | Out-of-sample / In-sample protocol |
-| **Effective Data Window** | `2020-10-17T18:30:00Z` → `2026-10-18T06:15:00Z` | Period: `6y` |
-| **Candle Dataset** | **210,384** candles | Fingerprint: `2416041ce5f3a240` |
+| **Run Timestamp (UTC)** | `2026-10-20T06:52:42.489Z` | Deterministic backtest execution |
+| **Git Revision** | `50de9d2` | Working tree: `DIRTY` |
+| **Strategy** | **IchimokuRsi (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
+| **Symbol & Timeframe** | `BTCUSDT` / `4h` | Higher-timeframe context |
+| **Evaluation Type** | **Standard Evaluation Window** | Out-of-sample / In-sample protocol |
+| **Effective Data Window** | `2020-09-13T12:26:40Z` → `2020-09-13T18:26:40Z` | Period: `all` |
+| **Candle Dataset** | **7** candles | Fingerprint: `709ae6876010f4ad` |
 | **Strategy Indicators** | Ichimoku (9, 26, 52, 26) | RSI (14, Zones: [20, 40] / [60, 80], Lookback: 20) |
 | **Filters Applied** | Cloud: `off` | Kijun Slope: `OFF`, RSI Cap: `N/A` |
-| **Execution & Trade Mode** | `long-short` / `trailingOnly` | Intrabar stop checking: `intrabar` |
-| **Position Sizing & Risk** | Size: **10%** | Risk per trade: **1%** (Initial Capital: $10,000) |
+| **Execution & Trade Mode** | `long-short` / `reverse` | Intrabar stop checking: `intrabar` |
+| **Position Sizing & Risk** | Size: **20%** | Risk per trade: **1%** (Initial Capital: $10,000) |
 | **Cost Model** | Fee: **0.1%** per side | Adverse exit slippage: **0%** |
-| **Stop Loss Policy** | **3.0%** initial stop | Type: Stepped Trailing |
-| **Trailing Stop Policy** | Step: **3%**, Raise: **1.5%** | Activates on favorable price movement |
+| **Stop Loss Policy** | **5.0%** initial stop | Type: Fixed Stop Loss |
+| **Trailing Stop Policy** | `DISABLED` (N/A) | Requires --trailingStop to enable |
 | **Take Profit Target** | `DISABLED` (N/A) | Uncapped trend-following mode |
 
 ## Section 2: Executive Summary & Capital Preservation Diagnostics
 | Performance Metric | Recorded Value | Capital Preservation & Risk Metric | Recorded Value |
 |---|---|---|---|
-| **Initial Account Equity** | $10000.00 | **Maximum Equity Drawdown** | **20.16%** |
-| **Final Account Equity** | $12202.48 | **Max Drawdown ($)** | $2016.00 |
-| **Net Return ($ / %)** | **$2202.48** (**+22.02%**) | **Loss Streak (Max Consecutive)** | **11** trades (542 bars / ~5.6 days) |
-| **Realized Closed PnL** | $2202.48 | **Market Exposure Ratio** | **92.43%** of total period |
-| **Unrealized Open PnL** | $157.33 (+13.06%) | **Total Fees Paid** | $220.64 (2.21% fee drag) |
-| **Total Completed Trades** | **93** (Long: 44 / Short: 50) | **Average Trade Holding Time** | **2090.9** bars (Median: **278**, Max: **30888**) |
-| **Win Rate** | **21.3%** (20W / 74L) | **Total Profit Given Back** | $10853.85 (from peak MFE) |
-| **Profit Factor** | **1.95** | **Trailing Stop Trigger Rate** | **64.5%** (60/93 trades) |
-| **Trade Expectancy** | **+0.23%** per trade | **Average Win / Average Loss** | **+22.60%** / **-3.14%** (Ratio: **7.20**) |
+| **Initial Account Equity** | $10000.00 | **Maximum Equity Drawdown** | **0.00%** |
+| **Final Account Equity** | $10000.00 | **Max Drawdown ($)** | $0.00 |
+| **Net Return ($ / %)** | **-$500.00** (**0.00%**) | **Loss Streak (Max Consecutive)** | **1** trades (1 bars / ~0.0 days) |
+| **Realized Closed PnL** | -$500.00 | **Market Exposure Ratio** | **14.29%** of total period |
+| **Unrealized Open PnL** | $0.00 (No open position) | **Total Fees Paid** | $0.00 (0.00% fee drag) |
+| **Total Completed Trades** | **1** (Long: 0 / Short: 0) | **Average Trade Holding Time** | **1** bars (Median: **1**, Max: **1**) |
+| **Win Rate** | **0.0%** (0W / 1L) | **Total Profit Given Back** | $1.00 (from peak MFE) |
+| **Profit Factor** | **0.00** | **Trailing Stop Trigger Rate** | **0%** (0/1 trades) |
+| **Trade Expectancy** | **0.00%** per trade | **Average Win / Average Loss** | **+0.00%** / **0.00%** (Ratio: **N/A**) |
 
 ## Section 3: Every Completed Trade (Chronological Log)
 > ℹ️ **Table Conventions:**
@@ -44,171 +44,39 @@
 
 | ID | Side | Entry Time (UTC) | Entry Price | Exit Time (UTC) | Exit Price | Qty | Pos Value | Risk ($) | Init Stop | Exit Reason | Gross PnL | Fee | Net PnL | Return % | MFE (R) | MAE (R) | Giveback % | Trailing Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| TR-001 | `LONG` | 2020-10-30T04:30:00Z | $13442.00 | 2021-05-19T11:15:00Z | $38376.91 | 0.0743 | $999.00 | $29.97 | $13038.74 | `trailingStop` | $1853.15 | $3.85 | $1849.29 | **+184.93%** | +382.4% (+127.46R) | -2.5% (-0.82R) | 197.4% | Active (step 127) |
-| TR-002 | `SHORT` | 2021-05-19T11:15:00Z | $38124.30 | 2021-05-19T11:45:00Z | $38322.50 | 0.0310 | $1183.74 | $35.51 | $39268.03 | `trailingStop` | -$6.15 | $2.37 | -$8.53 | **-0.72%** | +5.5% (+1.84R) | -1.8% (-0.61R) | 5.5% | Active (step 1) |
-| TR-003 | `SHORT` | 2021-05-19T12:30:00Z | $36421.70 | 2021-05-19T13:30:00Z | $34964.83 | 0.0325 | $1182.89 | $35.49 | $37514.35 | `trailingStop` | $47.32 | $2.32 | $45.00 | **+3.80%** | +20.4% (+6.79R) | -2.4% (-0.79R) | 16.6% | Active (step 6) |
-| TR-004 | `SHORT` | 2021-05-19T14:15:00Z | $35510.90 | 2021-05-19T14:45:00Z | $37286.44 | 0.0334 | $1187.39 | $35.62 | $36576.23 | `stopLoss` | -$59.37 | $2.44 | -$61.80 | **-5.20%** | +2.9% (+0.95R) | -5.5% (-1.82R) | 2.9% | No (req: +3%) |
-| TR-005 | `SHORT` | 2021-05-19T17:15:00Z | $40016.10 | 2021-05-19T20:00:00Z | $40016.10 | 0.0295 | $1181.21 | $35.44 | $41216.58 | `trailingStop` | $0.00 | $2.36 | -$2.36 | **-0.20%** | +6.1% (+2.03R) | -0.3% (-0.09R) | 6.1% | Active (step 2) |
-| TR-006 | `SHORT` | 2021-05-19T20:15:00Z | $39053.30 | 2021-05-19T22:00:00Z | $39053.30 | 0.0302 | $1180.98 | $35.43 | $40224.90 | `trailingStop` | $0.00 | $2.36 | -$2.36 | **-0.20%** | +5.5% (+1.83R) | -1.4% (-0.47R) | 5.5% | Active (step 1) |
-| TR-007 | `SHORT` | 2021-05-19T22:30:00Z | $39339.50 | 2021-05-20T04:00:00Z | $39339.50 | 0.0300 | $1180.74 | $35.42 | $40519.68 | `trailingStop` | $0.00 | $2.36 | -$2.36 | **-0.20%** | +11.3% (+3.78R) | -0.6% (-0.20R) | 11.4% | Active (step 3) |
-| TR-008 | `SHORT` | 2021-05-23T09:00:00Z | $34137.10 | 2021-05-23T21:00:00Z | $34137.10 | 0.0346 | $1180.50 | $35.42 | $35161.21 | `trailingStop` | $0.00 | $2.36 | -$2.36 | **-0.20%** | +8.9% (+2.98R) | -4.9% (-1.64R) | 8.9% | Active (step 2) |
-| TR-009 | `SHORT` | 2021-05-23T21:30:00Z | $33857.80 | 2021-05-24T00:00:00Z | $35550.69 | 0.0349 | $1180.27 | $35.41 | $34873.53 | `stopLoss` | -$59.01 | $2.42 | -$61.43 | **-5.20%** | +0.8% (+0.26R) | -5.0% (-1.68R) | 0.8% | No (req: +3%) |
-| TR-010 | `SHORT` | 2021-05-24T00:30:00Z | $35086.20 | 2021-05-24T07:45:00Z | $36840.51 | 0.0335 | $1174.13 | $35.22 | $36138.79 | `stopLoss` | -$58.71 | $2.41 | -$61.11 | **-5.20%** | +2.0% (+0.68R) | -5.1% (-1.71R) | 2.0% | No (req: +3%) |
-| TR-011 | `LONG` | 2021-05-26T07:45:00Z | $40440.30 | 2021-05-26T17:00:00Z | $38418.29 | 0.0289 | $1168.03 | $35.04 | $39227.09 | `stopLoss` | -$58.40 | $2.28 | -$60.68 | **-5.19%** | +1.0% (+0.32R) | -5.9% (-1.98R) | 1.0% | No (req: +3%) |
-| TR-012 | `SHORT` | 2021-05-29T02:15:00Z | $36126.60 | 2021-05-30T07:30:00Z | $36126.60 | 0.0322 | $1161.96 | $34.86 | $37210.40 | `trailingStop` | $0.00 | $2.33 | -$2.33 | **-0.20%** | +7.6% (+2.52R) | -3.4% (-1.12R) | 7.6% | Active (step 2) |
-| TR-013 | `SHORT` | 2021-05-30T08:00:00Z | $35821.40 | 2021-05-31T11:30:00Z | $37075.15 | 0.0324 | $1161.73 | $34.85 | $36896.04 | `trailingStop` | -$40.66 | $2.37 | -$43.03 | **-3.70%** | +4.7% (+1.58R) | -3.9% (-1.28R) | 4.7% | Active (step 1) |
-| TR-014 | `LONG` | 2021-06-02T16:15:00Z | $38047.60 | 2021-06-04T05:30:00Z | $36715.93 | 0.0304 | $1157.43 | $34.72 | $36906.17 | `trailingStop` | -$40.51 | $2.28 | -$42.79 | **-3.69%** | +3.8% (+1.25R) | -3.9% (-1.29R) | 3.8% | Active (step 1) |
-| TR-015 | `SHORT` | 2021-06-05T19:45:00Z | $35769.40 | 2021-06-09T12:00:00Z | $35411.71 | 0.0322 | $1153.16 | $34.59 | $36842.48 | `trailingStop` | $11.53 | $2.30 | $9.24 | **+0.80%** | +13.3% (+4.44R) | -2.9% (-0.96R) | 12.5% | Active (step 4) |
-| TR-016 | `LONG` | 2021-06-10T09:30:00Z | $37144.90 | 2021-06-10T20:30:00Z | $35844.83 | 0.0311 | $1154.08 | $34.62 | $36030.55 | `trailingStop` | -$40.39 | $2.27 | -$42.66 | **-3.69%** | +3.5% (+1.17R) | -3.6% (-1.21R) | 3.5% | Active (step 1) |
-| TR-017 | `LONG` | 2021-06-11T12:45:00Z | $37307.00 | 2021-06-12T02:45:00Z | $35441.65 | 0.0308 | $1149.82 | $34.49 | $36187.79 | `stopLoss` | -$57.49 | $2.24 | -$59.73 | **-5.19%** | +0.7% (+0.24R) | -5.1% (-1.71R) | 0.7% | No (req: +3%) |
-| TR-018 | `LONG` | 2021-06-14T00:15:00Z | $39037.10 | 2021-06-16T11:30:00Z | $39037.10 | 0.0293 | $1143.85 | $34.32 | $37865.99 | `trailingStop` | $0.00 | $2.29 | -$2.29 | **-0.20%** | +5.9% (+1.98R) | -0.8% (-0.26R) | 5.9% | Active (step 1) |
-| TR-019 | `SHORT` | 2021-06-18T21:00:00Z | $35598.70 | 2021-06-20T19:30:00Z | $35598.70 | 0.0321 | $1143.62 | $34.31 | $36666.66 | `trailingStop` | $0.00 | $2.29 | -$2.29 | **-0.20%** | +6.4% (+2.12R) | -2.5% (-0.84R) | 6.4% | Active (step 2) |
-| TR-020 | `SHORT` | 2021-06-20T20:30:00Z | $35823.60 | 2021-06-23T01:00:00Z | $34390.66 | 0.0319 | $1143.40 | $34.30 | $36898.31 | `trailingStop` | $45.74 | $2.24 | $43.49 | **+3.80%** | +19.6% (+6.53R) | -0.3% (-0.10R) | 15.8% | Active (step 6) |
-| TR-021 | `LONG` | 2021-06-29T08:30:00Z | $35101.30 | 2021-07-01T06:45:00Z | $33872.75 | 0.0327 | $1147.74 | $34.43 | $34048.26 | `trailingStop` | -$40.17 | $2.26 | -$42.43 | **-3.69%** | +4.3% (+1.42R) | -4.8% (-1.58R) | 4.3% | Active (step 1) |
-| TR-022 | `LONG` | 2021-07-04T13:30:00Z | $35351.30 | 2021-07-05T11:15:00Z | $33583.74 | 0.0323 | $1143.50 | $34.31 | $34290.76 | `stopLoss` | -$57.18 | $2.23 | -$59.41 | **-5.19%** | +1.7% (+0.58R) | -5.1% (-1.69R) | 1.7% | No (req: +3%) |
-| TR-023 | `LONG` | 2021-07-06T08:45:00Z | $34980.40 | 2021-07-08T00:30:00Z | $33231.38 | 0.0325 | $1137.57 | $34.13 | $33930.99 | `stopLoss` | -$56.88 | $2.22 | -$59.10 | **-5.19%** | +0.2% (+0.07R) | -5.4% (-1.80R) | 0.2% | No (req: +3%) |
-| TR-024 | `SHORT` | 2021-07-08T04:15:00Z | $33179.40 | 2021-07-11T21:30:00Z | $34340.68 | 0.0341 | $1131.66 | $33.95 | $34174.78 | `trailingStop` | -$39.61 | $2.30 | -$41.91 | **-3.70%** | +3.3% (+1.10R) | -4.3% (-1.42R) | 3.3% | Active (step 1) |
-| TR-025 | `SHORT` | 2021-07-13T22:45:00Z | $32575.80 | 2021-07-21T18:00:00Z | $32575.80 | 0.0346 | $1127.48 | $33.82 | $33553.07 | `trailingStop` | $0.00 | $2.26 | -$2.26 | **-0.20%** | +10.1% (+3.38R) | -1.9% (-0.62R) | 10.1% | Active (step 3) |
-| TR-026 | `LONG` | 2021-07-24T01:45:00Z | $33610.80 | 2021-09-21T00:15:00Z | $41509.34 | 0.0335 | $1127.25 | $33.82 | $32602.48 | `trailingStop` | $264.90 | $2.52 | $262.38 | **+23.25%** | +57.5% (+19.15R) | -0.3% (-0.09R) | 34.2% | Active (step 19) |
-| TR-027 | `SHORT` | 2021-09-21T03:45:00Z | $42681.80 | 2021-09-22T07:45:00Z | $42681.80 | 0.0270 | $1153.46 | $34.60 | $43962.25 | `trailingStop` | $0.00 | $2.31 | -$2.31 | **-0.20%** | +7.3% (+2.43R) | -2.3% (-0.75R) | 7.3% | Active (step 2) |
-| TR-028 | `SHORT` | 2021-09-28T16:30:00Z | $41398.90 | 2021-09-30T03:00:00Z | $43468.85 | 0.0279 | $1153.23 | $34.60 | $42640.87 | `stopLoss` | -$57.66 | $2.37 | -$60.03 | **-5.20%** | +1.6% (+0.52R) | -5.0% (-1.68R) | 1.6% | No (req: +3%) |
-| TR-029 | `LONG` | 2021-10-01T08:45:00Z | $44945.50 | 2021-11-26T11:00:00Z | $54159.33 | 0.0255 | $1147.24 | $34.42 | $43597.14 | `trailingStop` | $235.18 | $2.53 | $232.65 | **+20.26%** | +53.6% (+17.86R) | -0.4% (-0.12R) | 33.3% | Active (step 17) |
-| TR-030 | `SHORT` | 2021-11-26T11:45:00Z | $53722.80 | 2021-11-28T22:00:00Z | $56408.94 | 0.0218 | $1170.48 | $35.11 | $55334.48 | `stopLoss` | -$58.52 | $2.40 | -$60.92 | **-5.20%** | +0.9% (+0.30R) | -5.5% (-1.85R) | 0.9% | No (req: +3%) |
-| TR-031 | `LONG` | 2021-11-30T22:00:00Z | $57268.50 | 2021-12-03T16:00:00Z | $55264.10 | 0.0203 | $1164.39 | $34.93 | $55550.44 | `trailingStop` | -$40.75 | $2.29 | -$43.04 | **-3.69%** | +3.1% (+1.03R) | -4.1% (-1.37R) | 3.1% | Active (step 1) |
-| TR-032 | `SHORT` | 2021-12-04T00:00:00Z | $53795.60 | 2021-12-06T21:45:00Z | $50029.91 | 0.0216 | $1160.09 | $34.80 | $55409.47 | `trailingStop` | $81.21 | $2.24 | $78.97 | **+6.80%** | +24.6% (+8.18R) | -0.1% (-0.04R) | 17.7% | Active (step 8) |
-| TR-033 | `SHORT` | 2021-12-09T19:45:00Z | $47610.10 | 2021-12-10T13:30:00Z | $49990.61 | 0.0245 | $1167.98 | $35.04 | $49038.40 | `stopLoss` | -$58.40 | $2.40 | -$60.79 | **-5.20%** | +0.6% (+0.21R) | -5.2% (-1.74R) | 0.6% | No (req: +3%) |
-| TR-034 | `SHORT` | 2021-12-10T23:15:00Z | $47634.90 | 2021-12-12T17:00:00Z | $50016.64 | 0.0244 | $1161.91 | $34.86 | $49063.95 | `stopLoss` | -$58.10 | $2.38 | -$60.48 | **-5.20%** | +1.9% (+0.64R) | -5.7% (-1.89R) | 1.9% | No (req: +3%) |
-| TR-035 | `LONG` | 2021-12-12T20:15:00Z | $50499.80 | 2021-12-13T14:15:00Z | $47974.81 | 0.0229 | $1155.87 | $34.68 | $48984.81 | `stopLoss` | -$57.79 | $2.26 | -$60.05 | **-5.19%** | +0.1% (+0.03R) | -5.3% (-1.77R) | 0.1% | No (req: +3%) |
-| TR-036 | `SHORT` | 2021-12-14T09:15:00Z | $47290.10 | 2021-12-21T08:00:00Z | $48945.25 | 0.0243 | $1149.87 | $34.50 | $48708.80 | `trailingStop` | -$40.25 | $2.34 | -$42.59 | **-3.70%** | +3.9% (+1.31R) | -4.8% (-1.59R) | 3.9% | Active (step 1) |
-| TR-037 | `LONG` | 2021-12-21T08:15:00Z | $48897.70 | 2021-12-28T04:15:00Z | $48897.70 | 0.0234 | $1145.61 | $34.37 | $47430.77 | `trailingStop` | $0.00 | $2.29 | -$2.29 | **-0.20%** | +6.5% (+2.16R) | -1.8% (-0.60R) | 6.5% | Active (step 2) |
-| TR-038 | `SHORT` | 2021-12-29T09:15:00Z | $47521.50 | 2022-02-07T03:15:00Z | $42769.35 | 0.0241 | $1145.38 | $34.36 | $48947.15 | `trailingStop` | $114.54 | $2.18 | $112.36 | **+9.80%** | +30.7% (+10.24R) | -2.2% (-0.73R) | 20.9% | Active (step 10) |
-| TR-039 | `LONG` | 2022-02-07T04:15:00Z | $42829.10 | 2022-02-08T17:15:00Z | $42829.10 | 0.0270 | $1156.61 | $34.70 | $41544.23 | `trailingStop` | $0.00 | $2.31 | -$2.31 | **-0.20%** | +6.2% (+2.08R) | -1.4% (-0.45R) | 6.2% | Active (step 2) |
-| TR-040 | `LONG` | 2022-02-09T18:45:00Z | $44173.60 | 2022-02-11T00:45:00Z | $42627.52 | 0.0262 | $1156.38 | $34.69 | $42848.39 | `trailingStop` | -$40.47 | $2.27 | -$42.75 | **-3.69%** | +3.8% (+1.25R) | -3.6% (-1.19R) | 3.8% | Active (step 1) |
-| TR-041 | `LONG` | 2022-02-15T18:00:00Z | $43947.90 | 2022-02-17T15:30:00Z | $41750.50 | 0.0262 | $1152.11 | $34.56 | $42629.46 | `stopLoss` | -$57.61 | $2.25 | -$59.85 | **-5.19%** | +1.9% (+0.65R) | -5.1% (-1.70R) | 1.9% | No (req: +3%) |
-| TR-042 | `SHORT` | 2022-02-17T17:15:00Z | $41828.50 | 2022-02-28T15:45:00Z | $40782.79 | 0.0274 | $1146.13 | $34.38 | $43083.36 | `trailingStop` | $28.65 | $2.26 | $26.39 | **+2.30%** | +17.9% (+5.98R) | -0.3% (-0.10R) | 15.6% | Active (step 5) |
-| TR-043 | `LONG` | 2022-02-28T15:45:00Z | $40824.10 | 2022-03-04T14:45:00Z | $40824.10 | 0.0281 | $1148.76 | $34.46 | $39599.38 | `trailingStop` | $0.00 | $2.30 | -$2.30 | **-0.20%** | +11.1% (+3.71R) | -0.4% (-0.14R) | 11.1% | Active (step 3) |
-| TR-044 | `SHORT` | 2022-03-05T07:45:00Z | $39019.60 | 2022-03-09T03:30:00Z | $40385.29 | 0.0294 | $1148.53 | $34.46 | $40190.19 | `trailingStop` | -$40.20 | $2.34 | -$42.54 | **-3.70%** | +4.8% (+1.59R) | -4.7% (-1.56R) | 4.8% | Active (step 1) |
-| TR-045 | `LONG` | 2022-03-09T12:15:00Z | $42357.00 | 2022-03-10T04:15:00Z | $40239.15 | 0.0270 | $1144.28 | $34.33 | $41086.29 | `stopLoss` | -$57.21 | $2.23 | -$59.45 | **-5.19%** | +0.5% (+0.18R) | -5.0% (-1.68R) | 0.5% | No (req: +3%) |
-| TR-046 | `SHORT` | 2022-03-11T22:45:00Z | $38919.10 | 2022-03-16T02:00:00Z | $40281.27 | 0.0292 | $1138.35 | $34.15 | $40086.67 | `trailingStop` | -$39.84 | $2.32 | -$42.16 | **-3.70%** | +3.5% (+1.17R) | -6.7% (-2.22R) | 3.5% | Active (step 1) |
-| TR-047 | `LONG` | 2022-03-16T17:15:00Z | $40357.60 | 2022-04-10T22:45:00Z | $41971.90 | 0.0281 | $1134.13 | $34.02 | $39146.87 | `trailingStop` | $45.37 | $2.31 | $43.05 | **+3.79%** | +19.4% (+6.47R) | -2.6% (-0.87R) | 15.6% | Active (step 6) |
-| TR-048 | `SHORT` | 2022-04-11T06:15:00Z | $42189.40 | 2022-04-20T11:45:00Z | $42189.40 | 0.0270 | $1138.43 | $34.15 | $43455.08 | `trailingStop` | $0.00 | $2.28 | -$2.28 | **-0.20%** | +8.7% (+2.89R) | -0.4% (-0.13R) | 8.7% | Active (step 2) |
-| TR-049 | `LONG` | 2022-04-20T12:45:00Z | $42109.10 | 2022-04-21T22:30:00Z | $40003.64 | 0.0270 | $1138.21 | $34.15 | $40845.83 | `stopLoss` | -$56.91 | $2.22 | -$59.13 | **-5.19%** | +2.2% (+0.72R) | -6.2% (-2.07R) | 2.2% | No (req: +3%) |
-| TR-050 | `SHORT` | 2022-04-23T06:15:00Z | $39610.90 | 2022-05-04T18:45:00Z | $39610.90 | 0.0286 | $1132.30 | $33.97 | $40799.23 | `trailingStop` | $0.00 | $2.27 | -$2.27 | **-0.20%** | +5.6% (+1.87R) | -3.0% (-1.00R) | 5.6% | Active (step 1) |
-| TR-051 | `LONG` | 2022-05-04T20:15:00Z | $39833.40 | 2022-05-05T15:00:00Z | $37841.73 | 0.0284 | $1132.07 | $33.96 | $38638.40 | `stopLoss` | -$56.60 | $2.21 | -$58.81 | **-5.19%** | +0.1% (+0.05R) | -8.3% (-2.77R) | 0.2% | No (req: +3%) |
-| TR-052 | `SHORT` | 2022-05-06T08:45:00Z | $36225.30 | 2023-03-17T22:30:00Z | $27712.35 | 0.0311 | $1126.20 | $33.79 | $37312.06 | `trailingStop` | $264.66 | $1.99 | $262.67 | **+23.30%** | +57.3% (+19.10R) | -0.6% (-0.19R) | 34.0% | Active (step 19) |
-| TR-053 | `LONG` | 2023-03-17T22:30:00Z | $27648.00 | 2023-03-22T19:45:00Z | $26680.32 | 0.0417 | $1152.44 | $34.57 | $26818.56 | `trailingStop` | -$40.34 | $2.27 | -$42.60 | **-3.69%** | +4.4% (+1.46R) | -3.9% (-1.31R) | 4.4% | Active (step 1) |
-| TR-054 | `LONG` | 2023-03-29T10:30:00Z | $28385.90 | 2023-04-20T12:15:00Z | $28385.90 | 0.0404 | $1148.18 | $34.45 | $27534.32 | `trailingStop` | $0.00 | $2.30 | -$2.30 | **-0.20%** | +9.3% (+3.09R) | -4.0% (-1.34R) | 9.3% | Active (step 3) |
-| TR-055 | `SHORT` | 2023-04-20T13:15:00Z | $28781.60 | 2023-04-26T09:00:00Z | $28781.60 | 0.0399 | $1147.95 | $34.44 | $29645.05 | `trailingStop` | $0.00 | $2.30 | -$2.30 | **-0.20%** | +6.3% (+2.11R) | -0.3% (-0.11R) | 6.3% | Active (step 2) |
-| TR-056 | `LONG` | 2023-04-26T16:30:00Z | $29778.10 | 2023-04-26T19:30:00Z | $28289.19 | 0.0385 | $1147.72 | $34.43 | $28884.76 | `stopLoss` | -$57.39 | $2.24 | -$59.63 | **-5.19%** | +0.3% (+0.11R) | -5.3% (-1.78R) | 0.3% | No (req: +3%) |
-| TR-057 | `LONG` | 2023-04-27T17:00:00Z | $29172.80 | 2023-05-01T20:45:00Z | $27714.16 | 0.0391 | $1141.77 | $34.25 | $28297.62 | `stopLoss` | -$57.09 | $2.23 | -$59.32 | **-5.19%** | +2.7% (+0.91R) | -5.2% (-1.73R) | 2.7% | No (req: +3%) |
-| TR-058 | `SHORT` | 2023-05-02T04:30:00Z | $27984.90 | 2023-05-05T02:00:00Z | $29384.15 | 0.0406 | $1135.84 | $34.08 | $28824.45 | `stopLoss` | -$56.79 | $2.33 | -$59.12 | **-5.20%** | +0.4% (+0.14R) | -5.5% (-1.85R) | 0.4% | No (req: +3%) |
-| TR-059 | `LONG` | 2023-05-05T04:15:00Z | $29241.90 | 2023-05-08T08:45:00Z | $27779.81 | 0.0386 | $1129.93 | $33.90 | $28364.64 | `stopLoss` | -$56.50 | $2.20 | -$58.70 | **-5.19%** | +2.0% (+0.66R) | -5.7% (-1.91R) | 2.0% | No (req: +3%) |
-| TR-060 | `SHORT` | 2023-05-08T12:00:00Z | $27851.20 | 2023-05-28T21:45:00Z | $27851.20 | 0.0404 | $1124.07 | $33.72 | $28686.74 | `trailingStop` | $0.00 | $2.25 | -$2.25 | **-0.20%** | +7.4% (+2.45R) | -1.6% (-0.55R) | 7.4% | Active (step 2) |
-| TR-061 | `LONG` | 2023-05-29T00:00:00Z | $28196.20 | 2023-06-01T02:45:00Z | $26786.39 | 0.0399 | $1123.85 | $33.72 | $27350.31 | `stopLoss` | -$56.19 | $2.19 | -$58.38 | **-5.19%** | +0.9% (+0.30R) | -5.5% (-1.83R) | 0.9% | No (req: +3%) |
-| TR-062 | `SHORT` | 2023-06-06T13:00:00Z | $25483.70 | 2023-06-06T17:30:00Z | $26757.88 | 0.0439 | $1118.01 | $33.54 | $26248.21 | `stopLoss` | -$55.90 | $2.29 | -$58.19 | **-5.20%** | +0.4% (+0.12R) | -5.1% (-1.70R) | 0.4% | No (req: +3%) |
-| TR-063 | `SHORT` | 2023-06-06T17:30:00Z | $26690.90 | 2023-06-17T05:30:00Z | $26690.90 | 0.0417 | $1112.20 | $33.37 | $27491.63 | `trailingStop` | $0.00 | $2.23 | -$2.23 | **-0.20%** | +7.1% (+2.35R) | -2.6% (-0.87R) | 7.1% | Active (step 2) |
-| TR-064 | `LONG` | 2023-06-17T10:15:00Z | $26631.80 | 2023-08-17T16:00:00Z | $27697.07 | 0.0418 | $1111.98 | $33.36 | $25832.85 | `trailingStop` | $44.48 | $2.27 | $42.21 | **+3.79%** | +19.5% (+6.49R) | -1.4% (-0.47R) | 15.7% | Active (step 6) |
-| TR-065 | `SHORT` | 2023-08-17T18:00:00Z | $27971.00 | 2023-08-29T16:15:00Z | $27971.00 | 0.0399 | $1116.19 | $33.49 | $28810.13 | `trailingStop` | $0.00 | $2.23 | -$2.23 | **-0.20%** | +10.6% (+3.54R) | -0.6% (-0.21R) | 10.6% | Active (step 3) |
-| TR-066 | `LONG` | 2023-08-29T18:45:00Z | $27971.00 | 2023-08-31T16:30:00Z | $26572.45 | 0.0399 | $1115.97 | $33.48 | $27131.87 | `stopLoss` | -$55.80 | $2.18 | -$57.98 | **-5.19%** | +0.1% (+0.02R) | -5.4% (-1.79R) | 0.1% | No (req: +3%) |
-| TR-067 | `SHORT` | 2023-09-01T01:00:00Z | $26022.60 | 2023-09-18T09:45:00Z | $26933.39 | 0.0427 | $1110.18 | $33.31 | $26803.28 | `trailingStop` | -$38.86 | $2.26 | -$41.12 | **-3.70%** | +4.3% (+1.44R) | -3.5% (-1.17R) | 4.3% | Active (step 1) |
-| TR-068 | `LONG` | 2023-09-18T12:15:00Z | $27258.70 | 2024-08-05T06:15:00Z | $48793.07 | 0.0406 | $1106.07 | $33.18 | $26440.94 | `trailingStop` | $873.80 | $3.09 | $870.71 | **+78.64%** | +170.6% (+56.88R) | -4.6% (-1.54R) | 92.0% | Active (step 56) |
-| TR-069 | `SHORT` | 2024-08-05T09:45:00Z | $52654.00 | 2024-08-05T14:00:00Z | $52654.00 | 0.0227 | $1193.06 | $35.79 | $54233.62 | `trailingStop` | $0.00 | $2.39 | -$2.39 | **-0.20%** | +5.9% (+1.97R) | -2.2% (-0.74R) | 5.9% | Active (step 1) |
-| TR-070 | `SHORT` | 2024-08-05T15:30:00Z | $54452.10 | 2024-08-06T14:15:00Z | $56357.92 | 0.0219 | $1192.82 | $35.78 | $56085.66 | `trailingStop` | -$41.75 | $2.43 | -$44.18 | **-3.70%** | +3.5% (+1.16R) | -3.9% (-1.30R) | 3.5% | Active (step 1) |
-| TR-071 | `LONG` | 2024-08-09T16:30:00Z | $60149.20 | 2024-08-15T19:00:00Z | $57141.74 | 0.0198 | $1188.40 | $35.65 | $58344.72 | `stopLoss` | -$59.42 | $2.32 | -$61.74 | **-5.19%** | +2.9% (+0.96R) | -5.2% (-1.72R) | 2.9% | No (req: +3%) |
-| TR-072 | `LONG` | 2024-08-18T12:00:00Z | $59983.20 | 2024-08-27T21:45:00Z | $59983.20 | 0.0197 | $1182.24 | $35.47 | $58183.70 | `trailingStop` | $0.00 | $2.37 | -$2.37 | **-0.20%** | +8.4% (+2.79R) | -3.6% (-1.21R) | 8.4% | Active (step 2) |
-| TR-073 | `SHORT` | 2024-08-28T11:45:00Z | $59929.30 | 2024-09-13T15:30:00Z | $59330.01 | 0.0197 | $1182.00 | $35.46 | $61727.18 | `trailingStop` | $11.82 | $2.35 | $9.47 | **+0.80%** | +12.3% (+4.10R) | -2.0% (-0.68R) | 11.5% | Active (step 4) |
-| TR-074 | `LONG` | 2024-09-13T17:15:00Z | $59593.50 | 2024-10-10T17:45:00Z | $59593.50 | 0.0199 | $1182.95 | $35.49 | $57805.69 | `trailingStop` | $0.00 | $2.37 | -$2.37 | **-0.20%** | +11.7% (+3.91R) | -3.5% (-1.18R) | 11.7% | Active (step 3) |
-| TR-075 | `SHORT` | 2024-10-10T17:45:00Z | $59609.90 | 2024-10-11T17:30:00Z | $62590.39 | 0.0198 | $1182.71 | $35.48 | $61398.20 | `stopLoss` | -$59.14 | $2.43 | -$61.56 | **-5.20%** | +1.1% (+0.38R) | -5.4% (-1.80R) | 1.1% | No (req: +3%) |
-| TR-076 | `LONG` | 2024-10-12T16:15:00Z | $63179.20 | 2025-02-26T20:15:00Z | $82764.75 | 0.0186 | $1176.56 | $35.30 | $61283.82 | `trailingStop` | $364.73 | $2.72 | $362.01 | **+30.74%** | +73.6% (+24.54R) | -1.8% (-0.59R) | 42.9% | Active (step 24) |
-| TR-077 | `SHORT` | 2025-02-26T21:30:00Z | $83771.20 | 2025-02-28T15:15:00Z | $83771.20 | 0.0145 | $1212.72 | $36.38 | $86284.34 | `trailingStop` | $0.00 | $2.43 | -$2.43 | **-0.20%** | +6.6% (+2.20R) | -4.0% (-1.32R) | 6.6% | Active (step 2) |
-| TR-078 | `SHORT` | 2025-02-28T15:45:00Z | $84023.30 | 2025-03-02T15:30:00Z | $88224.46 | 0.0144 | $1212.48 | $36.37 | $86544.00 | `stopLoss` | -$60.62 | $2.49 | -$63.11 | **-5.20%** | +1.0% (+0.33R) | -5.5% (-1.85R) | 1.0% | No (req: +3%) |
-| TR-079 | `LONG` | 2025-03-03T02:30:00Z | $93084.20 | 2025-03-03T18:15:00Z | $88429.99 | 0.0130 | $1206.18 | $36.19 | $90291.67 | `stopLoss` | -$60.31 | $2.35 | -$62.66 | **-5.19%** | +0.7% (+0.22R) | -6.1% (-2.03R) | 0.7% | No (req: +3%) |
-| TR-080 | `LONG` | 2025-03-06T09:30:00Z | $90910.50 | 2025-03-07T00:30:00Z | $86364.98 | 0.0132 | $1199.92 | $36.00 | $88183.18 | `stopLoss` | -$60.00 | $2.34 | -$62.34 | **-5.19%** | +0.8% (+0.28R) | -5.8% (-1.95R) | 0.8% | No (req: +3%) |
-| TR-081 | `SHORT` | 2025-03-09T08:00:00Z | $85939.30 | 2025-03-19T22:15:00Z | $85939.30 | 0.0139 | $1193.69 | $35.81 | $88517.48 | `trailingStop` | $0.00 | $2.39 | -$2.39 | **-0.20%** | +10.9% (+3.62R) | -0.1% (-0.03R) | 10.9% | Active (step 3) |
-| TR-082 | `LONG` | 2025-03-20T08:00:00Z | $85755.20 | 2025-03-29T11:15:00Z | $82753.77 | 0.0139 | $1193.45 | $35.80 | $83182.54 | `trailingStop` | -$41.77 | $2.35 | -$44.12 | **-3.69%** | +3.5% (+1.17R) | -3.9% (-1.31R) | 3.5% | Active (step 1) |
-| TR-083 | `SHORT` | 2025-03-29T15:30:00Z | $82417.70 | 2025-04-02T15:15:00Z | $86538.59 | 0.0144 | $1189.04 | $35.67 | $84890.23 | `stopLoss` | -$59.45 | $2.44 | -$61.89 | **-5.20%** | +1.4% (+0.46R) | -5.1% (-1.70R) | 1.4% | No (req: +3%) |
-| TR-084 | `LONG` | 2025-04-02T16:30:00Z | $87015.80 | 2025-04-02T23:00:00Z | $82665.01 | 0.0136 | $1182.86 | $35.49 | $84405.33 | `stopLoss` | -$59.14 | $2.31 | -$61.45 | **-5.19%** | +1.7% (+0.57R) | -5.4% (-1.80R) | 1.7% | No (req: +3%) |
-| TR-085 | `SHORT` | 2025-04-05T15:00:00Z | $82713.60 | 2025-04-09T18:15:00Z | $82713.60 | 0.0142 | $1176.72 | $35.30 | $85195.01 | `trailingStop` | $0.00 | $2.35 | -$2.35 | **-0.20%** | +9.9% (+3.31R) | -1.3% (-0.44R) | 9.9% | Active (step 3) |
-| TR-086 | `LONG` | 2025-04-11T16:30:00Z | $82947.50 | 2025-11-04T20:15:00Z | $99951.74 | 0.0142 | $1176.49 | $35.29 | $80459.07 | `trailingStop` | $241.18 | $2.60 | $238.58 | **+20.26%** | +52.1% (+17.38R) | -0.3% (-0.10R) | 31.9% | Active (step 17) |
-| TR-087 | `SHORT` | 2025-11-04T21:15:00Z | $99926.20 | 2025-11-09T20:00:00Z | $104922.51 | 0.0120 | $1200.32 | $36.01 | $102923.99 | `stopLoss` | -$60.02 | $2.46 | -$62.48 | **-5.20%** | +1.0% (+0.33R) | -5.1% (-1.71R) | 1.0% | No (req: +3%) |
-| TR-088 | `LONG` | 2025-11-11T04:15:00Z | $105984.50 | 2025-11-13T16:45:00Z | $100685.27 | 0.0113 | $1194.08 | $35.82 | $102804.96 | `stopLoss` | -$59.70 | $2.33 | -$62.03 | **-5.19%** | +0.1% (+0.02R) | -5.1% (-1.71R) | 0.1% | No (req: +3%) |
-| TR-089 | `SHORT` | 2025-11-13T16:45:00Z | $100637.10 | 2026-01-13T22:00:00Z | $96611.62 | 0.0118 | $1187.88 | $35.64 | $103656.21 | `trailingStop` | $47.52 | $2.33 | $45.19 | **+3.80%** | +19.9% (+6.62R) | -0.2% (-0.06R) | 16.1% | Active (step 6) |
-| TR-090 | `LONG` | 2026-01-13T22:30:00Z | $95590.00 | 2026-01-20T06:45:00Z | $90810.50 | 0.0125 | $1192.40 | $35.77 | $92722.30 | `stopLoss` | -$59.62 | $2.33 | -$61.95 | **-5.19%** | +2.5% (+0.83R) | -5.0% (-1.68R) | 2.5% | No (req: +3%) |
-| TR-091 | `SHORT` | 2026-01-20T08:30:00Z | $90849.90 | 2026-05-04T02:45:00Z | $80402.16 | 0.0131 | $1186.21 | $35.59 | $93575.40 | `trailingStop` | $136.41 | $2.24 | $134.18 | **+11.30%** | +34.0% (+11.32R) | -0.7% (-0.22R) | 22.7% | Active (step 11) |
-| TR-092 | `LONG` | 2026-05-04T03:00:00Z | $80369.70 | 2026-05-17T23:30:00Z | $77556.76 | 0.0149 | $1199.61 | $35.99 | $77958.61 | `trailingStop` | -$41.99 | $2.36 | -$44.34 | **-3.69%** | +3.1% (+1.02R) | -4.5% (-1.51R) | 3.1% | Active (step 1) |
-| TR-093 | `SHORT` | 2026-05-17T23:45:00Z | $77467.40 | 2026-08-20T09:15:00Z | $72044.68 | 0.0154 | $1195.18 | $35.86 | $79791.42 | `trailingStop` | $83.66 | $2.31 | $81.35 | **+6.80%** | +25.4% (+8.46R) | -0.9% (-0.32R) | 18.6% | Active (step 8) |
+| TR-001 | `LONG` | 2020-09-13T12:26:40Z | $100.00 | 2020-09-13T13:26:40Z | $95.00 | 1.0000 | $100.00 | $5.00 | $95.00 | `stopLoss` | -$5.00 | $0.00 | -$500.00 | **-5.00%** | +1.0% (+0.20R) | -5.0% (-1.00R) | 1.0% | Disabled |
 
 ### Open Position at Backtest Conclusion
-> ⚠️ **OPEN POSITION IDENTIFIED AT DATA END:**
-| Attribute | Value | Analysis |
-|---|---|---|
-| **Position ID** | `TR-94` | Active at final candle |
-| **Direction** | `LONG` | Position opened during run |
-| **Entry Timestamp / Price** | `2026-08-20T10:00:00Z` / $72129.80 | Original entry execution |
-| **Final Historical Price** | $81714.70 | Evaluated at final candle close |
-| **Position Size / Value** | 0.0167 ($1203.31) | Capital in trade |
-| **Unrealized Net PnL** | **$157.33** (**+13.06%**) | Marked-to-market at close |
-| **Accounting Status** | **UNCLOSED POSITION** | **Excluded from closed realized trade statistics** |
+> ℹ️ **Status:** No open position remained at backtest conclusion. All trades completed natural exits.
 
 ## Section 4: Risk, Drawdown & Exposure Diagnostics
 ### 1. Top Drawdown Periods
 | # | Peak Date | Peak Equity | Trough Date | Trough Equity | Max Depth % | Bars to Trough | Recovery Date | Recovery Status |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 2021-04-14T06:00:00Z | $13803.63 | 2023-09-25T06:00:00Z | $11020.62 | **-20.16%** | 85824 bars | Unrecovered | ⚠️ Active Drawdown |
-| 2 | 2021-02-21T19:00:00Z | $13324.80 | 2021-02-28T17:45:00Z | $12201.98 | **-8.43%** | 667 bars | 2021-03-13T10:00:00Z | ✅ Recovered |
-| 3 | 2021-01-08T12:00:00Z | $12091.09 | 2021-01-22T01:00:00Z | $11160.54 | **-7.70%** | 1300 bars | 2021-02-08T12:45:00Z | ✅ Recovered |
-| 4 | 2021-03-13T20:30:00Z | $13577.87 | 2021-03-25T13:00:00Z | $12758.67 | **-6.03%** | 1122 bars | 2021-04-13T08:15:00Z | ✅ Recovered |
-| 5 | 2021-01-03T07:30:00Z | $11571.96 | 2021-01-04T10:15:00Z | $11157.15 | **-3.58%** | 107 bars | 2021-01-06T04:15:00Z | ✅ Recovered |
+| 1 | 2020-09-13T12:26:40Z | $10000.00 | 2020-09-13T13:26:40Z | $9500.00 | **-5.00%** | 1 bars | Unrecovered | ⚠️ Active Drawdown |
 
 ### 2. Exit Reason Distribution
 | Exit Reason | Trade Count | Percentage | Cumulative Net PnL | Cumulative Return % | Avg Return % | Avg Holding Bars |
 |---|---|---|---|---|---|---|
-| `trailingStop` | 60 | 64.5% | $4040.46 | +377.81% | +6.30% | 3145.2 bars |
-| `stopLoss` | 33 | 35.5% | -$1995.32 | -171.40% | -5.19% | 174 bars |
+| `stopLoss` | 1 | 100% | -$500.00 | -5.00% | -5.00% | 1 bars |
 
 ### 3. Yearly Performance Breakdown
 | Calendar Year | Trade Count | Win Rate | Net PnL ($) | Cumulative Return % | Avg Return % |
 |---|---|---|---|---|---|
-| **2020** | 1 | 100% | $1849.29 | +184.93% | +184.93% |
-| **2021** | 37 | 18.9% | -$271.64 | -22.43% | -0.61% |
-| **2022** | 14 | 21.4% | -$41.74 | -3.26% | -0.23% |
-| **2023** | 16 | 12.5% | $406.58 | +37.69% | +2.36% |
-| **2024** | 8 | 25% | $196.88 | +16.85% | +2.11% |
-| **2025** | 13 | 15.4% | -$203.48 | -16.59% | -1.28% |
-| **2026** | 4 | 50% | $109.24 | +9.22% | +2.30% |
+| **2020** | 1 | 0% | -$500.00 | -5.00% | -5.00% |
 
 ## Section 5: Decision & Signal Funnel Diagnostics
-### 1. Signal Funnel
-| Stage | Bullish (BUY) | Bearish (SELL) | Combined |
-|---|---|---|---|
-| **TK Crossover Events** | 1946 | 1952 | 3898 |
-| **Crosses with RSI in Zone** | 0 | 0 | 0 |
-| **Signals Emitted by Strategy** | 900 | 629 | 1529 |
-| **Signals Executed into Trades** | 44 | 50 | 94 |
-
-### 2. Filter Rejection Attribution
-- **Rejected Crossovers (Did Not Emit Signal):** 2369
-  - Cloud Trend Filter (`close vs Cloud`): **0**
-  - RSI Out of Zone at Cross & Lookback: **0**
-  - RSI Recovery Cap Exceeded: **0**
-  - Kijun Slope Filter: **0**
-- **Ignored Signals (Strategy Emitted but Engine Skipped):** 9703
-  - Position Already Open in Same Direction: **9703**
-  - Long-Only Filter Ignored Short: **0**
-
+> ℹ️ Passive signal tracing was not enabled for this backtest run (`collectTrace: false`).
 ### 3. Execution & Behavioral Warnings
-- [WARNING] Profit Giveback: 53 trades reached >= +1.5% favorable move but closed at a net loss.
-- [WARNING] Prolonged Underwater Exposure: 30 trades (31.9%) spent > 70% of holding time in drawdown.
-- [WARNING] Held Across Opposite TK Cross: 86 trades remained open while an opposite TK cross occurred.
-- [NOTICE] Forced Exit at Backtest Conclusion: Final trade #94 (long) was closed forcibly by engine because data ended (PnL: $157.33, +13.06%).
+- [WARNING] Prolonged Underwater Exposure: 1 trades (100%) spent > 70% of holding time in drawdown.
 
 ### 4. Invariant Self-Checks
 | Invariant Name | Status | Violations | Verification Details |
 |---|---|---|---|
-| **Cash / Equity Conservation** | ✅ PASS | 0 | |initialBalance + sum(trade.pnl) - finalEquity| = 5.4570e-12 (threshold 1e-5) |
-| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ✅ PASS | 0 | Exit price was at or better than allowed stopPrice + gap slippage in 93/93 applicable stop trades |
-| **Trade Non-Overlap (Single Position Invariant)** | ✅ PASS | 0 | Every trade entered after or simultaneous with prior trade exit (93/93 adjacent pairs verified) |
-| **Trailing Ratchet Step Non-Negativity** | ✅ PASS | 0 | Trailing ratchet step count non-negative across all trades (94/94) |
+| **Cash / Equity Conservation** | ✅ PASS | 0 | |initialBalance + sum(trade.pnl) - finalEquity| = 0.0000e+0 (threshold 1e-5) |
+| **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚠️ INCOMPLETE | 0 | 0/0 checked stop exits verified (1/1 uncheckable due to missing stop price or exit candle) |
+| **Trade Non-Overlap (Single Position Invariant)** | ⚪ N/A | 0 | Only 1 trade executed; no adjacent trade pairs exist to evaluate overlap (0 trade pairs) |
+| **Trailing Ratchet Step Non-Negativity** | ⚪ N/A | 0 | Trailing stop disabled in configuration (0 applicable trades) |
 
 ## Section 6: Reproduction & Report Lifecycle
 - **Canonical Diagnostics Report:** `docs/review/TRADE_DIAGNOSTICS_LATEST.md`
@@ -216,4 +84,4 @@
   ```bash
   npx tsx src/scripts/backtest-report.ts --symbol=BTCUSDT --period=6y
   ```
-- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `2416041ce5f3a240` and config hash `1b695408`.
+- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `709ae6876010f4ad` and config hash `2adf4908`.

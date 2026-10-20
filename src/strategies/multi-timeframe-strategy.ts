@@ -642,6 +642,65 @@ export class MultiTimeframeStrategy implements Strategy {
     return true;
   }
 
+  /**
+   * Returns strict HTF trend direction for the candle at `index`:
+   * +1 if both 1h and 4h closed candles are strictly bullish (close > cloudTop && tenkan > kijun)
+   * -1 if both 1h and 4h closed candles are strictly bearish (close < cloudBottom && tenkan < kijun)
+   *  0 otherwise
+   */
+  public getStrictHtfDirection(candles: readonly Candle[], index: number): 1 | -1 | 0 {
+    if (index < 0 || index >= candles.length) return 0;
+    const candle = candles[index];
+    if (!candle) return 0;
+
+    const cached = this.getIndicators(candles);
+    const ltfMs = this.getLtfMs(candles, index);
+    const ltfEndTime = candle.timestamp + ltfMs;
+    const ms4h = 4 * 60 * 60 * 1000;
+    const ms1h = 60 * 60 * 1000;
+
+    const { htf4hCandles, htf4hIchimoku, htf1hCandles, htf1hIchimoku } = cached;
+
+    // Find the latest closed 4h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
+    let htf4hIdx = -1;
+    let low4h = 0;
+    let high4h = htf4hCandles.length - 1;
+    while (low4h <= high4h) {
+      const mid = (low4h + high4h) >> 1;
+      if (htf4hCandles[mid].timestamp + ms4h <= ltfEndTime) {
+        htf4hIdx = mid;
+        low4h = mid + 1;
+      } else {
+        high4h = mid - 1;
+      }
+    }
+
+    // Find the latest closed 1h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
+    let htf1hIdx = -1;
+    let low1h = 0;
+    let high1h = htf1hCandles.length - 1;
+    while (low1h <= high1h) {
+      const mid = (low1h + high1h) >> 1;
+      if (htf1hCandles[mid].timestamp + ms1h <= ltfEndTime) {
+        htf1hIdx = mid;
+        low1h = mid + 1;
+      } else {
+        high1h = mid - 1;
+      }
+    }
+
+    if (htf4hIdx < 0 || htf1hIdx < 0) {
+      return 0;
+    }
+
+    const trend4h = computeStrictHtfTrend(htf4hCandles[htf4hIdx], htf4hIchimoku, htf4hIdx);
+    const trend1h = computeStrictHtfTrend(htf1hCandles[htf1hIdx], htf1hIchimoku, htf1hIdx);
+
+    if (trend4h === 1 && trend1h === 1) return 1;
+    if (trend4h === -1 && trend1h === -1) return -1;
+    return 0;
+  }
+
   analyze(candles: readonly Candle[], currentIndex: number): TradeSignal {
     const defaultSignal: TradeSignal = {
       action: 'HOLD',
