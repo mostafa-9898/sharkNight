@@ -682,6 +682,10 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
 
   const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
   const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
+  const ignoredCapPositions = ignoredSignals.filter((e) => e.reason === 'cap_positions').length;
+  const ignoredCapExposure = ignoredSignals.filter((e) => e.reason === 'cap_exposure').length;
+  const ignoredMinBars = ignoredSignals.filter((e) => e.reason === 'min_bars').length;
+  const multiPosDiag = backtestResult.multiPositionDiagnostics;
 
   // --- SECTION G: Top 10 Worst & Top 10 Best Trades ---
   const tradesWithIdx = trades.map((t, i) => ({ trade: t, index: i + 1 }));
@@ -1149,6 +1153,23 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
     lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
     lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
+    if (ignoredCapPositions > 0) {
+      lines.push(`  - Multi-position cap reached (cap_positions): **${ignoredCapPositions}**`);
+    }
+    if (ignoredCapExposure > 0) {
+      lines.push(`  - Maximum exposure cap reached (cap_exposure): **${ignoredCapExposure}**`);
+    }
+    if (ignoredMinBars > 0) {
+      lines.push(`  - Minimum bars between entries not met (min_bars): **${ignoredMinBars}**`);
+    }
+    if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
+      lines.push(``);
+      lines.push(`### Multi-Position Concurrency`);
+      lines.push(`- **Average Concurrent Positions:** ${multiPosDiag.avgConcurrentPositions}`);
+      lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions}`);
+      lines.push(`- **Time at Capacity (% of bars):** ${multiPosDiag.percentTimeAtCapacity}%`);
+      lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}`);
+    }
     lines.push(``);
 
     if (rejectedCrosses.length > 0) {
@@ -1490,7 +1511,11 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
             total: ignoredSignals.length,
             alreadyInPosition: ignoredAlreadyInPos,
             longOnlyShortIgnored: ignoredLongOnlyShort,
+            cap_positions: ignoredCapPositions,
+            cap_exposure: ignoredCapExposure,
+            min_bars: ignoredMinBars,
           },
+          multiPositionDiagnostics: multiPosDiag ?? null,
         }
       : null,
     trades: trades.map((t, i) => ({
@@ -1919,6 +1944,10 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
 
     const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
     const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
+    const ignoredCapPositions = ignoredSignals.filter((e) => e.reason === 'cap_positions').length;
+    const ignoredCapExposure = ignoredSignals.filter((e) => e.reason === 'cap_exposure').length;
+    const ignoredMinBars = ignoredSignals.filter((e) => e.reason === 'min_bars').length;
+    const multiPosDiag = backtestResult.multiPositionDiagnostics;
 
     lines.push(`### 1. Signal Funnel`);
     lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
@@ -1938,6 +1967,18 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
     lines.push(`  - Position Already Open in Same Direction: **${ignoredAlreadyInPos}**`);
     lines.push(`  - Long-Only Filter Ignored Short: **${ignoredLongOnlyShort}**`);
+    if (ignoredCapPositions > 0) {
+      lines.push(`  - Multi-position Cap Reached: **${ignoredCapPositions}**`);
+    }
+    if (ignoredCapExposure > 0) {
+      lines.push(`  - Max Total Exposure Reached: **${ignoredCapExposure}**`);
+    }
+    if (ignoredMinBars > 0) {
+      lines.push(`  - Min Bars Between Entries Not Met: **${ignoredMinBars}**`);
+    }
+    if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
+      lines.push(`  - Avg / Max Concurrency: **${multiPosDiag.avgConcurrentPositions} / ${multiPosDiag.maxConcurrentPositions}** (Time at cap: **${multiPosDiag.percentTimeAtCapacity}%**)`);
+    }
     lines.push(``);
   }
 

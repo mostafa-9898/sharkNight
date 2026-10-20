@@ -196,6 +196,17 @@ describe('CLI Argument Parsing & Parameter Wiring (Step 5)', () => {
 
       expect(strategy).toBeDefined();
     });
+
+    it('correctly parses --max-open-positions and --max-total-exposure CLI options', () => {
+      const opts = parseCliArgs([
+        '--max-open-positions=3',
+        '--max-total-exposure=15',
+        '--min-bars-between-entries=5',
+      ]);
+      expect(opts.maxOpenPositions).toBe(3);
+      expect(opts.maxTotalExposurePercent).toBe(15);
+      expect(opts.minBarsBetweenEntries).toBe(5);
+    });
   });
 
   describe('formatCliSummary', () => {

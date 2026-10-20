@@ -1,5 +1,9 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import * as zlib from 'zlib';
 import { BacktestEngine } from '@/backtest/engine';
 import { SMACrossoverStrategy } from '@/strategies/sma-crossover';
+import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
 import type { Strategy } from '@/strategies/types';
 import type { Candle, TradeSignal } from '@/data/models';
 import type { ExitMode } from '@/backtest/types';
@@ -972,6 +976,233 @@ describe('BacktestEngine', () => {
       const unroundedFinalBal = result.equity[result.equity.length - 1];
       expect(Math.abs(10000 + sumPnl - unroundedFinalBal)).toBeLessThan(1e-6);
       expect(Math.abs(10000 + sumPnl - result.metrics.finalBalance)).toBeLessThan(0.01);
+    });
+  });
+
+  describe('Multi-Position Engine (maxOpenPositions - Step 3)', () => {
+    it('throws error when maxOpenPositions > 1 is configured with non-trailingOnly exitMode', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 105]);
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      expect(() =>
+        engine.run({
+          strategy,
+          candles,
+          initialBalance: 10000,
+          maxOpenPositions: 2,
+          exitMode: 'reverse',
+        })
+      ).toThrow(/Multi-position mode \(maxOpenPositions > 1\) is only supported with exitMode="trailingOnly"/);
+    });
+
+    it('(1) two consecutive signals -> two open positions with independent IDs', () => {
+      const candles: Candle[] = [
+        { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 2000, open: 102, high: 103, low: 101, close: 102, volume: 100 },
+        { timestamp: 3000, open: 104, high: 105, low: 103, close: 104, volume: 100 },
+      ];
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        1: 'BUY',
+      });
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 3,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+      });
+
+      expect(res.trades.length).toBe(2);
+      expect(res.trades[0].positionId).toBe(1);
+      expect(res.trades[0].concurrentOpenAtEntry).toBe(1);
+      expect(res.trades[0].entryPrice).toBe(100);
+      expect(res.trades[1].positionId).toBe(2);
+      expect(res.trades[1].concurrentOpenAtEntry).toBe(2);
+      expect(res.trades[1].entryPrice).toBe(102);
+    });
+
+    it('(2) cap 2 -> third signal is rejected (cap_positions)', () => {
+      const candles: Candle[] = [
+        { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 2000, open: 102, high: 103, low: 101, close: 102, volume: 100 },
+        { timestamp: 3000, open: 104, high: 105, low: 103, close: 104, volume: 100 },
+        { timestamp: 4000, open: 106, high: 107, low: 105, close: 106, volume: 100 },
+      ];
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        1: 'BUY',
+        2: 'BUY',
+      });
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 2,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        collectTrace: true,
+      });
+
+      expect(res.trades.length).toBe(2);
+      expect(res.multiPositionDiagnostics?.rejectedSignals.cap_positions).toBe(1);
+      expect(res.trace?.ignoredSignals.some((s) => s.reason === 'cap_positions')).toBe(true);
+    });
+
+    it('(3) trailing stop of each position is independent (one stopped out, other stays open)', () => {
+      const candles: Candle[] = [
+        { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 2000, open: 100, high: 110, low: 100, close: 110, volume: 100 },
+        { timestamp: 3000, open: 110, high: 111, low: 109, close: 110, volume: 100 },
+        { timestamp: 4000, open: 108, high: 108, low: 105, close: 107, volume: 100 },
+        { timestamp: 5000, open: 108, high: 116, low: 107, close: 115, volume: 100 },
+      ];
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        2: 'BUY',
+      });
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 3,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+      });
+
+      expect(res.trades.length).toBe(2);
+      // Pos 2 was stopped out on candle 3 (timestamp 4000)
+      const stoppedTrade = res.trades.find((t) => t.positionId === 2);
+      expect(stoppedTrade).toBeDefined();
+      expect(stoppedTrade?.exitReason).toBe('stopLoss');
+      expect(stoppedTrade?.exitTime).toBe(4000);
+
+      // Pos 1 stayed open and closed at backtest end on candle 4 (timestamp 5000)
+      const endTrade = res.trades.find((t) => t.positionId === 1);
+      expect(endTrade).toBeDefined();
+      expect(endTrade?.exitReason).toBe('end');
+      expect(endTrade?.exitTime).toBe(5000);
+    });
+
+    it('(4) total notional exposure cap is respected (cap_exposure)', () => {
+      const candles: Candle[] = [
+        { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 2000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 3000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+      ];
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        1: 'BUY',
+      });
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 10,
+        maxOpenPositions: 5,
+        maxTotalExposurePercent: 15,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        collectTrace: true,
+      });
+
+      expect(res.trades.length).toBe(1);
+      expect(res.multiPositionDiagnostics?.rejectedSignals.cap_exposure).toBe(1);
+      expect(res.trace?.ignoredSignals.some((s) => s.reason === 'cap_exposure')).toBe(true);
+    });
+
+    it('(5) opposite direction signal ignored when positions are open', () => {
+      const candles: Candle[] = [
+        { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 2000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+        { timestamp: 3000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
+      ];
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        1: 'SELL',
+      });
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 3,
+        tradeMode: 'long-short',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        collectTrace: true,
+      });
+
+      expect(res.trades.length).toBe(1);
+      expect(res.trades[0].side).toBe('long');
+      expect(res.trace?.ignoredSignals.some((s) => s.signal.action === 'SELL')).toBe(true);
+    });
+
+    it('(6) maxOpenPositions=1 matches exact previous snapshot numbers (BTC 4h Candidate D at 10% size)', () => {
+      const dataDir = path.resolve(__dirname, '../../docs/review/data');
+      const c4hPath = path.join(dataDir, 'BTCUSDT_4h.csv.gz');
+      const c1hPath = path.join(dataDir, 'BTCUSDT_1h.csv.gz');
+
+      const loadCandles = (filePath: string): Candle[] => {
+        const buf = fs.readFileSync(filePath);
+        const uncompressed = zlib.gunzipSync(buf).toString('utf-8');
+        const lines = uncompressed.trim().split('\n').slice(1);
+        return lines
+          .map((l) => {
+            const [timestamp, open, high, low, close, volume] = l.split(',');
+            return {
+              timestamp: Number(timestamp),
+              open: Number(open),
+              high: Number(high),
+              low: Number(low),
+              close: Number(close),
+              volume: Number(volume),
+            };
+          })
+          .sort((a, b) => a.timestamp - b.timestamp);
+      };
+
+      const c4h = loadCandles(c4hPath);
+      const c1h = loadCandles(c1hPath);
+
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        tradeFeePercent: 0.1,
+        positionSizePercent: 10,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        maxOpenPositions: 1,
+      });
+
+      expect(res.trades.length).toBe(33);
+      expect(Math.round(res.metrics.totalPnlPercent * 10) / 10).toBe(32.1);
+      expect(Math.round(res.metrics.maxDrawdownPercent * 10) / 10).toBe(15.0);
     });
   });
 });

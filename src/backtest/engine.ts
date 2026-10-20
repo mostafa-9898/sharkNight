@@ -7,6 +7,8 @@ import type {
   EntryDiagnostics,
   BacktestTrace,
   TkCrossTraceEvent,
+  MultiPositionDiagnostics,
+  Trade,
 } from './types';
 import { VirtualPortfolio } from './portfolio';
 import { calculateMetrics } from './metrics';
@@ -46,10 +48,35 @@ export class BacktestEngine {
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      maxOpenPositions = 1,
+      maxTotalExposurePercent = 100,
+      minBarsBetweenEntries = 0,
       slippagePercent = 0,
       stopCheckMode = 'intrabar',
       collectTrace = false,
     } = config;
+
+    if (!Number.isInteger(maxOpenPositions) || maxOpenPositions < 1) {
+      throw new Error(`maxOpenPositions must be an integer >= 1, got ${maxOpenPositions}`);
+    }
+
+    if (!Number.isFinite(maxTotalExposurePercent) || maxTotalExposurePercent <= 0 || maxTotalExposurePercent > 100) {
+      throw new Error(`maxTotalExposurePercent must be between 0 and 100, got ${maxTotalExposurePercent}`);
+    }
+
+    if (!Number.isInteger(minBarsBetweenEntries) || minBarsBetweenEntries < 0) {
+      throw new Error(`minBarsBetweenEntries must be an integer >= 0, got ${minBarsBetweenEntries}`);
+    }
+
+    if (maxOpenPositions > 1 && exitMode !== 'trailingOnly') {
+      throw new Error(
+        `Multi-position mode (maxOpenPositions > 1) is only supported with exitMode="trailingOnly", got exitMode="${exitMode}"`
+      );
+    }
+
+    if (maxOpenPositions > 1) {
+      return this.runMultiPosition(config);
+    }
 
     const trace: BacktestTrace = {
       tkCrossEvents: [],
@@ -181,9 +208,13 @@ export class BacktestEngine {
 
     let tradeState: ActiveTradeState | null = null;
     const equityCurve: number[] = [];
+    let capacityCandles = 0;
 
     for (let i = 0; i < candles.length; i++) {
       const candle = candles[i];
+      if (portfolio.hasOpenPosition()) {
+        capacityCandles++;
+      }
 
       // 1. Check Stop and TP using stop level as of previous candle's close
       if (portfolio.hasOpenPosition() && tradeState) {
@@ -763,8 +794,27 @@ export class BacktestEngine {
       traceable.setTraceCollector(undefined);
     }
 
-    const trades = portfolio.getTrades();
+    const trades = portfolio.getTrades().map((t, idx) => ({
+      ...t,
+      positionId: t.positionId ?? idx + 1,
+      concurrentOpenAtEntry: t.concurrentOpenAtEntry ?? 1,
+    }));
     const metrics = calculateMetrics(trades, initialBalance, equityCurve);
+
+    const avgConcurrentPositions = candles.length > 0 ? roundTo(capacityCandles / candles.length, 2) : 0;
+    const maxConcurrentPositions = trades.length > 0 ? 1 : 0;
+    const percentTimeAtCapacity = candles.length > 0 ? roundTo((capacityCandles / candles.length) * 100, 2) : 0;
+
+    const multiPositionDiagnostics: MultiPositionDiagnostics = {
+      avgConcurrentPositions,
+      maxConcurrentPositions,
+      percentTimeAtCapacity,
+      rejectedSignals: {
+        cap_positions: trace.ignoredSignals.filter((e) => e.reason === 'alreadyInPosition' || e.reason === 'cap_positions').length,
+        cap_exposure: trace.ignoredSignals.filter((e) => e.reason === 'cap_exposure').length,
+        min_bars: trace.ignoredSignals.filter((e) => e.reason === 'min_bars').length,
+      },
+    };
 
     const configSummary: Omit<BacktestConfig, 'candles'> = {
       strategy: config.strategy,
@@ -773,14 +823,18 @@ export class BacktestEngine {
       positionSizePercent,
       riskPerTradePercent,
       tradeMode,
+      exitMode,
+      maxBarsInTrade,
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      maxOpenPositions,
+      maxTotalExposurePercent,
+      minBarsBetweenEntries,
       slippagePercent,
       stopCheckMode,
       collectTrace: config.collectTrace,
     };
-
 
     return {
       config: configSummary,
@@ -789,6 +843,759 @@ export class BacktestEngine {
       equity: equityCurve,
       activePosition: null,
       trace: collectTrace ? trace : undefined,
+      multiPositionDiagnostics,
+    };
+  }
+
+  private runMultiPosition(config: BacktestConfig): BacktestResult {
+    const {
+      strategy,
+      candles,
+      initialBalance,
+      tradeFeePercent = 0.1,
+      positionSizePercent = 100,
+      riskPerTradePercent,
+      tradeMode = 'long-only',
+      exitMode = 'trailingOnly',
+      maxBarsInTrade,
+      takeProfitPercent,
+      stopLossPercent,
+      trailingStop,
+      maxOpenPositions = 1,
+      maxTotalExposurePercent = 100,
+      minBarsBetweenEntries = 0,
+      slippagePercent = 0,
+      stopCheckMode = 'intrabar',
+      collectTrace = false,
+    } = config;
+
+    const trace: BacktestTrace = {
+      tkCrossEvents: [],
+      ignoredSignals: [],
+    };
+
+    const traceable = strategy as unknown as TraceableStrategy;
+    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+      traceable.setTraceCollector({
+        onTkCross: (event: TkCrossTraceEvent) => {
+          trace.tkCrossEvents.push(event);
+        },
+      });
+    }
+
+    interface ActivePositionState {
+      positionId: number;
+      side: TradeSide;
+      quantity: number;
+      entryPrice: number;
+      entrySignal: TradeSignal;
+      entryCost: number;
+      entryFee: number;
+      entryTime: number;
+      entryIndex: number;
+      concurrentOpenAtEntry: number;
+      initialStopPercent?: number;
+      stopPrice: number | null;
+      highestHigh: number;
+      lowestLow: number;
+      ratchetSteps: number;
+      entryDiagnostics?: EntryDiagnostics;
+    }
+
+    let cash = initialBalance;
+    const openPositions: ActivePositionState[] = [];
+    const completedTrades: Trade[] = [];
+    const equityCurve: number[] = [];
+    let nextPositionId = 1;
+    let lastEntryIndex = -Infinity;
+    let capacityCandles = 0;
+    const openCountSamples: number[] = [];
+
+    let rejectedCapPositions = 0;
+    let rejectedCapExposure = 0;
+    let rejectedMinBars = 0;
+
+    const feeRate = tradeFeePercent / 100;
+
+    const computeEquity = (closePrice: number): number => {
+      let eq = cash;
+      for (const p of openPositions) {
+        if (p.side === 'long') {
+          const grossVal = p.quantity * closePrice;
+          const exitFee = grossVal * feeRate;
+          eq += grossVal - exitFee;
+        } else {
+          const exitFee = p.quantity * closePrice * feeRate;
+          const unrealizedPnl = p.quantity * (p.entryPrice - closePrice) - exitFee - p.entryFee;
+          eq += p.entryCost + unrealizedPnl;
+        }
+      }
+      return eq;
+    };
+
+    const computeEffectiveSizePercent = (signalStopPercent?: number): number => {
+      if (riskPerTradePercent !== undefined) {
+        const stopPercent = signalStopPercent ?? (trailingStop ? trailingStop.initialStopPercent : stopLossPercent!);
+        const calculatedSize = (riskPerTradePercent / stopPercent) * 100;
+        return Math.min(positionSizePercent, calculatedSize);
+      }
+      return positionSizePercent;
+    };
+
+    for (let i = 0; i < candles.length; i++) {
+      const candle = candles[i];
+
+      // 1. Check Stop Loss and Take Profit for each open position independently
+      for (let pIdx = openPositions.length - 1; pIdx >= 0; pIdx--) {
+        const pos = openPositions[pIdx];
+        const currentStopPrice = pos.stopPrice;
+        let tpPrice: number | null = null;
+        if (takeProfitPercent !== undefined && takeProfitPercent > 0) {
+          tpPrice =
+            pos.side === 'long'
+              ? pos.entryPrice * (1 + takeProfitPercent / 100)
+              : pos.entryPrice * (1 - takeProfitPercent / 100);
+        }
+
+        let stopTriggered = false;
+        let tpTriggered = false;
+        let baseStopExitPrice = 0;
+        let baseTpExitPrice = 0;
+
+        if (stopCheckMode === 'intrabar') {
+          if (pos.side === 'long') {
+            if (currentStopPrice !== null && candle.low <= currentStopPrice) {
+              stopTriggered = true;
+              baseStopExitPrice = candle.open <= currentStopPrice ? candle.open : currentStopPrice;
+            }
+            if (tpPrice !== null && candle.high >= tpPrice) {
+              tpTriggered = true;
+              baseTpExitPrice = candle.open >= tpPrice ? candle.open : tpPrice;
+            }
+          } else {
+            if (currentStopPrice !== null && candle.high >= currentStopPrice) {
+              stopTriggered = true;
+              baseStopExitPrice = candle.open >= currentStopPrice ? candle.open : currentStopPrice;
+            }
+            if (tpPrice !== null && candle.low <= tpPrice) {
+              tpTriggered = true;
+              baseTpExitPrice = candle.open <= tpPrice ? candle.open : tpPrice;
+            }
+          }
+        } else {
+          // 'close' mode
+          if (pos.side === 'long') {
+            if (tpPrice !== null && candle.close >= tpPrice) {
+              tpTriggered = true;
+              baseTpExitPrice = candle.close;
+            } else if (currentStopPrice !== null && candle.close <= currentStopPrice) {
+              stopTriggered = true;
+              baseStopExitPrice = candle.close;
+            }
+          } else {
+            if (tpPrice !== null && candle.close <= tpPrice) {
+              tpTriggered = true;
+              baseTpExitPrice = candle.close;
+            } else if (currentStopPrice !== null && candle.close >= currentStopPrice) {
+              stopTriggered = true;
+              baseStopExitPrice = candle.close;
+            }
+          }
+        }
+
+        if (stopTriggered) {
+          const isProfitableOrBe =
+            pos.side === 'long' ? baseStopExitPrice >= pos.entryPrice : baseStopExitPrice <= pos.entryPrice;
+          const exitReason: ExitReason =
+            trailingStop && (pos.ratchetSteps >= 1 || isProfitableOrBe) ? 'trailingStop' : 'stopLoss';
+
+          const finalExitPrice = roundTo(
+            pos.side === 'long'
+              ? baseStopExitPrice * (1 - slippagePercent / 100)
+              : baseStopExitPrice * (1 + slippagePercent / 100),
+            8
+          );
+
+          if (pos.side === 'long') {
+            if (candle.open <= currentStopPrice!) {
+              pos.highestHigh = Math.max(pos.highestHigh, candle.open);
+              pos.lowestLow = Math.min(pos.lowestLow, candle.low);
+            } else {
+              pos.highestHigh = Math.max(pos.highestHigh, candle.high);
+              pos.lowestLow = Math.min(pos.lowestLow, candle.low);
+            }
+          } else {
+            if (candle.open >= currentStopPrice!) {
+              pos.lowestLow = Math.min(pos.lowestLow, candle.open);
+              pos.highestHigh = Math.max(pos.highestHigh, candle.high);
+            } else {
+              pos.lowestLow = Math.min(pos.lowestLow, candle.low);
+              pos.highestHigh = Math.max(pos.highestHigh, candle.high);
+            }
+          }
+
+          const mfe =
+            pos.side === 'long'
+              ? ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100
+              : ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+          const mae =
+            pos.side === 'long'
+              ? ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100
+              : ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+
+          const grossExitValue = pos.quantity * baseStopExitPrice;
+          const exitFee = grossExitValue * feeRate;
+          const totalFee = pos.entryFee + exitFee;
+
+          let pnl: number;
+          let netExitValue: number;
+          if (pos.side === 'long') {
+            netExitValue = grossExitValue - exitFee;
+            pnl = netExitValue - pos.entryCost;
+          } else {
+            pnl = pos.quantity * (pos.entryPrice - baseStopExitPrice) - exitFee - pos.entryFee;
+            netExitValue = pos.entryCost + pnl;
+          }
+          const pnlPercent = (pnl / pos.entryCost) * 100;
+          cash += netExitValue;
+
+          const exitSignal: TradeSignal = {
+            action: pos.side === 'long' ? 'SELL' : 'BUY',
+            timestamp: candle.timestamp,
+            price: finalExitPrice,
+            reason:
+              exitReason === 'trailingStop'
+                ? `Trailing stop triggered at ${finalExitPrice.toFixed(2)} (step ${pos.ratchetSteps})`
+                : `Stop loss triggered at ${finalExitPrice.toFixed(2)}`,
+          };
+
+          completedTrades.push({
+            side: pos.side,
+            exitReason,
+            entrySignal: pos.entrySignal,
+            exitSignal,
+            entryPrice: pos.entryPrice,
+            exitPrice: finalExitPrice,
+            quantity: pos.quantity,
+            pnl: roundTo(pnl, 8),
+            pnlPercent: roundTo(pnlPercent, 4),
+            fee: roundTo(totalFee, 8),
+            entryTime: pos.entryTime,
+            exitTime: candle.timestamp,
+            duration: Math.max(0, candle.timestamp - pos.entryTime),
+            maxFavorablePercent: roundTo(mfe, 2),
+            maxAdversePercent: roundTo(mae, 2),
+            stopPrice: currentStopPrice !== null ? roundTo(currentStopPrice, 4) : undefined,
+            ratchetSteps: pos.ratchetSteps,
+            entryDiagnostics: pos.entryDiagnostics,
+            positionId: pos.positionId,
+            concurrentOpenAtEntry: pos.concurrentOpenAtEntry,
+          });
+
+          openPositions.splice(pIdx, 1);
+        } else if (tpTriggered) {
+          const exitReason: ExitReason = 'takeProfit';
+          const finalExitPrice = roundTo(
+            pos.side === 'long'
+              ? baseTpExitPrice * (1 - slippagePercent / 100)
+              : baseTpExitPrice * (1 + slippagePercent / 100),
+            8
+          );
+
+          pos.highestHigh = Math.max(pos.highestHigh, candle.high);
+          pos.lowestLow = Math.min(pos.lowestLow, candle.low);
+
+          const mfe =
+            pos.side === 'long'
+              ? ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100
+              : ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+          const mae =
+            pos.side === 'long'
+              ? ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100
+              : ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+
+          const grossExitValue = pos.quantity * baseTpExitPrice;
+          const exitFee = grossExitValue * feeRate;
+          const totalFee = pos.entryFee + exitFee;
+
+          let pnl: number;
+          let netExitValue: number;
+          if (pos.side === 'long') {
+            netExitValue = grossExitValue - exitFee;
+            pnl = netExitValue - pos.entryCost;
+          } else {
+            pnl = pos.quantity * (pos.entryPrice - baseTpExitPrice) - exitFee - pos.entryFee;
+            netExitValue = pos.entryCost + pnl;
+          }
+          const pnlPercent = (pnl / pos.entryCost) * 100;
+          cash += netExitValue;
+
+          const exitSignal: TradeSignal = {
+            action: pos.side === 'long' ? 'SELL' : 'BUY',
+            timestamp: candle.timestamp,
+            price: finalExitPrice,
+            reason: `Take profit triggered at ${finalExitPrice.toFixed(2)} (+${takeProfitPercent}%)`,
+          };
+
+          completedTrades.push({
+            side: pos.side,
+            exitReason,
+            entrySignal: pos.entrySignal,
+            exitSignal,
+            entryPrice: pos.entryPrice,
+            exitPrice: finalExitPrice,
+            quantity: pos.quantity,
+            pnl: roundTo(pnl, 8),
+            pnlPercent: roundTo(pnlPercent, 4),
+            fee: roundTo(totalFee, 8),
+            entryTime: pos.entryTime,
+            exitTime: candle.timestamp,
+            duration: Math.max(0, candle.timestamp - pos.entryTime),
+            maxFavorablePercent: roundTo(mfe, 2),
+            maxAdversePercent: roundTo(mae, 2),
+            stopPrice: currentStopPrice !== null ? roundTo(currentStopPrice, 4) : undefined,
+            ratchetSteps: pos.ratchetSteps,
+            entryDiagnostics: pos.entryDiagnostics,
+            positionId: pos.positionId,
+            concurrentOpenAtEntry: pos.concurrentOpenAtEntry,
+          });
+
+          openPositions.splice(pIdx, 1);
+        }
+      }
+
+      // 2. Update favorable extremes and trailing stop for remaining open positions
+      for (const pos of openPositions) {
+        pos.highestHigh = Math.max(pos.highestHigh, candle.high);
+        pos.lowestLow = Math.min(pos.lowestLow, candle.low);
+
+        if (trailingStop) {
+          const tradeInitialStop = pos.initialStopPercent ?? trailingStop.initialStopPercent;
+          const trailingMode = trailingStop.mode ?? 'stepped';
+
+          if (pos.side === 'long') {
+            const mfePercent = ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+            if (mfePercent >= tradeInitialStop) {
+              if (pos.stopPrice === null || pos.stopPrice < pos.entryPrice) {
+                pos.stopPrice = pos.entryPrice;
+              }
+            }
+
+            const n = Math.floor(mfePercent / trailingStop.stepPercent);
+            if (n > 0) {
+              if (n > pos.ratchetSteps) {
+                pos.ratchetSteps = n;
+              }
+
+              if (trailingMode === 'trend') {
+                const minLockedProfitPercent = n * trailingStop.raisePercent;
+                const trailDistance = trailingStop.raisePercent;
+                const minLockedPrice = roundTo(pos.entryPrice * (1 + minLockedProfitPercent / 100), 8);
+                const peakTrailPrice = roundTo(pos.highestHigh * (1 - trailDistance / 100), 8);
+                const candidateStop = Math.max(minLockedPrice, peakTrailPrice);
+                if (pos.stopPrice === null || candidateStop > pos.stopPrice) {
+                  pos.stopPrice = candidateStop;
+                }
+              } else {
+                const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPrice = roundTo(pos.entryPrice * (1 + candidateStopPercent / 100), 8);
+                if (pos.stopPrice === null || candidateStopPrice > pos.stopPrice) {
+                  pos.stopPrice = candidateStopPrice;
+                }
+              }
+            }
+          } else {
+            // short
+            const mfePercent = ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+            if (mfePercent >= tradeInitialStop) {
+              if (pos.stopPrice === null || pos.stopPrice > pos.entryPrice) {
+                pos.stopPrice = pos.entryPrice;
+              }
+            }
+
+            const n = Math.floor(mfePercent / trailingStop.stepPercent);
+            if (n > 0) {
+              if (n > pos.ratchetSteps) {
+                pos.ratchetSteps = n;
+              }
+
+              if (trailingMode === 'trend') {
+                const minLockedProfitPercent = n * trailingStop.raisePercent;
+                const trailDistance = trailingStop.raisePercent;
+                const minLockedPrice = roundTo(pos.entryPrice * (1 - minLockedProfitPercent / 100), 8);
+                const peakTrailPrice = roundTo(pos.lowestLow * (1 + trailDistance / 100), 8);
+                const candidateStop = Math.min(minLockedPrice, peakTrailPrice);
+                if (pos.stopPrice === null || candidateStop < pos.stopPrice) {
+                  pos.stopPrice = candidateStop;
+                }
+              } else {
+                const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPrice = roundTo(pos.entryPrice * (1 - candidateStopPercent / 100), 8);
+                if (pos.stopPrice === null || candidateStopPrice < pos.stopPrice) {
+                  pos.stopPrice = candidateStopPrice;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 2b. Time stop (maxBarsInTrade)
+      if (maxBarsInTrade !== undefined) {
+        for (let pIdx = openPositions.length - 1; pIdx >= 0; pIdx--) {
+          const pos = openPositions[pIdx];
+          const barsHeld = i - pos.entryIndex;
+          if (barsHeld >= maxBarsInTrade) {
+            const mfe =
+              pos.side === 'long'
+                ? ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100
+                : ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+            const mae =
+              pos.side === 'long'
+                ? ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100
+                : ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+
+            const grossExitValue = pos.quantity * candle.close;
+            const exitFee = grossExitValue * feeRate;
+            const totalFee = pos.entryFee + exitFee;
+            let pnl: number;
+            let netExitValue: number;
+            if (pos.side === 'long') {
+              netExitValue = grossExitValue - exitFee;
+              pnl = netExitValue - pos.entryCost;
+            } else {
+              pnl = pos.quantity * (pos.entryPrice - candle.close) - exitFee - pos.entryFee;
+              netExitValue = pos.entryCost + pnl;
+            }
+            cash += netExitValue;
+
+            completedTrades.push({
+              side: pos.side,
+              exitReason: 'timeStop',
+              entrySignal: pos.entrySignal,
+              exitSignal: {
+                action: pos.side === 'long' ? 'SELL' : 'BUY',
+                timestamp: candle.timestamp,
+                price: candle.close,
+                reason: `Time stop reached (${barsHeld} bars in trade >= max ${maxBarsInTrade})`,
+              },
+              entryPrice: pos.entryPrice,
+              exitPrice: candle.close,
+              quantity: pos.quantity,
+              pnl: roundTo(pnl, 8),
+              pnlPercent: roundTo((pnl / pos.entryCost) * 100, 4),
+              fee: roundTo(totalFee, 8),
+              entryTime: pos.entryTime,
+              exitTime: candle.timestamp,
+              duration: Math.max(0, candle.timestamp - pos.entryTime),
+              maxFavorablePercent: roundTo(mfe, 2),
+              maxAdversePercent: roundTo(mae, 2),
+              stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
+              ratchetSteps: pos.ratchetSteps,
+              entryDiagnostics: pos.entryDiagnostics,
+              positionId: pos.positionId,
+              concurrentOpenAtEntry: pos.concurrentOpenAtEntry,
+            });
+            openPositions.splice(pIdx, 1);
+          }
+        }
+      }
+
+      // 3. Process strategy signal at candle close
+      const signal = strategy.analyze(candles, i);
+      const entryDiag = (signal.metadata as { entryDiagnostics?: EntryDiagnostics } | undefined)?.entryDiagnostics;
+      const signalStopPercent =
+        typeof signal.metadata?.initialStopPercent === 'number'
+          ? (signal.metadata.initialStopPercent as number)
+          : undefined;
+
+      const currentEquity = computeEquity(candle.close);
+
+      const hasLong = openPositions.some((p) => p.side === 'long');
+      const hasShort = openPositions.some((p) => p.side === 'short');
+
+      let canOpenDirection: TradeSide | null = null;
+      if (tradeMode === 'long-only') {
+        if (signal.action === 'SELL') {
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: i,
+              timestamp: candle.timestamp,
+              signal,
+              reason: 'longOnlyShortIgnored',
+            });
+          }
+        } else if (signal.action === 'BUY') {
+          canOpenDirection = 'long';
+        }
+      } else if (tradeMode === 'short-only') {
+        if (signal.action === 'BUY') {
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: i,
+              timestamp: candle.timestamp,
+              signal,
+              reason: 'shortOnlyLongIgnored',
+            });
+          }
+        } else if (signal.action === 'SELL') {
+          canOpenDirection = 'short';
+        }
+      } else {
+        // long-short
+        if (signal.action === 'BUY') {
+          if (hasShort) {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
+          } else {
+            canOpenDirection = 'long';
+          }
+        } else if (signal.action === 'SELL') {
+          if (hasLong) {
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'alreadyInPosition',
+              });
+            }
+          } else {
+            canOpenDirection = 'short';
+          }
+        }
+      }
+
+      if (canOpenDirection !== null) {
+        // Check eligibility rules (Rule پ)
+        if (openPositions.length >= maxOpenPositions) {
+          rejectedCapPositions++;
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: i,
+              timestamp: candle.timestamp,
+              signal,
+              reason: 'cap_positions',
+            });
+          }
+        } else if (openPositions.length > 0 && i - lastEntryIndex < minBarsBetweenEntries) {
+          rejectedMinBars++;
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: i,
+              timestamp: candle.timestamp,
+              signal,
+              reason: 'min_bars',
+            });
+          }
+        } else {
+          const effectiveSize = computeEffectiveSizePercent(signalStopPercent);
+          const allocatedAmount = currentEquity * (effectiveSize / 100);
+          const currentTotalNotional = openPositions.reduce((sum, p) => sum + p.quantity * candle.close, 0);
+          const newTotalNotional = currentTotalNotional + allocatedAmount;
+          const maxAllowedNotional = currentEquity * (maxTotalExposurePercent / 100);
+
+          if (newTotalNotional > maxAllowedNotional + 1e-4 || allocatedAmount > cash) {
+            rejectedCapExposure++;
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'cap_exposure',
+              });
+            }
+          } else {
+            // Open new position!
+            const entryFee = allocatedAmount * feeRate;
+            const netInvest = allocatedAmount - entryFee;
+            const quantity = netInvest / candle.close;
+            cash -= allocatedAmount;
+
+            let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
+            const signalMeta = signal.metadata as Record<string, unknown> | undefined;
+            if (
+              signalMeta?.initialStopPercent !== undefined &&
+              typeof signalMeta.initialStopPercent === 'number' &&
+              signalMeta.initialStopPercent > 0
+            ) {
+              effectiveStopPercent = signalMeta.initialStopPercent;
+            }
+
+            let initialStop: number | null = null;
+            if (
+              signalMeta?.stopPrice !== undefined &&
+              typeof signalMeta.stopPrice === 'number' &&
+              signalMeta.stopPrice > 0
+            ) {
+              initialStop = signalMeta.stopPrice;
+            } else if (effectiveStopPercent !== undefined && effectiveStopPercent > 0) {
+              initialStop =
+                canOpenDirection === 'long'
+                  ? roundTo(candle.close * (1 - effectiveStopPercent / 100), 8)
+                  : roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
+            }
+
+            const newPos: ActivePositionState = {
+              positionId: nextPositionId++,
+              side: canOpenDirection,
+              quantity,
+              entryPrice: candle.close,
+              entrySignal: signal,
+              entryCost: allocatedAmount,
+              entryFee,
+              entryTime: candle.timestamp,
+              entryIndex: i,
+              concurrentOpenAtEntry: openPositions.length + 1,
+              initialStopPercent: effectiveStopPercent,
+              stopPrice: initialStop,
+              highestHigh: candle.close,
+              lowestLow: candle.close,
+              ratchetSteps: 0,
+              entryDiagnostics: entryDiag,
+            };
+
+            openPositions.push(newPos);
+            lastEntryIndex = i;
+          }
+        }
+      }
+
+      // 4. Record candle metrics
+      const openCount = openPositions.length;
+      openCountSamples.push(openCount);
+      if (openCount === maxOpenPositions) {
+        capacityCandles++;
+      }
+      equityCurve.push(computeEquity(candle.close));
+    }
+
+    // 5. Close remaining open positions at backtest conclusion
+    if (openPositions.length > 0) {
+      const finalCandle = candles[candles.length - 1];
+      for (const pos of openPositions) {
+        const mfe =
+          pos.side === 'long'
+            ? ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100
+            : ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+        const mae =
+          pos.side === 'long'
+            ? ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100
+            : ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+
+        const grossExitValue = pos.quantity * finalCandle.close;
+        const exitFee = grossExitValue * feeRate;
+        const totalFee = pos.entryFee + exitFee;
+        let pnl: number;
+        let netExitValue: number;
+        if (pos.side === 'long') {
+          netExitValue = grossExitValue - exitFee;
+          pnl = netExitValue - pos.entryCost;
+        } else {
+          pnl = pos.quantity * (pos.entryPrice - finalCandle.close) - exitFee - pos.entryFee;
+          netExitValue = pos.entryCost + pnl;
+        }
+        cash += netExitValue;
+
+        completedTrades.push({
+          side: pos.side,
+          exitReason: 'end',
+          entrySignal: pos.entrySignal,
+          exitSignal: {
+            action: pos.side === 'long' ? 'SELL' : 'BUY',
+            timestamp: finalCandle.timestamp,
+            price: finalCandle.close,
+            reason: 'Backtest conclusion: closed remaining open position',
+          },
+          entryPrice: pos.entryPrice,
+          exitPrice: finalCandle.close,
+          quantity: pos.quantity,
+          pnl: roundTo(pnl, 8),
+          pnlPercent: roundTo((pnl / pos.entryCost) * 100, 4),
+          fee: roundTo(totalFee, 8),
+          entryTime: pos.entryTime,
+          exitTime: finalCandle.timestamp,
+          duration: Math.max(0, finalCandle.timestamp - pos.entryTime),
+          maxFavorablePercent: roundTo(mfe, 2),
+          maxAdversePercent: roundTo(mae, 2),
+          stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
+          ratchetSteps: pos.ratchetSteps,
+          entryDiagnostics: pos.entryDiagnostics,
+          positionId: pos.positionId,
+          concurrentOpenAtEntry: pos.concurrentOpenAtEntry,
+        });
+      }
+      openPositions.length = 0;
+      equityCurve[equityCurve.length - 1] = cash;
+    }
+
+    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+      traceable.setTraceCollector(undefined);
+    }
+
+    const metrics = calculateMetrics(completedTrades, initialBalance, equityCurve);
+
+    let sumOpenCount = 0;
+    let maxConcurrentPositions = 0;
+    for (let k = 0; k < openCountSamples.length; k++) {
+      const cnt = openCountSamples[k];
+      sumOpenCount += cnt;
+      if (cnt > maxConcurrentPositions) {
+        maxConcurrentPositions = cnt;
+      }
+    }
+    const avgConcurrentPositions = openCountSamples.length > 0
+      ? roundTo(sumOpenCount / openCountSamples.length, 2)
+      : 0;
+    const percentTimeAtCapacity = openCountSamples.length > 0
+      ? roundTo((capacityCandles / openCountSamples.length) * 100, 2)
+      : 0;
+
+    const multiPositionDiagnostics: MultiPositionDiagnostics = {
+      avgConcurrentPositions,
+      maxConcurrentPositions,
+      percentTimeAtCapacity,
+      rejectedSignals: {
+        cap_positions: rejectedCapPositions,
+        cap_exposure: rejectedCapExposure,
+        min_bars: rejectedMinBars,
+      },
+    };
+
+    const configSummary: Omit<BacktestConfig, 'candles'> = {
+      strategy: config.strategy,
+      initialBalance: config.initialBalance,
+      tradeFeePercent,
+      positionSizePercent,
+      riskPerTradePercent,
+      tradeMode,
+      exitMode,
+      maxBarsInTrade,
+      takeProfitPercent,
+      stopLossPercent,
+      trailingStop,
+      maxOpenPositions,
+      maxTotalExposurePercent,
+      minBarsBetweenEntries,
+      slippagePercent,
+      stopCheckMode,
+      collectTrace: config.collectTrace,
+    };
+
+    return {
+      config: configSummary,
+      trades: completedTrades,
+      metrics,
+      equity: equityCurve,
+      activePosition: null,
+      trace: collectTrace ? trace : undefined,
+      multiPositionDiagnostics,
     };
   }
 }

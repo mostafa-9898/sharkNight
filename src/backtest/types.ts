@@ -58,7 +58,13 @@ export interface IgnoredSignalTraceEvent {
   index: number;
   timestamp: number;
   signal: TradeSignal;
-  reason: 'alreadyInPosition' | 'longOnlyShortIgnored' | 'shortOnlyLongIgnored';
+  reason:
+    | 'alreadyInPosition'
+    | 'longOnlyShortIgnored'
+    | 'shortOnlyLongIgnored'
+    | 'cap_positions'
+    | 'cap_exposure'
+    | 'min_bars';
 }
 
 export interface BacktestTrace {
@@ -106,6 +112,8 @@ export interface Trade {
   stopPrice?: number;             // Stop level at time of exit (if stopped out or tracked)
   ratchetSteps?: number;          // Number of trailing ratchet steps reached
   entryDiagnostics?: EntryDiagnostics;
+  positionId?: number;
+  concurrentOpenAtEntry?: number;
 }
 
 
@@ -173,6 +181,17 @@ export interface MfeMaeAnalysis {
   short: MfeMaeDistribution;
 }
 
+export interface MultiPositionDiagnostics {
+  avgConcurrentPositions: number;
+  maxConcurrentPositions: number;
+  percentTimeAtCapacity: number;
+  rejectedSignals: {
+    cap_positions: number;
+    cap_exposure: number;
+    min_bars: number;
+  };
+}
+
 export interface BacktestResult {
   config: Omit<BacktestConfig, 'candles'>;
   trades: Trade[];
@@ -180,4 +199,5 @@ export interface BacktestResult {
   equity: number[];               // Equity curve over time
   activePosition?: ActivePosition | null;
   trace?: BacktestTrace;
+  multiPositionDiagnostics?: MultiPositionDiagnostics;
 }
