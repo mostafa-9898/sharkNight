@@ -801,4 +801,22 @@ describe('MultiTimeframeStrategy', () => {
       }
     });
   });
+
+  describe('H2: fisherGate option (none vs zone)', () => {
+    it('honors fisherGate: "none" triggers on any crossover, while "zone" requires crossover inside zone', () => {
+      const stratNone = new MultiTimeframeStrategy({
+        fisherMode: 'extra-trigger',
+        fisherKind: 'fisher',
+        fisherGate: 'none',
+      });
+      const stratZone = new MultiTimeframeStrategy({
+        fisherMode: 'extra-trigger',
+        fisherKind: 'fisher',
+        fisherGate: 'zone',
+      });
+
+      expect(stratNone.fisherGate).toBe('none');
+      expect(stratZone.fisherGate).toBe('zone');
+    });
+  });
 });

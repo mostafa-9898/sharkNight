@@ -23,6 +23,7 @@ export const DEFAULT_MIN_BARS_BETWEEN_ENTRIES = 0;
 
 export const DEFAULT_FISHER_MODE: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' = 'replace-stoch';
 export const DEFAULT_FISHER_KIND: 'fisher' | 'ift' = 'fisher';
+export const DEFAULT_FISHER_GATE: 'none' | 'zone' = 'none';
 export const DEFAULT_OSCILLATOR_DISPLAY: 'rsi' | 'fisher' | 'ift' = 'fisher';
 
 export const DEFAULT_INITIAL_BALANCE = 10000;

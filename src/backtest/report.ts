@@ -41,6 +41,7 @@ export interface BacktestReportConfig {
   entryMode?: 'cross' | 'legacy';
   fisherMode?: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
   fisherKind?: 'fisher' | 'ift';
+  fisherGate?: 'none' | 'zone';
   structureFilter?: boolean;
   tenkan?: number;
   kijun?: number;

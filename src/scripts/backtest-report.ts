@@ -28,6 +28,7 @@ import {
   DEFAULT_TRAIL_RAISE_PERCENT,
   DEFAULT_FISHER_MODE,
   DEFAULT_FISHER_KIND,
+  DEFAULT_FISHER_GATE,
   DEFAULT_EXIT_MODE,
   DEFAULT_INITIAL_BALANCE,
   DEFAULT_TRADE_FEE_PERCENT,
@@ -235,6 +236,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     parseArg('fisherMode', DEFAULT_FISHER_MODE, argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
   const fisherKind = (parseArg('fisher-kind', undefined, argv) ??
     parseArg('fisherKind', DEFAULT_FISHER_KIND, argv)) as 'fisher' | 'ift';
+  const fisherGate = (parseArg('fisher-gate', undefined, argv) ??
+    parseArg('fisherGate', DEFAULT_FISHER_GATE, argv)) as 'none' | 'zone';
 
   // Trailing stop (R3 default: stepped 5/3/1.5)
   const trailingMode = (parseArg('trailingMode', DEFAULT_TRAILING_MODE, argv) ?? DEFAULT_TRAILING_MODE) as 'stepped' | 'trend';
@@ -325,6 +328,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     stopCheckMode,
     fisherMode,
     fisherKind,
+    fisherGate,
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
@@ -533,6 +537,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     stopCheckMode,
     fisherMode,
     fisherKind,
+    fisherGate,
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
@@ -605,6 +610,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     structureFilter,
     fisherMode,
     fisherKind,
+    fisherGate,
     tenkan,
     kijun,
     senkouB,
@@ -665,6 +671,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       entryMode: 'cross',
       fisherMode,
       fisherKind,
+      fisherGate,
       structureFilter,
       startTime,
       endTime,

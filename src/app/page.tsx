@@ -19,6 +19,7 @@ import {
   DEFAULT_TRAIL_RAISE_PERCENT,
   DEFAULT_FISHER_MODE,
   DEFAULT_FISHER_KIND,
+  DEFAULT_FISHER_GATE,
   DEFAULT_OSCILLATOR_DISPLAY,
 } from '@/config/defaults';
 
@@ -200,6 +201,7 @@ export default function DashboardPage() {
   const [trendRequirement, setTrendRequirement] = useState<'either' | '4h_and_1h' | '4h_only'>('either');
   const [fisherMode, setFisherMode] = useState<'off' | 'extra-trigger' | 'replace-stoch' | 'confirm'>(DEFAULT_FISHER_MODE);
   const [fisherKind, setFisherKind] = useState<'fisher' | 'ift'>(DEFAULT_FISHER_KIND);
+  const [fisherGate, setFisherGate] = useState<'none' | 'zone'>(DEFAULT_FISHER_GATE);
   const [oscillatorDisplay, setOscillatorDisplay] = useState<'rsi' | 'fisher' | 'ift'>(DEFAULT_OSCILLATOR_DISPLAY);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
@@ -283,6 +285,7 @@ export default function DashboardPage() {
           structureFilter,
           fisherMode,
           fisherKind,
+          fisherGate,
           ichimokuTenkan,
           ichimokuKijun,
           ichimokuSenkouB,
@@ -1201,6 +1204,29 @@ export default function DashboardPage() {
                 >
                   <option value="fisher">Fisher RSI</option>
                   <option value="ift">IFT-RSI</option>
+                </select>
+              </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }} title="Fisher Gate: 'none' triggers on any crossover, 'zone' requires crossover inside oversold/overbought zone">
+                  Fisher Gate:
+                </label>
+                <select
+                  value={fisherGate}
+                  onChange={(e) => setFisherGate(e.target.value as 'none' | 'zone')}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                  title="Fisher Gate: none (any cross) vs zone (zone-gated cross)"
+                >
+                  <option value="none">None (Any Cross)</option>
+                  <option value="zone">Zone (OB/OS Gated)</option>
                 </select>
               </div>
 

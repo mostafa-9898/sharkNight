@@ -9,6 +9,7 @@ import { roundTo } from '../utils/math';
 
 export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
 export type FisherKind = 'fisher' | 'ift';
+export type FisherGate = 'none' | 'zone';
 
 export interface MultiTimeframeConfig {
   htfMode?: 'strict';
@@ -21,6 +22,7 @@ export interface MultiTimeframeConfig {
 
   fisherMode?: FisherMode;
   fisherKind?: FisherKind;
+  fisherGate?: FisherGate;
 
   // Ichimoku parameters (default: 9, 26, 52, 26)
   tenkan?: number;
@@ -215,6 +217,7 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly ltfIntervalMs?: number;
   readonly fisherMode: FisherMode;
   readonly fisherKind: FisherKind;
+  readonly fisherGate: FisherGate;
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -236,6 +239,7 @@ export class MultiTimeframeStrategy implements Strategy {
     this.ltfIntervalMs = config?.ltfIntervalMs;
     this.fisherMode = config?.fisherMode ?? 'replace-stoch';
     this.fisherKind = config?.fisherKind ?? 'fisher';
+    this.fisherGate = config?.fisherGate ?? 'none';
 
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;
@@ -615,7 +619,10 @@ export class MultiTimeframeStrategy implements Strategy {
       const iftCurr = iftArr ? iftArr[currentIndex] : NaN;
       const iftPrev = iftArr ? iftArr[currentIndex - 1] : NaN;
 
-      const fisherBullCross =
+      const rScore = cached.ltfFisher?.rsiScore ? cached.ltfFisher.rsiScore[currentIndex] : NaN;
+      const sVal = cached.ltfFisher?.scaled ? cached.ltfFisher.scaled[currentIndex] : NaN;
+
+      const anyCrossUp =
         Number.isFinite(fCurr) &&
         Number.isFinite(sCurr) &&
         Number.isFinite(fPrev) &&
@@ -623,13 +630,24 @@ export class MultiTimeframeStrategy implements Strategy {
         fPrev <= sPrev &&
         fCurr > sCurr;
 
-      const fisherBearCross =
+      const anyCrossDown =
         Number.isFinite(fCurr) &&
         Number.isFinite(sCurr) &&
         Number.isFinite(fPrev) &&
         Number.isFinite(sPrev) &&
         fPrev >= sPrev &&
         fCurr < sCurr;
+
+      const bullZone =
+        (Number.isFinite(rScore) && rScore <= 30) ||
+        (Number.isFinite(sVal) && sVal <= 30);
+
+      const bearZone =
+        (Number.isFinite(rScore) && rScore >= 70) ||
+        (Number.isFinite(sVal) && sVal >= 70);
+
+      const fisherBullCross = this.fisherGate === 'zone' ? anyCrossUp && bullZone : anyCrossUp;
+      const fisherBearCross = this.fisherGate === 'zone' ? anyCrossDown && bearZone : anyCrossDown;
 
       const iftBullCross =
         Number.isFinite(iftCurr) &&
@@ -776,6 +794,7 @@ export class MultiTimeframeStrategy implements Strategy {
           fisherCross: fisherEventBull,
           fisherMode: this.fisherMode,
           fisherKind: this.fisherKind,
+          fisherGate: this.fisherGate,
           ...stopMetadata,
         },
       };
@@ -827,6 +846,7 @@ export class MultiTimeframeStrategy implements Strategy {
           fisherCross: fisherEventBear,
           fisherMode: this.fisherMode,
           fisherKind: this.fisherKind,
+          fisherGate: this.fisherGate,
           ...stopMetadata,
         },
       };

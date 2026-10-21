@@ -23,6 +23,7 @@ import {
   DEFAULT_TRAIL_RAISE_PERCENT,
   DEFAULT_FISHER_MODE,
   DEFAULT_FISHER_KIND,
+  DEFAULT_FISHER_GATE,
   DEFAULT_EXIT_MODE,
   DEFAULT_INITIAL_BALANCE,
   DEFAULT_TRADE_FEE_PERCENT,
@@ -121,6 +122,7 @@ export async function executeBacktestCore(
       ? body.fisherMode
       : DEFAULT_FISHER_MODE;
   const fisherKind: 'fisher' | 'ift' = body.fisherKind === 'ift' ? 'ift' : DEFAULT_FISHER_KIND;
+  const fisherGate: 'none' | 'zone' = body.fisherGate === 'zone' ? 'zone' : DEFAULT_FISHER_GATE;
 
   const tradeMode: TradeMode =
     body.tradeMode === 'short-only'
@@ -347,6 +349,7 @@ export async function executeBacktestCore(
     structureFilter,
     fisherMode,
     fisherKind,
+    fisherGate,
     htf4hCandles,
     htf1hCandles,
     tenkan: ichimokuTenkan,
