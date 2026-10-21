@@ -7,6 +7,12 @@ import type { Strategy } from '../strategies/types';
 import { MultiTimeframeStrategy, type FisherMode, type FisherKind } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
+import {
+  DEFAULT_FISHER_MODE,
+  DEFAULT_FISHER_KIND,
+  DEFAULT_FISHER_GATE,
+  DEFAULT_ALLOW_OPPOSITE_POSITIONS,
+} from '../config/defaults';
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -223,9 +229,10 @@ export async function runValidation() {
 
   const engine = new BacktestEngine();
 
-  // Winning Fisher Configuration from R6 Selection: F2 (replace-stoch / fisher)
-  const winningFisherMode: FisherMode = 'replace-stoch';
-  const winningFisherKind: FisherKind = 'fisher';
+  // Winning Configuration from H_SELECT (H4/H5 evaluation): F3 (confirm / fisher / gate none)
+  const winningFisherMode: FisherMode = DEFAULT_FISHER_MODE;
+  const winningFisherKind: FisherKind = DEFAULT_FISHER_KIND;
+  const winningFisherGate = DEFAULT_FISHER_GATE;
 
   const baseConfig = {
     initialBalance: 10000,
@@ -233,10 +240,16 @@ export async function runValidation() {
     maxOpenPositions: 10,
     maxTotalExposurePercent: 30,
     minBarsBetweenEntries: 0,
+    allowOppositePositions: DEFAULT_ALLOW_OPPOSITE_POSITIONS,
     tradeFeePercent: 0.1,
     exitMode: 'trailingOnly' as const,
     trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' as const },
   };
+
+  const csvDir = path.resolve('docs/review/validation');
+  if (!fs.existsSync(csvDir)) {
+    fs.mkdirSync(csvDir, { recursive: true });
+  }
 
   const records: ValidationRecord[] = [];
 
@@ -277,6 +290,7 @@ export async function runValidation() {
         entryMode: 'cross',
         fisherMode: winningFisherMode,
         fisherKind: winningFisherKind,
+        fisherGate: winningFisherGate,
         htf1hCandles: c1h,
         htf4hCandles: c4h,
         kijunSlopeFilter: true,
@@ -293,6 +307,19 @@ export async function runValidation() {
         strategy,
         candles,
       });
+
+      // Export trade-level compressed CSV: side,entryTime,exitTime,exitReason,mfe,mae,bars
+      const tfMinutes = m.tf === '15m' ? 15 : m.tf === '1h' ? 60 : 240;
+      const intervalMs = tfMinutes * 60 * 1000;
+      const tradeCsvHeader = 'side,entryTime,exitTime,exitReason,mfe,mae,bars';
+      const tradeCsvRows = res.trades.map((t) => {
+        const bars = Math.max(1, Math.round(((t.exitTime ?? 0) - (t.entryTime ?? 0)) / intervalMs));
+        return `${t.side},${t.entryTime ?? 0},${t.exitTime ?? 0},${t.exitReason},${t.maxFavorablePercent},${t.maxAdversePercent},${bars}`;
+      });
+      const tradeCsvContent = [tradeCsvHeader, ...tradeCsvRows].join('\n') + '\n';
+      const gzTradeBuf = zlib.gzipSync(Buffer.from(tradeCsvContent, 'utf-8'));
+      const tradeGzPath1 = path.join(csvDir, `trades_${m.sym}_${m.tf}_${cfgDef.id}.csv.gz`);
+      fs.writeFileSync(tradeGzPath1, gzTradeBuf);
 
       const totalReturn = roundTo(res.metrics.totalPnlPercent, 2);
       const maxDD = roundTo(res.metrics.maxDrawdownPercent, 2);
@@ -387,10 +414,6 @@ export async function runValidation() {
   }
 
   // Generate CSV
-  const csvDir = path.resolve('docs/review/validation');
-  if (!fs.existsSync(csvDir)) {
-    fs.mkdirSync(csvDir, { recursive: true });
-  }
   const csvPath = path.join(csvDir, 's1_s2.csv');
 
   const csvHeader = [
