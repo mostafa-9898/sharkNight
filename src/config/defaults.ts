@@ -22,7 +22,7 @@ export const DEFAULT_POSITION_SIZE_PERCENT = 3;
 export const DEFAULT_MIN_BARS_BETWEEN_ENTRIES = 0;
 export const DEFAULT_ALLOW_OPPOSITE_POSITIONS = true;
 
-export const DEFAULT_FISHER_MODE: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' = 'replace-stoch';
+export const DEFAULT_FISHER_MODE: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' = 'confirm';
 export const DEFAULT_FISHER_KIND: 'fisher' | 'ift' = 'fisher';
 export const DEFAULT_FISHER_GATE: 'none' | 'zone' = 'none';
 export const DEFAULT_OSCILLATOR_DISPLAY: 'rsi' | 'fisher' | 'ift' = 'fisher';
