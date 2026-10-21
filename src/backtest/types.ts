@@ -60,6 +60,7 @@ export interface IgnoredSignalTraceEvent {
   signal: TradeSignal;
   reason:
     | 'alreadyInPosition'
+    | 'opposite_while_open'
     | 'longOnlyShortIgnored'
     | 'shortOnlyLongIgnored'
     | 'cap_positions'
@@ -214,6 +215,7 @@ export interface MultiPositionDiagnostics {
     cap_positions: number;
     cap_exposure: number;
     min_bars: number;
+    opposite_while_open?: number;
   };
 }
 

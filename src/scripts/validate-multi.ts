@@ -6,8 +6,12 @@ import { BacktestEngine } from '../backtest/engine';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import type { Strategy } from '../strategies/types';
 import type { Candle, TradeSignal } from '../data/models';
-import type { Trade } from '../backtest/types';
+import type { Trade, TradeMode } from '../backtest/types';
 import { roundTo } from '../utils/math';
+import {
+  DEFAULT_TRADE_MODE,
+  DEFAULT_TRAILING_MODE,
+} from '../config/defaults';
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -144,12 +148,13 @@ function calibrateMultiplier(
     maxTotalExposurePercent: number;
     minBarsBetweenEntries: number;
     tradeFeePercent: number;
-    tradeMode: 'long-only';
+    tradeMode: TradeMode;
     exitMode: 'trailingOnly';
     trailingStop: {
       initialStopPercent: number;
       stepPercent: number;
       raisePercent: number;
+      mode?: 'stepped' | 'trend';
     };
   }
 ): number {
@@ -305,9 +310,9 @@ export async function runMultiValidation(): Promise<void> {
         maxOpenPositions: cfg.maxOpenPositions,
         maxTotalExposurePercent: cfg.maxTotalExposurePercent,
         minBarsBetweenEntries: cfg.minBarsBetweenEntries,
-        tradeMode: 'long-only' as const,
+        tradeMode: DEFAULT_TRADE_MODE,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: DEFAULT_TRAILING_MODE },
       };
 
       const fullRes = engine.run({
@@ -414,9 +419,9 @@ export async function runMultiValidation(): Promise<void> {
         maxTotalExposurePercent: targetCfg === 'M5' ? 30 : 50,
         minBarsBetweenEntries: 0,
         tradeFeePercent: 0.1,
-        tradeMode: 'long-only' as const,
+        tradeMode: DEFAULT_TRADE_MODE,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: DEFAULT_TRAILING_MODE },
       };
 
       const multiplier = calibrateMultiplier(engine, activeCandles, eligibleLongOnly, targetTrades, simConfig);

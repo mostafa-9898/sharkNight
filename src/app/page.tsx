@@ -6,7 +6,21 @@ import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode } from '@/backtest/types';
+import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode, MultiPositionDiagnostics } from '@/backtest/types';
+import {
+  DEFAULT_TRADE_MODE,
+  DEFAULT_POSITION_SIZE_PERCENT,
+  DEFAULT_MAX_OPEN_POSITIONS,
+  DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
+  DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+  DEFAULT_TRAILING_MODE,
+  DEFAULT_INITIAL_STOP_PERCENT,
+  DEFAULT_TRAIL_STEP_PERCENT,
+  DEFAULT_TRAIL_RAISE_PERCENT,
+  DEFAULT_FISHER_MODE,
+  DEFAULT_FISHER_KIND,
+  DEFAULT_OSCILLATOR_DISPLAY,
+} from '@/config/defaults';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -61,6 +75,7 @@ interface BacktestResultData {
   equity: number[];
   dataSource?: 'binance' | 'kucoin' | 'cache' | 'synthetic';
   diagnostics?: BacktestDiagnostics;
+  multiPositionDiagnostics?: MultiPositionDiagnostics;
   indicators: {
     ichimoku?: {
       tenkan: number[];
@@ -162,12 +177,13 @@ export default function DashboardPage() {
   const [tdrMultiplier, setTdrMultiplier] = useState(1.5);
 
   // Trade Mode & Risk Management
-  const [tradeMode, setTradeMode] = useState<TradeMode>('long-only');
+  const [tradeMode, setTradeMode] = useState<TradeMode>(DEFAULT_TRADE_MODE);
 
   // Position Sizing & Cloud Filter
-  const [positionSizePercent, setPositionSizePercent] = useState<number>(5);
-  const [maxOpenPositions, setMaxOpenPositions] = useState<number>(1);
-  const [maxTotalExposurePercent, setMaxTotalExposurePercent] = useState<number>(100);
+  const [positionSizePercent, setPositionSizePercent] = useState<number>(DEFAULT_POSITION_SIZE_PERCENT);
+  const [maxOpenPositions, setMaxOpenPositions] = useState<number>(DEFAULT_MAX_OPEN_POSITIONS);
+  const [maxTotalExposurePercent, setMaxTotalExposurePercent] = useState<number>(DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT);
+  const [minBarsBetweenEntries, setMinBarsBetweenEntries] = useState<number>(DEFAULT_MIN_BARS_BETWEEN_ENTRIES);
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
   const [kijunSlopeFilter, setKijunSlopeFilter] = useState(true);
@@ -175,16 +191,16 @@ export default function DashboardPage() {
 
   // Trailing Stop & Execution Mode (Calibrated for trend riding: 5% initial stop, 3% trigger, 1.5% trail)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
-  const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
-  const [initialStopPercent, setInitialStopPercent] = useState(5.0);
-  const [trailStepPercent, setTrailStepPercent] = useState(3.0);
-  const [trailRaisePercent, setTrailRaisePercent] = useState(1.5);
+  const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>(DEFAULT_TRAILING_MODE);
+  const [initialStopPercent, setInitialStopPercent] = useState(DEFAULT_INITIAL_STOP_PERCENT);
+  const [trailStepPercent, setTrailStepPercent] = useState(DEFAULT_TRAIL_STEP_PERCENT);
+  const [trailRaisePercent, setTrailRaisePercent] = useState(DEFAULT_TRAIL_RAISE_PERCENT);
   const [lookbackBars, setLookbackBars] = useState(3);
   const [minConfirmations, setMinConfirmations] = useState(2);
   const [trendRequirement, setTrendRequirement] = useState<'either' | '4h_and_1h' | '4h_only'>('either');
-  const [fisherMode, setFisherMode] = useState<'off' | 'extra-trigger' | 'replace-stoch' | 'confirm'>('confirm');
-  const [fisherKind, setFisherKind] = useState<'fisher' | 'ift'>('ift');
-  const [oscillatorDisplay, setOscillatorDisplay] = useState<'rsi' | 'fisher' | 'ift'>('ift');
+  const [fisherMode, setFisherMode] = useState<'off' | 'extra-trigger' | 'replace-stoch' | 'confirm'>(DEFAULT_FISHER_MODE);
+  const [fisherKind, setFisherKind] = useState<'fisher' | 'ift'>(DEFAULT_FISHER_KIND);
+  const [oscillatorDisplay, setOscillatorDisplay] = useState<'rsi' | 'fisher' | 'ift'>(DEFAULT_OSCILLATOR_DISPLAY);
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -260,6 +276,7 @@ export default function DashboardPage() {
           positionSizePercent,
           maxOpenPositions,
           maxTotalExposurePercent,
+          minBarsBetweenEntries,
           riskPerTradePercent,
           cloudFilter,
           kijunSlopeFilter,
@@ -331,6 +348,7 @@ export default function DashboardPage() {
         trades: data.backtest?.trades ?? [],
         equity: data.backtest?.equity ?? [],
         diagnostics: data.diagnostics,
+        multiPositionDiagnostics: data.backtest?.multiPositionDiagnostics,
         indicators: data.indicators,
         candles,
         totalCandles: data.totalCandles ?? candles.length,
@@ -1476,9 +1494,20 @@ export default function DashboardPage() {
                         cursor: trailingStopEnabled ? 'pointer' : 'not-allowed',
                       }}
                     >
-                      <option value="trend">🌊 تعقیب قله روند (Trend Follow)</option>
                       <option value="stepped">🪜 جابه‌جایی پله‌ای (Stepped Ratchet)</option>
+                      <option value="trend">🌊 تعقیب قله روند (Trend Follow)</option>
                     </select>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        color: '#e3b341',
+                        whiteSpace: 'nowrap',
+                        marginRight: '4px',
+                      }}
+                      title="نتایج اعتبارسنجی با stepped است"
+                    >
+                      «نتایج اعتبارسنجی با stepped است»
+                    </span>
                   </div>
 
                   {/* Initial Stop */}
@@ -1829,6 +1858,7 @@ export default function DashboardPage() {
           <MetricsCards
             metrics={backtestResult.metrics}
             initialBalance={backtestResult.initialBalance}
+            multiPositionDiagnostics={backtestResult.multiPositionDiagnostics}
           />
 
           {/* Signal Funnel (Diagnostics) Card - Always visible after a run */}

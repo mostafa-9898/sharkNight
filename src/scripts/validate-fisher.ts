@@ -6,6 +6,14 @@ import type { Strategy } from '../strategies/types';
 import { MultiTimeframeStrategy, type FisherMode, type FisherKind } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
+import {
+  DEFAULT_TRADE_MODE,
+  DEFAULT_POSITION_SIZE_PERCENT,
+  DEFAULT_MAX_OPEN_POSITIONS,
+  DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
+  DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+  DEFAULT_TRAILING_MODE,
+} from '../config/defaults';
 
 function mulberry32(a: number) {
   return function () {
@@ -181,12 +189,14 @@ export async function runValidateFisher(): Promise<{ winner: ConfigDef; superior
 
   const simEngineConfig = {
     initialBalance: 10000,
-    positionSizePercent: 5,
+    positionSizePercent: DEFAULT_POSITION_SIZE_PERCENT,
+    maxOpenPositions: DEFAULT_MAX_OPEN_POSITIONS,
+    maxTotalExposurePercent: DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
+    minBarsBetweenEntries: DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
     tradeFeePercent: 0.1,
-    tradeMode: 'long-only' as const,
+    tradeMode: DEFAULT_TRADE_MODE,
     exitMode: 'trailingOnly' as const,
-    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
-    maxOpenPositions: 1,
+    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' as const },
   };
 
   const results: Record<string, Record<string, RunResult>> = {};

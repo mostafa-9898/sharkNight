@@ -716,7 +716,7 @@ export class BacktestEngine {
                   index: i,
                   timestamp: candle.timestamp,
                   signal,
-                  reason: 'alreadyInPosition',
+                  reason: 'opposite_while_open',
                 });
               }
             } else {
@@ -760,7 +760,7 @@ export class BacktestEngine {
                   index: i,
                   timestamp: candle.timestamp,
                   signal,
-                  reason: 'alreadyInPosition',
+                  reason: 'opposite_while_open',
                 });
               }
             } else {
@@ -975,6 +975,7 @@ export class BacktestEngine {
         cap_positions: trace.ignoredSignals.filter((e) => e.reason === 'alreadyInPosition' || e.reason === 'cap_positions').length,
         cap_exposure: trace.ignoredSignals.filter((e) => e.reason === 'cap_exposure').length,
         min_bars: trace.ignoredSignals.filter((e) => e.reason === 'min_bars').length,
+        opposite_while_open: trace.ignoredSignals.filter((e) => e.reason === 'opposite_while_open').length,
       },
     };
 
@@ -1018,7 +1019,7 @@ export class BacktestEngine {
       tradeFeePercent = 0.1,
       positionSizePercent = 100,
       riskPerTradePercent,
-      tradeMode = 'long-only',
+      tradeMode = 'long-short',
       exitMode = 'trailingOnly',
       maxBarsInTrade,
       takeProfitPercent,
@@ -1080,6 +1081,7 @@ export class BacktestEngine {
     let rejectedCapPositions = 0;
     let rejectedCapExposure = 0;
     let rejectedMinBars = 0;
+    let rejectedOppositeWhileOpen = 0;
 
     const feeRate = tradeFeePercent / 100;
 
@@ -1617,15 +1619,17 @@ export class BacktestEngine {
           canOpenDirection = 'short';
         }
       } else {
-        // long-short
+        // long-short: all open positions are in the same direction;
+        // if an opposite-direction signal arrives while positions are open, ignore it.
         if (signal.action === 'BUY') {
           if (hasShort) {
+            rejectedOppositeWhileOpen++;
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
                 timestamp: candle.timestamp,
                 signal,
-                reason: 'alreadyInPosition',
+                reason: 'opposite_while_open',
               });
             }
           } else {
@@ -1633,12 +1637,13 @@ export class BacktestEngine {
           }
         } else if (signal.action === 'SELL') {
           if (hasLong) {
+            rejectedOppositeWhileOpen++;
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
                 timestamp: candle.timestamp,
                 signal,
-                reason: 'alreadyInPosition',
+                reason: 'opposite_while_open',
               });
             }
           } else {
@@ -1871,6 +1876,7 @@ export class BacktestEngine {
         cap_positions: rejectedCapPositions,
         cap_exposure: rejectedCapExposure,
         min_bars: rejectedMinBars,
+        opposite_while_open: rejectedOppositeWhileOpen,
       },
     };
 

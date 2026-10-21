@@ -1,14 +1,15 @@
 'use client';
 
 import React from 'react';
-import type { BacktestMetrics } from '@/backtest/types';
+import type { BacktestMetrics, MultiPositionDiagnostics } from '@/backtest/types';
 
 interface MetricsCardsProps {
   metrics: BacktestMetrics;
   initialBalance: number;
+  multiPositionDiagnostics?: MultiPositionDiagnostics;
 }
 
-export default function MetricsCards({ metrics, initialBalance }: MetricsCardsProps) {
+export default function MetricsCards({ metrics, initialBalance, multiPositionDiagnostics }: MetricsCardsProps) {
   const isNetProfit = metrics.totalPnl >= 0;
 
   const cardStyle: React.CSSProperties = {
@@ -129,6 +130,26 @@ export default function MetricsCards({ metrics, initialBalance }: MetricsCardsPr
           <span>
             Short: <strong style={{ color: '#facc15' }}>{metrics.short.totalTrades}</strong>
           </span>
+        </div>
+      </div>
+
+      {/* Max Concurrency / بیشینهٔ همزمانی */}
+      <div style={cardStyle}>
+        <span style={labelStyle}>بیشینهٔ همزمانی (Max Concurrency)</span>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#38bdf8' }}>
+          {multiPositionDiagnostics?.maxConcurrentPositions ?? (metrics.totalTrades > 0 ? 1 : 0)}
+          <span style={{ fontSize: '12px', color: '#8b949e', marginLeft: '6px' }}>
+            positions
+          </span>
+        </div>
+        <div style={breakdownStyle}>
+          <span>Avg Concurrency: <strong>{multiPositionDiagnostics?.avgConcurrentPositions ?? (metrics.totalTrades > 0 ? 1 : 0)}</strong></span>
+          {multiPositionDiagnostics?.percentTimeAtCapacity !== undefined && multiPositionDiagnostics.percentTimeAtCapacity > 0 && (
+            <>
+              <span>•</span>
+              <span>At Capacity: <strong>{multiPositionDiagnostics.percentTimeAtCapacity}%</strong></span>
+            </>
+          )}
         </div>
       </div>
 

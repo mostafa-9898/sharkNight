@@ -116,6 +116,7 @@ interface CandidateConfig {
     initialStopPercent: number;
     stepPercent: number;
     raisePercent: number;
+    mode?: 'trend' | 'stepped';
   };
 }
 
@@ -136,7 +137,7 @@ const CANDIDATES: CandidateConfig[] = [
     structureFilter: true,
     exitMode: 'trailingOnly',
     tradeMode: 'long-short',
-    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
   },
   {
     id: 'C',
@@ -155,7 +156,7 @@ const CANDIDATES: CandidateConfig[] = [
     exitMode: 'trailingOnly',
     tradeMode: 'long-only',
     positionSizePercent: 5,
-    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
   },
 ];
 
@@ -805,7 +806,7 @@ async function main(): Promise<void> {
           tradeFeePercent: baseFee,
           tradeMode: 'long-only',
           exitMode: 'trailingOnly',
-          trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+          trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' as const },
           strategy: strat,
           candles: activeCandles,
         });
@@ -880,7 +881,7 @@ async function main(): Promise<void> {
         tradeFeePercent: baseFee,
         tradeMode: 'long-only' as const,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' as const },
       };
 
       const res = engine.run({
@@ -1044,7 +1045,7 @@ async function main(): Promise<void> {
         tradeFeePercent: baseFee,
         tradeMode: 'long-only' as const,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' as const },
       };
 
       const res = engine.run({

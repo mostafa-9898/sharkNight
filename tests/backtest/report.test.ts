@@ -876,8 +876,8 @@ describe('Backtest Report Builder & Tracing', () => {
 
       const output = buildBacktestReport(input);
 
-      expect(output.markdown).toContain('| **Short** | 0 | N/A | 0.00% | N/A | N/A | 0 bars |');
-      expect(output.markdown).toContain('| **Long** | 1 | 100% | +10.00% | +10.00% | N/A | 5 bars |');
+      expect(output.markdown).toContain('| **Short** | 0 | N/A | N/A | 0.00% | +0.0% | N/A | 0 bars |');
+      expect(output.markdown).toContain('| **Long** | 1 | 100% | +10.00% | +10.00% | +100.0% | N/A | 5 bars |');
 
       const breakdowns = output.json.breakdowns as Record<string, { short: Record<string, unknown>; long: Record<string, unknown> }>;
       expect(breakdowns.side.short.pf).toBe('N/A');

@@ -16,6 +16,24 @@ import type {
   TrailingStopConfig,
   BacktestMetrics,
 } from '../backtest/types';
+import {
+  DEFAULT_TRADE_MODE,
+  DEFAULT_POSITION_SIZE_PERCENT,
+  DEFAULT_MAX_OPEN_POSITIONS,
+  DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
+  DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+  DEFAULT_TRAILING_MODE,
+  DEFAULT_INITIAL_STOP_PERCENT,
+  DEFAULT_TRAIL_STEP_PERCENT,
+  DEFAULT_TRAIL_RAISE_PERCENT,
+  DEFAULT_FISHER_MODE,
+  DEFAULT_FISHER_KIND,
+  DEFAULT_EXIT_MODE,
+  DEFAULT_INITIAL_BALANCE,
+  DEFAULT_TRADE_FEE_PERCENT,
+  DEFAULT_STOP_CHECK_MODE,
+  DEFAULT_SLIPPAGE_PERCENT,
+} from '../config/defaults';
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -191,36 +209,35 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     ? parseBoolArg('structure-filter', true, argv)
     : parseBoolArg('structureFilter', true, argv);
 
-  // Engine params - Defaults to Candidate D:
-  // htfMode strict, entryMode cross, kijunSlopeFilter & structureFilter true,
-  // tradeMode long-only, exitMode trailingOnly with trailing 3/3/1.5, positionSize 5%, fee 0.1%
-  const tradeMode = (parseArg('tradeMode', 'long-only', argv) ?? 'long-only') as TradeMode;
-  const exitMode = (parseArg('exitMode', 'trailingOnly', argv) ?? 'trailingOnly') as ExitMode;
+  // Engine params - Defaults to centralized configuration:
+  const tradeMode = (parseArg('tradeMode', DEFAULT_TRADE_MODE, argv) ?? DEFAULT_TRADE_MODE) as TradeMode;
+  const exitMode = (parseArg('exitMode', DEFAULT_EXIT_MODE, argv) ?? DEFAULT_EXIT_MODE) as ExitMode;
   const maxBarsInTrade = parseNumArg('maxBarsInTrade', undefined, argv);
-  const initialBalance = parseNumArg('initialBalance', 10000, argv)!;
-  const tradeFeePercent = parseNumArg('tradeFeePercent', 0.1, argv)!;
-  const positionSizePercent = parseNumArg('positionSizePercent', 5, argv)!;
-  const riskPerTradePercent = parseNumArg('riskPerTradePercent', 1, argv)!;
-  const slippagePercent = parseNumArg('slippagePercent', 0, argv)!;
-  const stopCheckMode = (parseArg('stopCheckMode', 'intrabar', argv) ?? 'intrabar') as StopCheckMode;
+  const initialBalance = parseNumArg('initialBalance', DEFAULT_INITIAL_BALANCE, argv)!;
+  const tradeFeePercent = parseNumArg('tradeFeePercent', DEFAULT_TRADE_FEE_PERCENT, argv)!;
+  const positionSizePercent = parseNumArg('positionSizePercent', DEFAULT_POSITION_SIZE_PERCENT, argv)!;
+  const riskPerTradePercent = parseNumArg('riskPerTradePercent', undefined, argv);
+  const slippagePercent = parseNumArg('slippagePercent', DEFAULT_SLIPPAGE_PERCENT, argv)!;
+  const stopCheckMode = (parseArg('stopCheckMode', DEFAULT_STOP_CHECK_MODE, argv) ?? DEFAULT_STOP_CHECK_MODE) as StopCheckMode;
 
-  // Multi-position CLI options (Step 3)
+  // Multi-position CLI options (R2)
   const maxOpenPositions =
     parseNumArg('max-open-positions', undefined, argv) ??
-    parseNumArg('maxOpenPositions', 1, argv)!;
+    parseNumArg('maxOpenPositions', DEFAULT_MAX_OPEN_POSITIONS, argv)!;
   const maxTotalExposurePercent =
     parseNumArg('max-total-exposure', undefined, argv) ??
-    parseNumArg('maxTotalExposurePercent', 100, argv)!;
+    parseNumArg('maxTotalExposurePercent', DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT, argv)!;
   const minBarsBetweenEntries =
     parseNumArg('min-bars-between-entries', undefined, argv) ??
-    parseNumArg('minBarsBetweenEntries', 0, argv)!;
+    parseNumArg('minBarsBetweenEntries', DEFAULT_MIN_BARS_BETWEEN_ENTRIES, argv)!;
 
   const fisherMode = (parseArg('fisher-mode', undefined, argv) ??
-    parseArg('fisherMode', 'confirm', argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+    parseArg('fisherMode', DEFAULT_FISHER_MODE, argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
   const fisherKind = (parseArg('fisher-kind', undefined, argv) ??
-    parseArg('fisherKind', 'ift', argv)) as 'fisher' | 'ift';
+    parseArg('fisherKind', DEFAULT_FISHER_KIND, argv)) as 'fisher' | 'ift';
 
-  // Trailing stop (default candidate D: 3/3/1.5)
+  // Trailing stop (R3 default: stepped 5/3/1.5)
+  const trailingMode = (parseArg('trailingMode', DEFAULT_TRAILING_MODE, argv) ?? DEFAULT_TRAILING_MODE) as 'stepped' | 'trend';
   const hasTrailingArg = argv.some(
     (a) => a === '--trailingStop' || a.startsWith('--trailingStop=')
   );
@@ -229,9 +246,10 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   );
 
   let trailingStop: TrailingStopConfig | undefined = {
-    initialStopPercent: 5,
-    stepPercent: 3,
-    raisePercent: 1.5,
+    initialStopPercent: DEFAULT_INITIAL_STOP_PERCENT,
+    stepPercent: DEFAULT_TRAIL_STEP_PERCENT,
+    raisePercent: DEFAULT_TRAIL_RAISE_PERCENT,
+    mode: trailingMode,
   };
   const trailingArg = parseArg('trailingStop', undefined, argv);
   if (
@@ -250,6 +268,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
         initialStopPercent: parts[0],
         stepPercent: parts[1],
         raisePercent: parts[2],
+        mode: trailingMode,
       };
     }
   }
@@ -609,6 +628,9 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     takeProfitPercent,
     stopLossPercent: trailingStop ? undefined : stopLossPercent,
     trailingStop,
+    maxOpenPositions,
+    maxTotalExposurePercent,
+    minBarsBetweenEntries,
     slippagePercent,
     stopCheckMode,
     collectTrace: true,

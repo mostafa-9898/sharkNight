@@ -16,6 +16,7 @@ type SortField =
   | 'exitTime'
   | 'exitPrice'
   | 'duration'
+  | 'concurrentOpenAtEntry'
   | 'fee'
   | 'mfe'
   | 'mae'
@@ -39,6 +40,7 @@ const COLUMNS: ColumnConfig[] = [
   { key: 'exitTime', label: 'Exit Time', align: 'left' },
   { key: 'exitPrice', label: 'Exit Price', align: 'right' },
   { key: 'duration', label: 'Duration', align: 'center' },
+  { key: 'concurrentOpenAtEntry', label: 'همزمان در ورود', align: 'center' },
   { key: 'fee', label: 'Fee', align: 'right' },
   { key: 'mfe', label: 'MFE (%)', align: 'right' },
   { key: 'mae', label: 'MAE (%)', align: 'right' },
@@ -117,6 +119,10 @@ export default function TradesTable({ trades }: TradesTableProps) {
         case 'duration':
           valA = a.duration ?? 0;
           valB = b.duration ?? 0;
+          break;
+        case 'concurrentOpenAtEntry':
+          valA = a.concurrentOpenAtEntry ?? 1;
+          valB = b.concurrentOpenAtEntry ?? 1;
           break;
         case 'fee':
           valA = a.fee;
@@ -471,6 +477,29 @@ export default function TradesTable({ trades }: TradesTableProps) {
                     }}
                   >
                     {formatDuration(trade.duration)}
+                  </td>
+
+                  {/* Concurrent Open At Entry */}
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      textAlign: 'center',
+                      color: sortField === 'concurrentOpenAtEntry' ? '#f0f6fc' : '#8b949e',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: (trade.concurrentOpenAtEntry ?? 1) > 1 ? 'rgba(56, 189, 248, 0.15)' : 'rgba(139, 148, 158, 0.1)',
+                        border: `1px solid ${(trade.concurrentOpenAtEntry ?? 1) > 1 ? 'rgba(56, 189, 248, 0.4)' : 'rgba(139, 148, 158, 0.2)'}`,
+                        color: (trade.concurrentOpenAtEntry ?? 1) > 1 ? '#38bdf8' : '#8b949e',
+                      }}
+                    >
+                      {trade.concurrentOpenAtEntry ?? 1}
+                    </span>
                   </td>
 
                   {/* Fee */}

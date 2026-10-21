@@ -131,7 +131,7 @@ export async function runPortfolioSimulation(): Promise<void> {
         positionSizePercent: 5,
         maxOpenPositions: 1,
         tradeFeePercent: 0.1,
-        tradeMode: 'long-only',
+        tradeMode: 'long-short',
         exitMode: 'trailingOnly',
         trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
         strategy: strat,

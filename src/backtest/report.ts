@@ -62,6 +62,9 @@ export interface BacktestReportConfig {
   takeProfitPercent?: number;
   stopLossPercent?: number;
   trailingStop?: TrailingStopConfig;
+  maxOpenPositions?: number;
+  maxTotalExposurePercent?: number;
+  minBarsBetweenEntries?: number;
   positionSizePercent?: number;
   riskPerTradePercent?: number;
   tradeFeePercent?: number;
@@ -679,6 +682,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   const kijunSlopeFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'kijunSlopeFilter').length;
 
   const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
+  const ignoredOppositeWhileOpen = ignoredSignals.filter((e) => e.reason === 'opposite_while_open').length;
   const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
   const ignoredCapPositions = ignoredSignals.filter((e) => e.reason === 'cap_positions').length;
   const ignoredCapExposure = ignoredSignals.filter((e) => e.reason === 'cap_exposure').length;
@@ -734,6 +738,18 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   };
   const longStats = computeSideStats(longTrades);
   const shortStats = computeSideStats(shortTrades);
+
+  const totalRealizedPnl = metrics.totalPnl;
+  const longDollarPnl = longTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const shortDollarPnl = shortTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  let longShareStr = '0.0%';
+  let shortShareStr = '0.0%';
+  if (Math.abs(totalRealizedPnl) > 1e-6) {
+    const lShare = roundTo((longDollarPnl / totalRealizedPnl) * 100, 1);
+    const sShare = roundTo((shortDollarPnl / totalRealizedPnl) * 100, 1);
+    longShareStr = `${lShare >= 0 ? '+' : ''}${lShare.toFixed(1)}%`;
+    shortShareStr = `${sShare >= 0 ? '+' : ''}${sShare.toFixed(1)}%`;
+  }
 
   // 2. By Exit Reason
   const exitReasons = [
@@ -1148,6 +1164,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| **Total Fees Paid** | **${formatCurrency(metrics.totalFees)}** (${metrics.totalFeesPercent.toFixed(2)}% of capital) | Fee Drag: ${metrics.feeDragPercent.toFixed(2)}% |`);
   lines.push(`| **Avg Holding Duration** | **${avgBarsHeld} bars** | Total bars in positions: ${totalBarsHeld.toLocaleString()} |`);
   lines.push(`| **Time in Market** | **${marketExposurePercent}%** | ${candlesInMarket.toLocaleString()} of ${candles.length.toLocaleString()} candles |`);
+  const maxConcurrent = multiPosDiag?.maxConcurrentPositions ?? (trades.length > 0 ? 1 : 0);
+  const avgConcurrent = multiPosDiag?.avgConcurrentPositions ?? (trades.length > 0 ? 1 : 0);
+  lines.push(`| **بیشینهٔ پوزیشن همزمان** | **${maxConcurrent}** | Concurrency: Max ${maxConcurrent}, Avg ${avgConcurrent} |`);
   lines.push(``);
 
   // Section C: Automated Warning Flags
@@ -1190,6 +1209,9 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     lines.push(`  - Rejected by Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
     lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
     lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
+    if (ignoredOppositeWhileOpen > 0) {
+      lines.push(`  - Opposite signal while position open (opposite_while_open): **${ignoredOppositeWhileOpen}**`);
+    }
     lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
     if (ignoredCapPositions > 0) {
       lines.push(`  - Multi-position cap reached (cap_positions): **${ignoredCapPositions}**`);
@@ -1206,7 +1228,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       lines.push(`- **Average Concurrent Positions:** ${multiPosDiag.avgConcurrentPositions}`);
       lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions}`);
       lines.push(`- **Time at Capacity (% of bars):** ${multiPosDiag.percentTimeAtCapacity}%`);
-      lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}`);
+      lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}, opposite_while_open=${multiPosDiag.rejectedSignals.opposite_while_open ?? 0}`);
     }
     lines.push(``);
 
@@ -1235,8 +1257,8 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     lines.push(``);
   }
 
-  lines.push(`| # | Side | Entry Time | Entry Price | Exit Time | Exit Price | Bars | PnL % | Exit Reason | MFE % | MAE % | Giveback % | RSI Age |`);
-  lines.push(`|---|---|---|---|---|---|---|---|---|---|---|---|---|`);
+  lines.push(`| # | Side | Entry Time | Entry Price | Exit Time | Exit Price | Bars | PnL % | Exit Reason | Concurrent (همزمان در ورود) | MFE % | MAE % | Giveback % | RSI Age |`);
+  lines.push(`|---|---|---|---|---|---|---|---|---|---|---|---|---|---|`);
 
   const renderTradeRow = (t: Trade, idx: number) => {
     const mfe = t.maxFavorablePercent ?? 0;
@@ -1244,7 +1266,8 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     const giveback = roundTo(Math.max(0, mfe - Math.max(0, pnl)), 2);
     const rsiAge = t.entryDiagnostics?.rsiHitAge ?? '-';
     const barsHeld = trajectories[idx - 1]?.barsHeld ?? (t.duration ?? 0);
-    return `| ${idx} | \`${t.side}\` | ${formatDate(t.entryTime)} | $${t.entryPrice.toFixed(2)} | ${formatDate(t.exitTime)} | $${t.exitPrice.toFixed(2)} | ${barsHeld} | **${formatPercent(t.pnlPercent)}** | \`${t.exitReason}\` | +${mfe.toFixed(2)}% | -${(t.maxAdversePercent ?? 0).toFixed(2)}% | ${giveback.toFixed(2)}% | ${rsiAge} |`;
+    const concurrent = t.concurrentOpenAtEntry ?? 1;
+    return `| ${idx} | \`${t.side}\` | ${formatDate(t.entryTime)} | $${t.entryPrice.toFixed(2)} | ${formatDate(t.exitTime)} | $${t.exitPrice.toFixed(2)} | ${barsHeld} | **${formatPercent(t.pnlPercent)}** | \`${t.exitReason}\` | ${concurrent} | +${mfe.toFixed(2)}% | -${(t.maxAdversePercent ?? 0).toFixed(2)}% | ${giveback.toFixed(2)}% | ${rsiAge} |`;
   };
 
   if (!isTruncated) {
@@ -1254,7 +1277,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     for (let i = 0; i < 30; i++) {
       lines.push(renderTradeRow(trades[i], i + 1));
     }
-    lines.push(`| ... | ... | *(middle trades omitted for brevity; see backtest-latest.json)* | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |`);
+    lines.push(`| ... | ... | *(middle trades omitted for brevity; see backtest-latest.json)* | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |`);
     // Last 30
     for (let i = trades.length - 30; i < trades.length; i++) {
       lines.push(renderTradeRow(trades[i], i + 1));
@@ -1412,11 +1435,11 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   // Section J: Performance Breakdowns
   lines.push(`## Section J: Performance Breakdowns`);
 
-  lines.push(`### 1. By Side (Long vs Short)`);
-  lines.push(`| Side | Trades | Win Rate | Total Return % | Avg Return % | Profit Factor | Avg Duration |`);
-  lines.push(`|---|---|---|---|---|---|---|`);
-  lines.push(`| **Long** | ${longStats.count} | ${longStats.winRate} | ${formatPercent(longStats.totalPnl)} | ${longStats.avgPnl} | ${longStats.pf} | ${longStats.avgBars} |`);
-  lines.push(`| **Short** | ${shortStats.count} | ${shortStats.winRate} | ${formatPercent(shortStats.totalPnl)} | ${shortStats.avgPnl} | ${shortStats.pf} | ${shortStats.avgBars} |`);
+  lines.push(`### 1. By Side (Long vs Short) / تفکیک جهت`);
+  lines.push(`| جهت (Direction) | تعداد معامله (Trades) | نرخ برد (Win Rate) | میانگین pnl٪ (Avg PnL %) | مجموع pnl٪ (Total PnL %) | سهم از بازده کل (Share of Total Return) | Profit Factor | Avg Duration |`);
+  lines.push(`|---|---|---|---|---|---|---|---|`);
+  lines.push(`| **Long** | ${longStats.count} | ${longStats.winRate} | ${longStats.avgPnl} | ${formatPercent(longStats.totalPnl)} | ${longShareStr} | ${longStats.pf} | ${longStats.avgBars} |`);
+  lines.push(`| **Short** | ${shortStats.count} | ${shortStats.winRate} | ${shortStats.avgPnl} | ${formatPercent(shortStats.totalPnl)} | ${shortShareStr} | ${shortStats.pf} | ${shortStats.avgBars} |`);
   lines.push(``);
 
   lines.push(`### 2. By Exit Reason`);
@@ -1548,6 +1571,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
           ignoredSignals: {
             total: ignoredSignals.length,
             alreadyInPosition: ignoredAlreadyInPos,
+            opposite_while_open: ignoredOppositeWhileOpen,
             longOnlyShortIgnored: ignoredLongOnlyShort,
             cap_positions: ignoredCapPositions,
             cap_exposure: ignoredCapExposure,
@@ -2046,6 +2070,7 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     const kijunSlopeFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'kijunSlopeFilter').length;
 
     const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
+    const ignoredOppositeWhileOpen = ignoredSignals.filter((e) => e.reason === 'opposite_while_open').length;
     const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
     const ignoredCapPositions = ignoredSignals.filter((e) => e.reason === 'cap_positions').length;
     const ignoredCapExposure = ignoredSignals.filter((e) => e.reason === 'cap_exposure').length;
@@ -2069,6 +2094,10 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     lines.push(`  - Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
     lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
     lines.push(`  - Position Already Open in Same Direction: **${ignoredAlreadyInPos}**`);
+    const totalOppositeWhileOpen = ignoredOppositeWhileOpen || (multiPosDiag?.rejectedSignals?.opposite_while_open ?? 0);
+    if (totalOppositeWhileOpen > 0) {
+      lines.push(`  - Opposite Signal While Position Open (opposite_while_open): **${totalOppositeWhileOpen}**`);
+    }
     lines.push(`  - Long-Only Filter Ignored Short: **${ignoredLongOnlyShort}**`);
     if (ignoredCapPositions > 0) {
       lines.push(`  - Multi-position Cap Reached: **${ignoredCapPositions}**`);
