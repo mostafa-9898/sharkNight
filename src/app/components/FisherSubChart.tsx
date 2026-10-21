@@ -362,7 +362,7 @@ export default function FisherSubChart({
                   borderRadius: '4px',
                   letterSpacing: '0.02em',
                 }}
-                title="Formula follows Ehlers 10-window RSI(14). Template created at docs/reference/fisher_rsi_reference.md"
+                title="Reference Pine Script available at docs/reference/fisher-rsi-pinescript.pine.md (golden benchmark dataset pending)"
               >
                 UNVERIFIED: not compared to reference
               </span>

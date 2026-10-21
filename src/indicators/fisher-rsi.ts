@@ -2,12 +2,28 @@ import { calculateRSI } from './rsi';
 
 export interface FisherRsiOptions {
   rsiPeriod?: number;
+  rsiSmoothing?: number;
   window?: number;
 }
 
 export interface FisherRsiResult {
   fisher: number[];
   signal: number[];
+  scaled: number[];
+  signalScaled: number[];
+  rsiScore: number[];
+}
+
+export interface FisherCrossEvent {
+  anyCrossUp: boolean;
+  anyCrossDown: boolean;
+  zoneCrossUp: boolean;
+  zoneCrossDown: boolean;
+}
+
+export interface FisherCrossOptions {
+  oversoldLevel?: number;
+  overboughtLevel?: number;
 }
 
 export interface IftRsiOptions {
@@ -15,73 +31,168 @@ export interface IftRsiOptions {
   wmaPeriod?: number;
 }
 
+function computeSmaOnArray(values: readonly number[], period: number): number[] {
+  if (period <= 1) return [...values];
+  const length = values.length;
+  const result: number[] = new Array<number>(length).fill(NaN);
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < length; i++) {
+    const val = values[i];
+    if (Number.isNaN(val)) {
+      sum = 0;
+      count = 0;
+      continue;
+    }
+    sum += val;
+    count++;
+    if (count > period) {
+      sum -= values[i - period];
+      count--;
+    }
+    if (count === period) {
+      result[i] = sum / period;
+    }
+  }
+  return result;
+}
+
 /**
- * Calculates Fisher Transform of RSI.
+ * Calculates Fisher Transform of RSI matching Pine Script reference.
  *
- * r[i] = RSI[i]
- * hh/ll = max/min of r over the last `window` bars (including current)
- * norm = hh === ll ? 0 : ((r - ll) / (hh - ll) - 0.5)
- * x[i] = clamp(0.66 * norm + 0.67 * x[i-1], -0.999, 0.999) with x[-1] = 0
- * fisher[i] = 0.5 * ln((1 + x[i]) / (1 - x[i])) + 0.5 * fisher[i-1] with fisher[-1] = 0
- * signal[i] = fisher[i-1]
+ * rsi_score = ta.sma(ta.rsi(close, rsi_length), rsi_smoothing)
+ * fisher_highest = ta.highest(rsi_score, fisher_length)
+ * fisher_lowest = ta.lowest(rsi_score, fisher_length)
+ * fisher_position = range != 0 ? (rsi_score - lowest) / range - 0.5 : 0
+ * fisher_value1 = clamp(0.33 * 2 * position + 0.67 * nz(fisher_value1[1]), -0.999, 0.999)
+ * fisher_transform = 0.5 * ln((1 + value1) / (1 - value1)) + 0.5 * nz(transform[1])
+ * fisher_signal = fisher_transform[1]
+ * scaled = 50 + fisher_transform * 10
+ * signalScaled = 50 + fisher_signal * 10
  */
 export function calculateFisherRsi(
   closes: readonly number[],
   options?: FisherRsiOptions
 ): FisherRsiResult {
   const rsiPeriod = options?.rsiPeriod ?? 14;
+  const rsiSmoothing = options?.rsiSmoothing ?? 1;
   const window = options?.window ?? 10;
 
   const length = closes.length;
   const fisher: number[] = new Array<number>(length).fill(NaN);
   const signal: number[] = new Array<number>(length).fill(NaN);
+  const scaled: number[] = new Array<number>(length).fill(NaN);
+  const signalScaled: number[] = new Array<number>(length).fill(NaN);
+  const rsiScore: number[] = new Array<number>(length).fill(NaN);
 
   if (length === 0) {
-    return { fisher, signal };
+    return { fisher, signal, scaled, signalScaled, rsiScore };
   }
 
-  const rsi = calculateRSI(closes, rsiPeriod);
-  let prevX = 0;
-  let prevFisher = 0;
-  const minValidIndex = rsiPeriod + window - 1;
+  const rawRsi = calculateRSI(closes, rsiPeriod);
+  const smoothedRsi = rsiSmoothing > 1 ? computeSmaOnArray(rawRsi, rsiSmoothing) : rawRsi;
 
   for (let i = 0; i < length; i++) {
-    if (i < minValidIndex || Number.isNaN(rsi[i])) {
+    rsiScore[i] = smoothedRsi[i];
+  }
+
+  let prevX = 0;
+  let prevFisher = 0;
+  let hasValidPredecessor = false;
+
+  for (let i = 0; i < length; i++) {
+    const curRsi = smoothedRsi[i];
+    if (Number.isNaN(curRsi)) {
       continue;
     }
 
     let hh = -Infinity;
     let ll = Infinity;
-    let windowHasNaN = false;
-
-    for (let w = 0; w < window; w++) {
-      const val = rsi[i - window + 1 + w];
-      if (Number.isNaN(val)) {
-        windowHasNaN = true;
-        break;
-      }
-      if (val > hh) hh = val;
-      if (val < ll) ll = val;
+    for (let k = 0; k < window; k++) {
+      const idx = i - k;
+      if (idx < 0 || Number.isNaN(smoothedRsi[idx])) break;
+      const v = smoothedRsi[idx];
+      if (v > hh) hh = v;
+      if (v < ll) ll = v;
     }
 
-    if (windowHasNaN) {
+    const range = hh - ll;
+    const position = range !== 0 ? (curRsi - ll) / range - 0.5 : 0.0;
+    const val1Raw = 0.33 * 2 * position + 0.67 * prevX;
+    const val1 = Math.max(-0.999, Math.min(0.999, val1Raw));
+    const transform = 0.5 * Math.log((1 + val1) / (1 - val1)) + 0.5 * prevFisher;
+
+    fisher[i] = transform;
+    signal[i] = hasValidPredecessor ? prevFisher : NaN;
+    scaled[i] = 50 + transform * 10;
+    signalScaled[i] = hasValidPredecessor ? 50 + prevFisher * 10 : NaN;
+
+    prevX = val1;
+    prevFisher = transform;
+    hasValidPredecessor = true;
+  }
+
+  return { fisher, signal, scaled, signalScaled, rsiScore };
+}
+
+/**
+ * Computes Fisher crossover events according to Pine Script reference.
+ */
+export function fisherCrossEvents(
+  fisherResult: FisherRsiResult,
+  options?: FisherCrossOptions
+): FisherCrossEvent[] {
+  const oversoldLevel = options?.oversoldLevel ?? 30;
+  const overboughtLevel = options?.overboughtLevel ?? 70;
+
+  const length = fisherResult.fisher.length;
+  const events: FisherCrossEvent[] = new Array<FisherCrossEvent>(length);
+
+  for (let i = 0; i < length; i++) {
+    if (
+      i === 0 ||
+      Number.isNaN(fisherResult.fisher[i]) ||
+      Number.isNaN(fisherResult.signal[i]) ||
+      Number.isNaN(fisherResult.fisher[i - 1]) ||
+      Number.isNaN(fisherResult.signal[i - 1])
+    ) {
+      events[i] = {
+        anyCrossUp: false,
+        anyCrossDown: false,
+        zoneCrossUp: false,
+        zoneCrossDown: false,
+      };
       continue;
     }
 
-    const r = rsi[i];
-    const norm = hh === ll ? 0 : (r - ll) / (hh - ll) - 0.5;
-    const rawX = 0.66 * norm + 0.67 * prevX;
-    const x = Math.max(-0.999, Math.min(0.999, rawX));
-    const f = 0.5 * Math.log((1 + x) / (1 - x)) + 0.5 * prevFisher;
+    const fCurr = fisherResult.fisher[i];
+    const sCurr = fisherResult.signal[i];
+    const fPrev = fisherResult.fisher[i - 1];
+    const sPrev = fisherResult.signal[i - 1];
 
-    fisher[i] = f;
-    signal[i] = Number.isNaN(fisher[i - 1]) ? NaN : fisher[i - 1];
+    const anyCrossUp = fCurr > sCurr && fPrev <= sPrev;
+    const anyCrossDown = fCurr < sCurr && fPrev >= sPrev;
 
-    prevX = x;
-    prevFisher = f;
+    const rScore = fisherResult.rsiScore[i];
+    const sVal = fisherResult.scaled[i];
+
+    const bullZone =
+      (Number.isFinite(rScore) && rScore <= oversoldLevel) ||
+      (Number.isFinite(sVal) && sVal <= oversoldLevel);
+
+    const bearZone =
+      (Number.isFinite(rScore) && rScore >= overboughtLevel) ||
+      (Number.isFinite(sVal) && sVal >= overboughtLevel);
+
+    events[i] = {
+      anyCrossUp,
+      anyCrossDown,
+      zoneCrossUp: anyCrossUp && bullZone,
+      zoneCrossDown: anyCrossDown && bearZone,
+    };
   }
 
-  return { fisher, signal };
+  return events;
 }
 
 /**
@@ -142,4 +253,3 @@ export function calculateIftRsi(
 
   return ift;
 }
-
