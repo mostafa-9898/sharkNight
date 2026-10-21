@@ -1123,7 +1123,7 @@ describe('BacktestEngine', () => {
       expect(res.trace?.ignoredSignals.some((s) => s.reason === 'cap_exposure')).toBe(true);
     });
 
-    it('(5) opposite direction signal ignored when positions are open', () => {
+    it('(5) opposite direction signal ignored when allowOppositePositions is false', () => {
       const candles: Candle[] = [
         { timestamp: 1000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
         { timestamp: 2000, open: 100, high: 101, low: 99, close: 100, volume: 100 },
@@ -1143,12 +1143,28 @@ describe('BacktestEngine', () => {
         tradeMode: 'long-short',
         exitMode: 'trailingOnly',
         trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        allowOppositePositions: false,
         collectTrace: true,
       });
 
       expect(res.trades.length).toBe(1);
       expect(res.trades[0].side).toBe('long');
       expect(res.trace?.ignoredSignals.some((s) => s.signal.action === 'SELL')).toBe(true);
+
+      // And with default allowOppositePositions (true), both are allowed concurrently
+      const resDual = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 3,
+        tradeMode: 'long-short',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        collectTrace: true,
+      });
+      expect(resDual.trades.length).toBe(2);
+      expect(resDual.multiPositionDiagnostics?.dualDirectionTimePercent).toBeGreaterThan(0);
     });
 
     it('(6) maxOpenPositions=1 matches exact previous snapshot numbers (BTC 4h Candidate D at 10% size)', () => {

@@ -305,8 +305,8 @@ export async function runValidation() {
       const eqEnd = res.equity[res.equity.length - 1] ?? 10000;
       const h2Return = eqMid > 0 ? roundTo(((eqEnd - eqMid) / eqMid) * 100, 2) : 0;
 
-      const avgConcurrent = roundTo(res.multiPositionDiagnostics?.avgConcurrentPositions ?? 1, 2);
-      const maxConcurrent = res.multiPositionDiagnostics?.maxConcurrentPositions ?? 1;
+      const avgConcurrent = roundTo(res.multiPositionDiagnostics?.avgConcurrentPositions ?? 0, 2);
+      const maxConcurrent = res.multiPositionDiagnostics?.maxConcurrentPositions ?? 0;
       const worstDay = calcWorstDay(candles, res.equity);
 
       // Direction breakdown

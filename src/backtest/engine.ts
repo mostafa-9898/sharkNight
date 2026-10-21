@@ -967,13 +967,22 @@ export class BacktestEngine {
     const maxConcurrentPositions = trades.length > 0 ? 1 : 0;
     const percentTimeAtCapacity = candles.length > 0 ? roundTo((capacityCandles / candles.length) * 100, 2) : 0;
 
+    const longTradeCount = trades.filter((t) => t.side === 'long').length;
+    const shortTradeCount = trades.filter((t) => t.side === 'short').length;
+
     const multiPositionDiagnostics: MultiPositionDiagnostics = {
       avgConcurrentPositions,
       maxConcurrentPositions,
+      maxConcurrentTotal: maxConcurrentPositions,
+      maxConcurrentLong: longTradeCount > 0 ? 1 : 0,
+      maxConcurrentShort: shortTradeCount > 0 ? 1 : 0,
+      dualDirectionTimePercent: 0,
       percentTimeAtCapacity,
       rejectedSignals: {
-        cap_positions: trace.ignoredSignals.filter((e) => e.reason === 'alreadyInPosition' || e.reason === 'cap_positions').length,
-        cap_exposure: trace.ignoredSignals.filter((e) => e.reason === 'cap_exposure').length,
+        cap_positions: trace.ignoredSignals.filter((e) => e.reason === 'alreadyInPosition' || e.reason === 'cap_positions' || e.reason === 'max_positions').length,
+        cap_exposure: trace.ignoredSignals.filter((e) => e.reason === 'cap_exposure' || e.reason === 'max_exposure').length,
+        max_positions: trace.ignoredSignals.filter((e) => e.reason === 'alreadyInPosition' || e.reason === 'cap_positions' || e.reason === 'max_positions').length,
+        max_exposure: trace.ignoredSignals.filter((e) => e.reason === 'cap_exposure' || e.reason === 'max_exposure').length,
         min_bars: trace.ignoredSignals.filter((e) => e.reason === 'min_bars').length,
         opposite_while_open: trace.ignoredSignals.filter((e) => e.reason === 'opposite_while_open').length,
       },
@@ -1028,6 +1037,7 @@ export class BacktestEngine {
       maxOpenPositions = 1,
       maxTotalExposurePercent = 100,
       minBarsBetweenEntries = 0,
+      allowOppositePositions = true,
       slippagePercent = 0,
       stopCheckMode = 'intrabar',
       collectTrace = false,
@@ -1077,6 +1087,10 @@ export class BacktestEngine {
     let lastEntryIndex = -Infinity;
     let capacityCandles = 0;
     const openCountSamples: number[] = [];
+    let maxConcurrentLong = 0;
+    let maxConcurrentShort = 0;
+    let maxConcurrentTotal = 0;
+    let dualDirectionCandles = 0;
 
     let rejectedCapPositions = 0;
     let rejectedCapExposure = 0;
@@ -1619,35 +1633,44 @@ export class BacktestEngine {
           canOpenDirection = 'short';
         }
       } else {
-        // long-short: all open positions are in the same direction;
-        // if an opposite-direction signal arrives while positions are open, ignore it.
-        if (signal.action === 'BUY') {
-          if (hasShort) {
-            rejectedOppositeWhileOpen++;
-            if (collectTrace) {
-              trace.ignoredSignals.push({
-                index: i,
-                timestamp: candle.timestamp,
-                signal,
-                reason: 'opposite_while_open',
-              });
-            }
-          } else {
+        // long-short:
+        if (allowOppositePositions) {
+          // Both long and short can be open simultaneously; new signals never close existing positions.
+          if (signal.action === 'BUY') {
             canOpenDirection = 'long';
-          }
-        } else if (signal.action === 'SELL') {
-          if (hasLong) {
-            rejectedOppositeWhileOpen++;
-            if (collectTrace) {
-              trace.ignoredSignals.push({
-                index: i,
-                timestamp: candle.timestamp,
-                signal,
-                reason: 'opposite_while_open',
-              });
-            }
-          } else {
+          } else if (signal.action === 'SELL') {
             canOpenDirection = 'short';
+          }
+        } else {
+          // allowOppositePositions === false: legacy behavior for comparison
+          if (signal.action === 'BUY') {
+            if (hasShort) {
+              rejectedOppositeWhileOpen++;
+              if (collectTrace) {
+                trace.ignoredSignals.push({
+                  index: i,
+                  timestamp: candle.timestamp,
+                  signal,
+                  reason: 'opposite_while_open',
+                });
+              }
+            } else {
+              canOpenDirection = 'long';
+            }
+          } else if (signal.action === 'SELL') {
+            if (hasLong) {
+              rejectedOppositeWhileOpen++;
+              if (collectTrace) {
+                trace.ignoredSignals.push({
+                  index: i,
+                  timestamp: candle.timestamp,
+                  signal,
+                  reason: 'opposite_while_open',
+                });
+              }
+            } else {
+              canOpenDirection = 'short';
+            }
           }
         }
       }
@@ -1776,10 +1799,18 @@ export class BacktestEngine {
       }
 
       // 4. Record candle metrics
+      const countLong = openPositions.filter((p) => p.side === 'long').length;
+      const countShort = openPositions.filter((p) => p.side === 'short').length;
       const openCount = openPositions.length;
       openCountSamples.push(openCount);
       if (openCount === maxOpenPositions) {
         capacityCandles++;
+      }
+      if (countLong > maxConcurrentLong) maxConcurrentLong = countLong;
+      if (countShort > maxConcurrentShort) maxConcurrentShort = countShort;
+      if (openCount > maxConcurrentTotal) maxConcurrentTotal = openCount;
+      if (countLong > 0 && countShort > 0) {
+        dualDirectionCandles++;
       }
       equityCurve.push(computeEquity(candle.close));
     }
@@ -1853,13 +1884,9 @@ export class BacktestEngine {
     const metrics = calculateMetrics(completedTrades, initialBalance, equityCurve);
 
     let sumOpenCount = 0;
-    let maxConcurrentPositions = 0;
     for (let k = 0; k < openCountSamples.length; k++) {
       const cnt = openCountSamples[k];
       sumOpenCount += cnt;
-      if (cnt > maxConcurrentPositions) {
-        maxConcurrentPositions = cnt;
-      }
     }
     const avgConcurrentPositions = openCountSamples.length > 0
       ? roundTo(sumOpenCount / openCountSamples.length, 2)
@@ -1867,14 +1894,23 @@ export class BacktestEngine {
     const percentTimeAtCapacity = openCountSamples.length > 0
       ? roundTo((capacityCandles / openCountSamples.length) * 100, 2)
       : 0;
+    const dualDirectionTimePercent = openCountSamples.length > 0
+      ? roundTo((dualDirectionCandles / openCountSamples.length) * 100, 2)
+      : 0;
 
     const multiPositionDiagnostics: MultiPositionDiagnostics = {
       avgConcurrentPositions,
-      maxConcurrentPositions,
+      maxConcurrentPositions: maxConcurrentTotal,
+      maxConcurrentTotal,
+      maxConcurrentLong,
+      maxConcurrentShort,
+      dualDirectionTimePercent,
       percentTimeAtCapacity,
       rejectedSignals: {
         cap_positions: rejectedCapPositions,
         cap_exposure: rejectedCapExposure,
+        max_positions: rejectedCapPositions,
+        max_exposure: rejectedCapExposure,
         min_bars: rejectedMinBars,
         opposite_while_open: rejectedOppositeWhileOpen,
       },
@@ -1895,6 +1931,7 @@ export class BacktestEngine {
       maxOpenPositions,
       maxTotalExposurePercent,
       minBarsBetweenEntries,
+      allowOppositePositions,
       slippagePercent,
       stopCheckMode,
       collectTrace: config.collectTrace,

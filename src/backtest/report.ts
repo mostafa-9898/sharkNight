@@ -1227,7 +1227,8 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
       lines.push(``);
       lines.push(`### Multi-Position Concurrency`);
       lines.push(`- **Average Concurrent Positions:** ${multiPosDiag.avgConcurrentPositions}`);
-      lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions}`);
+      lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions} (Long: ${multiPosDiag.maxConcurrentLong}, Short: ${multiPosDiag.maxConcurrentShort})`);
+      lines.push(`- **Dual-Direction Concurrency Time (% of bars):** ${multiPosDiag.dualDirectionTimePercent}%`);
       lines.push(`- **Time at Capacity (% of bars):** ${multiPosDiag.percentTimeAtCapacity}%`);
       lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}, opposite_while_open=${multiPosDiag.rejectedSignals.opposite_while_open ?? 0}`);
     }
@@ -2110,7 +2111,7 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
       lines.push(`  - Min Bars Between Entries Not Met: **${ignoredMinBars}**`);
     }
     if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
-      lines.push(`  - Avg / Max Concurrency: **${multiPosDiag.avgConcurrentPositions} / ${multiPosDiag.maxConcurrentPositions}** (Time at cap: **${multiPosDiag.percentTimeAtCapacity}%**)`);
+      lines.push(`  - Avg / Max Concurrency: **${multiPosDiag.avgConcurrentPositions} / ${multiPosDiag.maxConcurrentPositions}** (Long: **${multiPosDiag.maxConcurrentLong}**, Short: **${multiPosDiag.maxConcurrentShort}**, Dual-Direction Time: **${multiPosDiag.dualDirectionTimePercent}%**, Time at cap: **${multiPosDiag.percentTimeAtCapacity}%**)`);
     }
     lines.push(``);
   }

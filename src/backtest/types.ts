@@ -65,6 +65,8 @@ export interface IgnoredSignalTraceEvent {
     | 'shortOnlyLongIgnored'
     | 'cap_positions'
     | 'cap_exposure'
+    | 'max_positions'
+    | 'max_exposure'
     | 'min_bars';
 }
 
@@ -89,6 +91,7 @@ export interface BacktestConfig {
   maxOpenPositions?: number;       // DEFAULT: 1
   maxTotalExposurePercent?: number;// DEFAULT: 100
   minBarsBetweenEntries?: number;  // DEFAULT: 0
+  allowOppositePositions?: boolean;// DEFAULT: true (allow concurrent long and short positions)
   slippagePercent?: number;       // default 0, applied adversely on stop/TP exits
   stopCheckMode?: StopCheckMode;  // default 'intrabar'
   collectTrace?: boolean;         // optional passive trace collector
@@ -210,10 +213,16 @@ export interface MfeMaeAnalysis {
 export interface MultiPositionDiagnostics {
   avgConcurrentPositions: number;
   maxConcurrentPositions: number;
+  maxConcurrentTotal: number;
+  maxConcurrentLong: number;
+  maxConcurrentShort: number;
+  dualDirectionTimePercent: number;
   percentTimeAtCapacity: number;
   rejectedSignals: {
     cap_positions: number;
     cap_exposure: number;
+    max_positions: number;
+    max_exposure: number;
     min_bars: number;
     opposite_while_open?: number;
   };

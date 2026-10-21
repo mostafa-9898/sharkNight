@@ -22,6 +22,7 @@ import {
   DEFAULT_MAX_OPEN_POSITIONS,
   DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
   DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+  DEFAULT_ALLOW_OPPOSITE_POSITIONS,
   DEFAULT_TRAILING_MODE,
   DEFAULT_INITIAL_STOP_PERCENT,
   DEFAULT_TRAIL_STEP_PERCENT,
@@ -231,6 +232,11 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const minBarsBetweenEntries =
     parseNumArg('min-bars-between-entries', undefined, argv) ??
     parseNumArg('minBarsBetweenEntries', DEFAULT_MIN_BARS_BETWEEN_ENTRIES, argv)!;
+  const allowOppositeArg =
+    parseArg('allow-opposite-positions', undefined, argv) ??
+    parseArg('allowOppositePositions', undefined, argv);
+  const allowOppositePositions =
+    allowOppositeArg !== undefined ? allowOppositeArg !== 'false' : DEFAULT_ALLOW_OPPOSITE_POSITIONS;
 
   const fisherMode = (parseArg('fisher-mode', undefined, argv) ??
     parseArg('fisherMode', DEFAULT_FISHER_MODE, argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
@@ -324,6 +330,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     maxOpenPositions,
     maxTotalExposurePercent,
     minBarsBetweenEntries,
+    allowOppositePositions,
     slippagePercent,
     stopCheckMode,
     fisherMode,
@@ -533,6 +540,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     maxOpenPositions,
     maxTotalExposurePercent,
     minBarsBetweenEntries,
+    allowOppositePositions,
     slippagePercent,
     stopCheckMode,
     fisherMode,
@@ -637,6 +645,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     maxOpenPositions,
     maxTotalExposurePercent,
     minBarsBetweenEntries,
+    allowOppositePositions,
     slippagePercent,
     stopCheckMode,
     collectTrace: true,

@@ -1,14 +1,14 @@
 # Trade Diagnostics Report — Latest Backtest Run
 
-> **Canonical Diagnostic Log** | Generated: `2026-10-21T11:51:15.528Z` | Git: `8b0fdc0` (dirty) | Config Hash: `8add6bec`
+> **Canonical Diagnostic Log** | Generated: `2026-10-21T12:30:44.634Z` | Git: `4c2613d` (dirty) | Config Hash: `8add6bec`
 
 ---
 
 ## Section 1: Run Identity & Reproducibility
 | Parameter | Value | Specification Details |
 |---|---|---|
-| **Run Timestamp (UTC)** | `2026-10-21T11:51:15.528Z` | Deterministic backtest execution |
-| **Git Revision** | `8b0fdc0` | Working tree: `DIRTY` |
+| **Run Timestamp (UTC)** | `2026-10-21T12:30:44.634Z` | Deterministic backtest execution |
+| **Git Revision** | `4c2613d` | Working tree: `DIRTY` |
 | **Strategy** | **MultiTimeframe (strict, cross, fisher=confirm/fisher) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
 | **Symbol & Timeframe** | `BTCUSDT` / `4h` | Higher-timeframe context |
 | **Evaluation Type** | **Standard Evaluation Window** | Out-of-sample / In-sample protocol |

@@ -17,6 +17,7 @@ import {
   DEFAULT_MAX_OPEN_POSITIONS,
   DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
   DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+  DEFAULT_ALLOW_OPPOSITE_POSITIONS,
   DEFAULT_TRAILING_MODE,
   DEFAULT_INITIAL_STOP_PERCENT,
   DEFAULT_TRAIL_STEP_PERCENT,
@@ -235,6 +236,10 @@ export async function executeBacktestCore(
   const maxOpenPositions = Math.max(1, Math.floor(Number(body.maxOpenPositions ?? DEFAULT_MAX_OPEN_POSITIONS)));
   const maxTotalExposurePercent = Math.min(100, Math.max(1, Number(body.maxTotalExposurePercent ?? DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT)));
   const minBarsBetweenEntries = Math.max(0, Math.floor(Number(body.minBarsBetweenEntries ?? DEFAULT_MIN_BARS_BETWEEN_ENTRIES)));
+  const allowOppositePositions =
+    body.allowOppositePositions !== undefined && body.allowOppositePositions !== null
+      ? Boolean(body.allowOppositePositions)
+      : DEFAULT_ALLOW_OPPOSITE_POSITIONS;
 
   const riskPerTradePercent =
     body.riskPerTradePercent !== undefined &&
@@ -384,6 +389,7 @@ export async function executeBacktestCore(
     maxOpenPositions,
     maxTotalExposurePercent,
     minBarsBetweenEntries,
+    allowOppositePositions,
     slippagePercent,
     stopCheckMode,
     collectTrace: true,
