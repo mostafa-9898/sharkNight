@@ -173,10 +173,10 @@ export default function DashboardPage() {
   const [kijunSlopeFilter, setKijunSlopeFilter] = useState(true);
   const [structureFilter, setStructureFilter] = useState(true);
 
-  // Trailing Stop & Execution Mode (Calibrated for trend riding: 3% initial stop, 3% trigger, 1.5% trail)
+  // Trailing Stop & Execution Mode (Calibrated for trend riding: 5% initial stop, 3% trigger, 1.5% trail)
   const [trailingStopEnabled, setTrailingStopEnabled] = useState(true);
   const [trailingMode, setTrailingMode] = useState<'trend' | 'stepped'>('trend');
-  const [initialStopPercent, setInitialStopPercent] = useState(3.0);
+  const [initialStopPercent, setInitialStopPercent] = useState(5.0);
   const [trailStepPercent, setTrailStepPercent] = useState(3.0);
   const [trailRaisePercent, setTrailRaisePercent] = useState(1.5);
   const [lookbackBars, setLookbackBars] = useState(3);

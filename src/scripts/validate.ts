@@ -131,12 +131,12 @@ const CANDIDATES: CandidateConfig[] = [
   },
   {
     id: 'B',
-    name: 'Trailing 3/3/1.5 (Dual Filter)',
+    name: 'Trailing 5/3/1.5 (initial/step/raise) (Dual Filter)',
     kijunSlopeFilter: true,
     structureFilter: true,
     exitMode: 'trailingOnly',
     tradeMode: 'long-short',
-    trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
   },
   {
     id: 'C',
@@ -149,13 +149,13 @@ const CANDIDATES: CandidateConfig[] = [
   },
   {
     id: 'D',
-    name: 'Long-Only Trailing 3/3/1.5 (Dual Filter, Size 5%)',
+    name: 'Long-Only Trailing 5/3/1.5 (initial/step/raise) (Dual Filter, Size 5%)',
     kijunSlopeFilter: true,
     structureFilter: true,
     exitMode: 'trailingOnly',
     tradeMode: 'long-only',
     positionSizePercent: 5,
-    trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
   },
 ];
 
@@ -797,7 +797,7 @@ async function main(): Promise<void> {
           tradeFeePercent: baseFee,
           tradeMode: 'long-only',
           exitMode: 'trailingOnly',
-          trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+          trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
           strategy: strat,
           candles: activeCandles,
         });
@@ -872,7 +872,7 @@ async function main(): Promise<void> {
         tradeFeePercent: baseFee,
         tradeMode: 'long-only' as const,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
       };
 
       const res = engine.run({

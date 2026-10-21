@@ -306,7 +306,7 @@ export async function runMultiValidation(): Promise<void> {
         minBarsBetweenEntries: cfg.minBarsBetweenEntries,
         tradeMode: 'long-only' as const,
         exitMode: 'trailingOnly' as const,
-        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
       };
 
       const fullRes = engine.run({
@@ -414,7 +414,7 @@ export async function runMultiValidation(): Promise<void> {
       tradeFeePercent: 0.1,
       tradeMode: 'long-only' as const,
       exitMode: 'trailingOnly' as const,
-      trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+      trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
     };
 
     const multiplier = calibrateMultiplier(engine, activeCandles, eligibleLongOnly, targetTrades, simConfig);

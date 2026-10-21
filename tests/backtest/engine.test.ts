@@ -1197,13 +1197,265 @@ describe('BacktestEngine', () => {
         positionSizePercent: 10,
         tradeMode: 'long-only',
         exitMode: 'trailingOnly',
-        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
         maxOpenPositions: 1,
       });
 
       expect(res.trades.length).toBe(33);
       expect(Math.round(res.metrics.totalPnlPercent * 10) / 10).toBe(32.1);
       expect(Math.round(res.metrics.maxDrawdownPercent * 10) / 10).toBe(15.0);
+    });
+  });
+
+  describe('Step 1: Real MultiTimeframeStrategy Initial Stop Tests & Regression Verification', () => {
+    const dataDir = path.resolve(__dirname, '../../docs/review/data');
+    const c4hPath = path.join(dataDir, 'BTCUSDT_4h.csv.gz');
+    const c1hPath = path.join(dataDir, 'BTCUSDT_1h.csv.gz');
+
+    const loadCandles = (filePath: string): Candle[] => {
+      const buf = fs.readFileSync(filePath);
+      const uncompressed = zlib.gunzipSync(buf).toString('utf-8');
+      const lines = uncompressed.trim().split('\n').slice(1);
+      return lines
+        .map((l) => {
+          const [timestamp, open, high, low, close, volume] = l.split(',');
+          return {
+            timestamp: Number(timestamp),
+            open: Number(open),
+            high: Number(high),
+            low: Number(low),
+            close: Number(close),
+            volume: Number(volume),
+          };
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+    };
+
+    let c4h: Candle[];
+    let c1h: Candle[];
+
+    beforeAll(() => {
+      c4h = loadCandles(c4hPath);
+      c1h = loadCandles(c1hPath);
+    });
+
+    it('(1) with trailingStop.initialStopPercent=3 and useTdrStop off: initialStopPercent == 3 and first event reason == initialStop', () => {
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: false,
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(res.trades.length).toBeGreaterThan(0);
+      const firstTrade = res.trades[0];
+      expect(firstTrade.initialStopPercent).toBe(3);
+      expect(firstTrade.stopHistory?.[0].reason).toBe('initialStop');
+      expect(firstTrade.stopHistory?.[0].candidateStopPrice).toBeCloseTo(firstTrade.entryPrice * 0.97, 2);
+    });
+
+    it('(2) with initialStopPercent=5: initialStopPercent == 5 and first event reason == initialStop', () => {
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: false,
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(res.trades.length).toBeGreaterThan(0);
+      const firstTrade = res.trades[0];
+      expect(firstTrade.initialStopPercent).toBe(5);
+      expect(firstTrade.stopHistory?.[0].reason).toBe('initialStop');
+      expect(firstTrade.stopHistory?.[0].candidateStopPrice).toBeCloseTo(firstTrade.entryPrice * 0.95, 2);
+    });
+
+    it('(3) with useTdrStop=true: stop comes from metadata (dynamicStop)', () => {
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: true,
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(res.trades.length).toBeGreaterThan(0);
+      const firstTrade = res.trades[0];
+      expect(firstTrade.stopHistory?.[0].reason).toBe('dynamicStop');
+    });
+
+    it('(4) runMultiPosition: supports all 3 states (config 3, config 5, dynamicStop)', () => {
+      const engine = new BacktestEngine();
+
+      // State 1: config 3
+      const strat1 = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: false,
+      });
+      const res1 = engine.run({
+        strategy: strat1,
+        candles: c4h,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 2,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+      expect(res1.trades[0].initialStopPercent).toBe(3);
+      expect(res1.trades[0].stopHistory?.[0].reason).toBe('initialStop');
+
+      // State 2: config 5
+      const strat2 = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: false,
+      });
+      const res2 = engine.run({
+        strategy: strat2,
+        candles: c4h,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 2,
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+      expect(res2.trades[0].initialStopPercent).toBe(5);
+      expect(res2.trades[0].stopHistory?.[0].reason).toBe('initialStop');
+
+      // State 3: useTdrStop=true
+      const strat3 = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+        useTdrStop: true,
+      });
+      const res3 = engine.run({
+        strategy: strat3,
+        candles: c4h,
+        initialBalance: 10000,
+        positionSizePercent: 5,
+        maxOpenPositions: 2,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+      expect(res3.trades[0].stopHistory?.[0].reason).toBe('dynamicStop');
+    });
+
+    it('(5) Step 1.E Regression Test: D0 with trailing 5/3/1.5 and size 10% exactly +32.1%, 33 trades, DD 15.0%', () => {
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'off',
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        tradeFeePercent: 0.1,
+        positionSizePercent: 10,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        maxOpenPositions: 1,
+      });
+
+      expect(res.trades.length).toBe(33);
+      expect(Math.round(res.metrics.totalPnlPercent * 10) / 10).toBe(32.1);
+      expect(Math.round(res.metrics.maxDrawdownPercent * 10) / 10).toBe(15.0);
+    });
+
+    it('(6) Step 1.E Regression Test: D* with trailing 5/3/1.5 and size 5% exactly +16.9%, 28 trades, DD 8.2%', () => {
+      const strategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+        fisherMode: 'confirm',
+        fisherKind: 'ift',
+      });
+
+      const engine = new BacktestEngine();
+      const res = engine.run({
+        strategy,
+        candles: c4h,
+        initialBalance: 10000,
+        tradeFeePercent: 0.1,
+        positionSizePercent: 5,
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+        maxOpenPositions: 1,
+      });
+
+      expect(res.trades.length).toBe(28);
+      expect(Math.round(res.metrics.totalPnlPercent * 10) / 10).toBe(16.9);
+      expect(Math.round(res.metrics.maxDrawdownPercent * 10) / 10).toBe(8.2);
     });
   });
 

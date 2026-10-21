@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     let trailingStop: TrailingStopConfig | undefined;
 
     if (trailingStopEnabled) {
-      const initialStopPercent = Number(body.initialStopPercent ?? 3.0);
+      const initialStopPercent = Number(body.initialStopPercent ?? 5.0);
       const trailStepPercent = Number(body.trailStepPercent ?? 3.0);
       const trailRaisePercent = Number(body.trailRaisePercent ?? 1.5);
 

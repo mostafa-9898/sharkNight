@@ -748,31 +748,35 @@ export class MultiTimeframeStrategy implements Strategy {
         return defaultSignal;
       }
 
-      const effectiveStopPercent = this.useTdrStop
-        ? Math.min(tdrStopPercent, maxStopPercent)
-        : this.initialStopPercent;
-      const stopPrice = roundTo(candle.close * (1 - effectiveStopPercent / 100), 8);
+      const stopMetadata: Record<string, unknown> = this.useTdrStop
+        ? {
+            useTdrStop: true,
+            tdrStopPercent,
+            stopPrice: roundTo(candle.close * (1 - Math.min(tdrStopPercent, maxStopPercent) / 100), 8),
+            initialStopPercent: Math.min(tdrStopPercent, maxStopPercent),
+          }
+        : {
+            atrStopEstimatePercent: tdrStopPercent,
+          };
 
       return {
         action: 'BUY',
         timestamp: candle.timestamp,
         price: candle.close,
-        reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull}) + Stop ${effectiveStopPercent}%`,
+        reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercent, maxStopPercent)}%` : ''}`,
         metadata: {
           stochK: k,
           stochD: d,
           tenkan,
           kijun,
           atr,
-          tdrStopPercent,
-          stopPrice,
-          initialStopPercent: effectiveStopPercent,
           confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0) + (fisherEventBull ? 1 : 0),
           ichiCross: tkBullCross,
           stochCross: stochBullCross,
           fisherCross: fisherEventBull,
           fisherMode: this.fisherMode,
           fisherKind: this.fisherKind,
+          ...stopMetadata,
         },
       };
     }
@@ -795,31 +799,35 @@ export class MultiTimeframeStrategy implements Strategy {
         return defaultSignal;
       }
 
-      const effectiveStopPercent = this.useTdrStop
-        ? Math.min(tdrStopPercent, maxStopPercent)
-        : this.initialStopPercent;
-      const stopPrice = roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
+      const stopMetadata: Record<string, unknown> = this.useTdrStop
+        ? {
+            useTdrStop: true,
+            tdrStopPercent,
+            stopPrice: roundTo(candle.close * (1 + Math.min(tdrStopPercent, maxStopPercent) / 100), 8),
+            initialStopPercent: Math.min(tdrStopPercent, maxStopPercent),
+          }
+        : {
+            atrStopEstimatePercent: tdrStopPercent,
+          };
 
       return {
         action: 'SELL',
         timestamp: candle.timestamp,
         price: candle.close,
-        reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear}) + Stop ${effectiveStopPercent}%`,
+        reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercent, maxStopPercent)}%` : ''}`,
         metadata: {
           stochK: k,
           stochD: d,
           tenkan,
           kijun,
           atr,
-          tdrStopPercent,
-          stopPrice,
-          initialStopPercent: effectiveStopPercent,
           confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0) + (fisherEventBear ? 1 : 0),
           ichiCross: tkBearCross,
           stochCross: stochBearCross,
           fisherCross: fisherEventBear,
           fisherMode: this.fisherMode,
           fisherKind: this.fisherKind,
+          ...stopMetadata,
         },
       };
     }

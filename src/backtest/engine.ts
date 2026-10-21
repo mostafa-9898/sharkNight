@@ -181,17 +181,10 @@ export class BacktestEngine {
       let initialStop: number | null = null;
       let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
 
-      const isDynamic = Boolean(signalMetadata?.useTdrStop || signalMetadata?.tdrStopPercent);
+      const isDynamic = signalMetadata?.useTdrStop === true;
 
       if (
         isDynamic &&
-        signalMetadata?.initialStopPercent !== undefined &&
-        typeof signalMetadata.initialStopPercent === 'number' &&
-        signalMetadata.initialStopPercent > 0
-      ) {
-        effectiveStopPercent = signalMetadata.initialStopPercent;
-      } else if (
-        effectiveStopPercent === undefined &&
         signalMetadata?.initialStopPercent !== undefined &&
         typeof signalMetadata.initialStopPercent === 'number' &&
         signalMetadata.initialStopPercent > 0
@@ -1702,17 +1695,10 @@ export class BacktestEngine {
 
             let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
             const signalMeta = signal.metadata as Record<string, unknown> | undefined;
-            const isDynamic = Boolean(signalMeta?.useTdrStop || signalMeta?.tdrStopPercent);
+            const isDynamic = signalMeta?.useTdrStop === true;
 
             if (
               isDynamic &&
-              signalMeta?.initialStopPercent !== undefined &&
-              typeof signalMeta.initialStopPercent === 'number' &&
-              signalMeta.initialStopPercent > 0
-            ) {
-              effectiveStopPercent = signalMeta.initialStopPercent;
-            } else if (
-              effectiveStopPercent === undefined &&
               signalMeta?.initialStopPercent !== undefined &&
               typeof signalMeta.initialStopPercent === 'number' &&
               signalMeta.initialStopPercent > 0

@@ -1099,8 +1099,11 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`| Time Stop | maxBarsInTrade | \`${config.maxBarsInTrade ?? 'none'}\` |`);
   lines.push(`| Fixed Stop / TP | Stop Loss % / Take Profit % | \`${config.stopLossPercent ?? 'none'}\` / \`${config.takeProfitPercent ?? 'none'}\` |`);
   if (config.trailingStop) {
+    const executedStops = trades.map((t) => t.initialStopPercent).filter((p): p is number => p !== undefined);
+    const uniqueStops = Array.from(new Set(executedStops));
+    const executedStopStr = uniqueStops.length > 0 ? ` (Executed: ${uniqueStops.map((s) => `${s}%`).join(', ')})` : '';
     lines.push(
-      `| Trailing Stop | Initial / Step / Raise | \`${config.trailingStop.initialStopPercent}%\` / \`${config.trailingStop.stepPercent}%\` / \`${config.trailingStop.raisePercent}%\` |`
+      `| Trailing Stop | Initial / Step / Raise | \`${config.trailingStop.initialStopPercent}%\` / \`${config.trailingStop.stepPercent}%\` / \`${config.trailingStop.raisePercent}%\`${executedStopStr} |`
     );
   } else {
     lines.push(`| Trailing Stop | Status | \`disabled\` |`);

@@ -229,7 +229,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   );
 
   let trailingStop: TrailingStopConfig | undefined = {
-    initialStopPercent: 3,
+    initialStopPercent: 5,
     stepPercent: 3,
     raisePercent: 1.5,
   };
