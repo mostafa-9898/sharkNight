@@ -141,6 +141,7 @@
 | 2026-10-21 07:05:16 | `54e2ed2` | `f71c9fab` | BTCUSDT / 4h / all (MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261021_070516_BTCUSDT_4h_f71c9fab.md) |
 | 2026-10-21 07:07:16 | `54e2ed2` | `f71c9fab` | BTCUSDT / 4h / all (MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261021_070716_BTCUSDT_4h_f71c9fab.md) |
 | 2026-10-21 07:08:52 | `54e2ed2` | `f71c9fab` | BTCUSDT / 4h / all (MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)) | **0.00%** | 1 | 0.00% | 0.0% | [Report](history/20261021_070852_BTCUSDT_4h_f71c9fab.md) |
+| 2026-10-21 07:15:27 | `87033cd` | `73f98b9e` | BTCUSDT / 15m / all (MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: enabled, structureFilter: enabled)) | **-0.63%** | 419 | 5.15% | 63.7% | [Report](history/20261021_071527_BTCUSDT_15m_73f98b9e.md) |
 
 > [!NOTE]
 > **Historical Archive Note:** Early zero-trade runs (such as runs prior to commit `ccc9adb`) recorded in `docs/review/history/` may contain legacy metric formatting (such as `0.0%` win rate or pre-fix invariant checks) produced by earlier versions of the report generator. Individual archive files in `history/` are preserved as immutable historical records, while the index table above reflects normalized semantics (`N/A` for zero-trade runs).
