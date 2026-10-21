@@ -1,25 +1,25 @@
 # Automated Backtest Review Report
-Generated: **2026-10-21T09:07:36.729Z** | Config Hash: `f71c9fab`
+Generated: **2026-10-21T09:16:52.771Z** | Config Hash: `8add6bec`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `a2ff0dd` (⚠️ dirty) |
-| **Strategy** | MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled) |
+| **Git Commit** | `335a359` (⚠️ dirty) |
+| **Strategy** | MultiTimeframe (strict, cross, fisher=confirm/fisher) (kijunSlopeFilter: disabled, structureFilter: disabled) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `4h` / `all` |
 | **Total Candles** | 7 |
 | **Start Time (UTC)** | 2020-09-13T12:26:40Z |
 | **End Time (UTC)** | 2020-09-13T18:26:40Z |
 | **Dataset Fingerprint** | `709ae6876010f4ad` |
 | **Data Source** | `cache` ✅ |
-| **Config Hash** | `f71c9fab` |
+| **Config Hash** | `8add6bec` |
 
 ### Full Configuration Parameters
 | Parameter Group | Parameter | Value |
 |---|---|---|
 | Ichimoku | Tenkan / Kijun / SenkouB / Displacement | `9` / `26` / `52` / `26` |
 | MTF Settings | HTF / Entry Mode | `strict` / `cross` |
-| Fisher Oscillator | Mode / Kind | `confirm (ift)` |
+| Fisher Oscillator | Mode / Kind | `confirm (fisher)` |
 | Kijun Slope Filter | Status | `disabled` |
 | Structure Filter | Status | `disabled` |
 | Execution | Trade Mode / Exit Mode | `long-short` / `reverse` |

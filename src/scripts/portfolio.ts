@@ -119,7 +119,7 @@ export async function runPortfolioSimulation(): Promise<void> {
         htfMode: 'strict',
         entryMode: 'cross',
         fisherMode: 'confirm',
-        fisherKind: 'ift',
+        fisherKind: 'fisher',
         htf1hCandles: c1h,
         htf4hCandles: c4h,
         kijunSlopeFilter: true,

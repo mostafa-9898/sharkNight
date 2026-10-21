@@ -1,20 +1,20 @@
 # Trade Diagnostics Report — Latest Backtest Run
 
-> **Canonical Diagnostic Log** | Generated: `2026-10-21T09:07:36.729Z` | Git: `a2ff0dd` (dirty) | Config Hash: `f71c9fab`
+> **Canonical Diagnostic Log** | Generated: `2026-10-21T09:16:52.772Z` | Git: `335a359` (dirty) | Config Hash: `8add6bec`
 
 ---
 
 ## Section 1: Run Identity & Reproducibility
 | Parameter | Value | Specification Details |
 |---|---|---|
-| **Run Timestamp (UTC)** | `2026-10-21T09:07:36.729Z` | Deterministic backtest execution |
-| **Git Revision** | `a2ff0dd` | Working tree: `DIRTY` |
-| **Strategy** | **MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
+| **Run Timestamp (UTC)** | `2026-10-21T09:16:52.772Z` | Deterministic backtest execution |
+| **Git Revision** | `335a359` | Working tree: `DIRTY` |
+| **Strategy** | **MultiTimeframe (strict, cross, fisher=confirm/fisher) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
 | **Symbol & Timeframe** | `BTCUSDT` / `4h` | Higher-timeframe context |
 | **Evaluation Type** | **Standard Evaluation Window** | Out-of-sample / In-sample protocol |
 | **Effective Data Window** | `2020-09-13T12:26:40Z` → `2020-09-13T18:26:40Z` | Period: `all` |
 | **Candle Dataset** | **7** candles | Fingerprint: `709ae6876010f4ad` |
-| **Strategy Indicators** | Ichimoku (9, 26, 52, 26) | MTF (strict, cross, Fisher: confirm/ift) |
+| **Strategy Indicators** | Ichimoku (9, 26, 52, 26) | MTF (strict, cross, Fisher: confirm/fisher) |
 | **Filters Applied** | Kijun Slope: `OFF` | Structure: `OFF` |
 | **Execution & Trade Mode** | `long-short` / `reverse` | Intrabar stop checking: `intrabar` |
 | **Position Sizing & Risk** | Size: **20%** | Risk per trade: **1%** (Initial Capital: $10,000) |
@@ -85,4 +85,4 @@
   ```bash
   npx tsx src/scripts/backtest-report.ts --symbol=BTCUSDT --period=6y
   ```
-- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `709ae6876010f4ad` and config hash `f71c9fab`.
+- **Determinism Guarantee:** Every trade record, execution timestamp, and metric is deterministically derived from dataset fingerprint `709ae6876010f4ad` and config hash `8add6bec`.

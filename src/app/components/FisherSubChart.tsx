@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import type { IChartApi, UTCTimestamp } from 'lightweight-charts';
+import type { IChartApi, UTCTimestamp, SeriesMarker, Time } from 'lightweight-charts';
 import type { Candle } from '@/data/models/candle';
 import { calculateFisherRsi, calculateIftRsi } from '@/indicators/fisher-rsi';
 
@@ -35,6 +35,47 @@ export default function FisherSubChart({
     }
     return calculateIftRsi(closes, { rsiPeriod });
   }, [candles, fisherKind, rsiPeriod]);
+
+  const crossMetrics = React.useMemo(() => {
+    if (fisherKind !== 'fisher' || candles.length === 0) {
+      return {
+        bullCrossCount: 0,
+        bearCrossCount: 0,
+        totalCrosses: 0,
+        crossEvents: [] as { idx: number; dir: 'up' | 'down'; timestamp: number }[],
+      };
+    }
+    const data = calculatedData as { fisher: number[]; signal: number[] };
+    let bull = 0;
+    let bear = 0;
+    const events: { idx: number; dir: 'up' | 'down'; timestamp: number }[] = [];
+    for (let i = 1; i < candles.length; i++) {
+      const fCurr = data.fisher[i];
+      const sCurr = data.signal[i];
+      const fPrev = data.fisher[i - 1];
+      const sPrev = data.signal[i - 1];
+      if (
+        Number.isFinite(fCurr) &&
+        Number.isFinite(sCurr) &&
+        Number.isFinite(fPrev) &&
+        Number.isFinite(sPrev)
+      ) {
+        if (fPrev <= sPrev && fCurr > sCurr) {
+          bull++;
+          events.push({ idx: i, dir: 'up', timestamp: candles[i].timestamp });
+        } else if (fPrev >= sPrev && fCurr < sCurr) {
+          bear++;
+          events.push({ idx: i, dir: 'down', timestamp: candles[i].timestamp });
+        }
+      }
+    }
+    return {
+      bullCrossCount: bull,
+      bearCrossCount: bear,
+      totalCrosses: bull + bear,
+      crossEvents: events,
+    };
+  }, [candles, calculatedData, fisherKind]);
 
   const lastValue = React.useMemo(() => {
     if (fisherKind === 'fisher') {
@@ -74,7 +115,7 @@ export default function FisherSubChart({
     let unsubscribeFisher: (() => void) | null = null;
 
     import('lightweight-charts').then(
-      ({ createChart, LineSeries, ColorType, LineStyle }) => {
+      ({ createChart, LineSeries, ColorType, LineStyle, createSeriesMarkers }) => {
         if (!isMounted || !containerRef.current) return;
 
         if (chartRef.current) {
@@ -154,6 +195,22 @@ export default function FisherSubChart({
 
           fisherSeries.setData(fisherData);
           signalSeries.setData(signalData);
+
+          // Crossover markers (▲ Bullish, ▼ Bearish)
+          if (crossMetrics.crossEvents.length > 0) {
+            const markers: SeriesMarker<Time>[] = crossMetrics.crossEvents.map((evt) => ({
+              time: Math.floor(evt.timestamp / 1000) as UTCTimestamp,
+              position: evt.dir === 'up' ? ('belowBar' as const) : ('aboveBar' as const),
+              color: evt.dir === 'up' ? '#22c55e' : '#ef4444',
+              shape: evt.dir === 'up' ? ('arrowUp' as const) : ('arrowDown' as const),
+              text: evt.dir === 'up' ? '▲' : '▼',
+            }));
+            try {
+              createSeriesMarkers(fisherSeries, markers);
+            } catch (mErr) {
+              console.warn('Failed to set Fisher markers:', mErr);
+            }
+          }
         } else {
           const data = calculatedData as number[];
 
@@ -267,7 +324,7 @@ export default function FisherSubChart({
         chartRef.current = null;
       }
     };
-  }, [candles, calculatedData, fisherKind, rsiPeriod, mainChartRef]);
+  }, [candles, calculatedData, crossMetrics, fisherKind, rsiPeriod, mainChartRef]);
 
   return (
     <div
@@ -288,11 +345,26 @@ export default function FisherSubChart({
           padding: '0 4px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', flexWrap: 'wrap' }}>
           {fisherKind === 'fisher' ? (
             <>
               <span style={{ fontWeight: 600, color: '#f0f6fc' }}>
                 🐟 Fisher RSI ({rsiPeriod})
+              </span>
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  color: '#fbbf24',
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  letterSpacing: '0.02em',
+                }}
+                title="Formula follows Ehlers 10-window RSI(14). Template created at docs/reference/fisher_rsi_reference.md"
+              >
+                UNVERIFIED: not compared to reference
               </span>
               {(lastValue as { fisher: number | null; signal: number | null }).fisher !== null && (
                 <span style={{ color: '#38bdf8', fontWeight: 600 }}>
@@ -304,6 +376,12 @@ export default function FisherSubChart({
                   Signal: {(lastValue as { fisher: number | null; signal: number | null }).signal!.toFixed(2)}
                 </span>
               )}
+              <span
+                style={{ color: '#8b949e', fontSize: '10px' }}
+                title={`Crossovers: ${crossMetrics.totalCrosses} (Bullish ▲: ${crossMetrics.bullCrossCount}, Bearish ▼: ${crossMetrics.bearCrossCount})`}
+              >
+                [Crosses: {crossMetrics.totalCrosses} (▲{crossMetrics.bullCrossCount} ▼{crossMetrics.bearCrossCount})]
+              </span>
             </>
           ) : (
             <>

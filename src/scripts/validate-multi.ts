@@ -290,8 +290,8 @@ export async function runMultiValidation(): Promise<void> {
       new MultiTimeframeStrategy({
         htfMode: 'strict',
         entryMode: 'cross',
-        fisherMode: 'confirm',
-        fisherKind: 'ift',
+        fisherMode: 'replace-stoch',
+        fisherKind: 'fisher',
         htf1hCandles: c1h,
         htf4hCandles: c4h,
         kijunSlopeFilter: true,
@@ -394,8 +394,8 @@ export async function runMultiValidation(): Promise<void> {
       const refStrategy = new MultiTimeframeStrategy({
         htfMode: 'strict',
         entryMode: 'cross',
-        fisherMode: 'confirm',
-        fisherKind: 'ift',
+        fisherMode: 'replace-stoch',
+        fisherKind: 'fisher',
         htf1hCandles: c1h,
         htf4hCandles: c4h,
         kijunSlopeFilter: true,

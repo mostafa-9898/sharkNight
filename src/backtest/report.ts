@@ -175,7 +175,7 @@ export function formatStrategyDisplayName(config: BacktestReportConfig): string 
   const fisher =
     config.fisherMode === 'off'
       ? 'off'
-      : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'ift'}`;
+      : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'fisher'}`;
   const kijunStatus = config.kijunSlopeFilter ? 'enabled' : 'disabled';
   const structStatus = config.structureFilter ? 'enabled' : 'disabled';
 
@@ -1107,7 +1107,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`|---|---|---|`);
   lines.push(`| Ichimoku | Tenkan / Kijun / SenkouB / Displacement | \`${tenkan}\` / \`${kijun}\` / \`${senkouB}\` / \`${displacement}\` |`);
   lines.push(`| MTF Settings | HTF / Entry Mode | \`${config.htfMode ?? 'strict'}\` / \`${config.entryMode ?? 'cross'}\` |`);
-  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'} (${config.fisherKind ?? 'ift'})`;
+  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'} (${config.fisherKind ?? 'fisher'})`;
   lines.push(`| Fisher Oscillator | Mode / Kind | \`${fisherStr}\` |`);
   lines.push(`| Kijun Slope Filter | Status | \`${config.kijunSlopeFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Structure Filter | Status | \`${config.structureFilter ? 'enabled' : 'disabled'}\` |`);
@@ -1753,7 +1753,7 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   lines.push(
     `| **Candle Dataset** | **${candles.length.toLocaleString()}** candles | Fingerprint: \`${datasetFingerprint}\` |`
   );
-  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'ift'}`;
+  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'fisher'}`;
   lines.push(
     `| **Strategy Indicators** | Ichimoku (${config.tenkan ?? 9}, ${config.kijun ?? 26}, ${config.senkouB ?? 52}, ${config.displacement ?? 26}) | MTF (${config.htfMode ?? 'strict'}, ${config.entryMode ?? 'cross'}, Fisher: ${fisherStr}) |`
   );

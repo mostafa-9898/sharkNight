@@ -234,8 +234,8 @@ export class MultiTimeframeStrategy implements Strategy {
     this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
     this.structureFilter = config?.structureFilter ?? false;
     this.ltfIntervalMs = config?.ltfIntervalMs;
-    this.fisherMode = config?.fisherMode ?? 'confirm';
-    this.fisherKind = config?.fisherKind ?? 'ift';
+    this.fisherMode = config?.fisherMode ?? 'replace-stoch';
+    this.fisherKind = config?.fisherKind ?? 'fisher';
 
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;

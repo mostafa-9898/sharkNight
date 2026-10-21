@@ -233,7 +233,7 @@ export default function CandleChart({
   stochSmooth = 3,
   stochOversold = 30,
   stochOverbought = 70,
-  oscillatorDisplay = 'rsi',
+  oscillatorDisplay = 'fisher',
   onOscillatorDisplayChange,
   trades = [],
 }: CandleChartProps) {
