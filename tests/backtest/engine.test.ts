@@ -1206,6 +1206,381 @@ describe('BacktestEngine', () => {
       expect(Math.round(res.metrics.maxDrawdownPercent * 10) / 10).toBe(15.0);
     });
   });
+
+  describe('Trailing Stop Regression & Monotonic Invariant Suite (Task 2)', () => {
+    // Helper to generate a candle with custom open, high, low, close
+    const makeBar = (
+      index: number,
+      open: number,
+      high: number,
+      low: number,
+      close: number
+    ): Candle => ({
+      timestamp: 1600000000000 + index * 60000,
+      open,
+      high,
+      low,
+      close,
+      volume: 100,
+    });
+
+    it('(1) Long position: reaches multiple trailing steps and retraces — stop must NEVER decrease', () => {
+      const engine = new BacktestEngine();
+      // Candle 0: entry at 100
+      // Candle 1: high reaches 103 (+3% MFE -> step 1, break-even)
+      // Candle 2: high reaches 106 (+6% MFE -> step 2)
+      // Candle 3: high reaches 109 (+9% MFE -> step 3)
+      // Candle 4: retrace high 105, low 102
+      // Candle 5: drops to low 90 (hits trailing stop)
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 103.5, 99.8, 103),
+        makeBar(2, 103, 106.5, 102.5, 106),
+        makeBar(3, 106, 109.5, 105.5, 109),
+        makeBar(4, 109, 105.0, 102.0, 103),
+        makeBar(5, 103, 103.0, 90.0, 91),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(result.trades.length).toBe(1);
+      const trade = result.trades[0];
+      expect(trade.side).toBe('long');
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.stopHistory).toBeDefined();
+
+      const history = trade.stopHistory!;
+      expect(history.length).toBeGreaterThanOrEqual(3);
+
+      // Invariant check: Accepted stop must be monotonically non-decreasing
+      let lastAccepted = -Infinity;
+      for (const ev of history) {
+        if (ev.accepted) {
+          expect(ev.acceptedStopPrice).toBeGreaterThanOrEqual(lastAccepted);
+          lastAccepted = ev.acceptedStopPrice;
+        }
+      }
+    });
+
+    it('(2) Short position: reaches multiple trailing steps and retraces — stop must NEVER increase', () => {
+      const engine = new BacktestEngine();
+      // Candle 0: entry short at 100
+      // Candle 1: low drops to 97 (-3% MFE -> step 1, break-even)
+      // Candle 2: low drops to 94 (-6% MFE -> step 2)
+      // Candle 3: low drops to 91 (-9% MFE -> step 3)
+      // Candle 4: retrace low 95, high 97
+      // Candle 5: spikes up to high 110 (hits trailing stop)
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 100.2, 96.5, 97),
+        makeBar(2, 97, 97.5, 93.5, 94),
+        makeBar(3, 94, 94.5, 90.5, 91),
+        makeBar(4, 91, 97.0, 95.0, 96),
+        makeBar(5, 96, 110.0, 95.0, 109),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'SELL' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
+        tradeMode: 'short-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(result.trades.length).toBe(1);
+      const trade = result.trades[0];
+      expect(trade.side).toBe('short');
+      expect(trade.exitReason).toBe('trailingStop');
+      expect(trade.stopHistory).toBeDefined();
+
+      const history = trade.stopHistory!;
+      expect(history.length).toBeGreaterThanOrEqual(3);
+
+      // Invariant check: Accepted stop must be monotonically non-increasing
+      let lastAccepted = Infinity;
+      for (const ev of history) {
+        if (ev.accepted) {
+          expect(ev.acceptedStopPrice).toBeLessThanOrEqual(lastAccepted);
+          lastAccepted = ev.acceptedStopPrice;
+        }
+      }
+    });
+
+    it('(3) Trend mode: stop trails smoothly and never decreases on long', () => {
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 104.0, 100.0, 103),
+        makeBar(2, 103, 108.0, 102.0, 107),
+        makeBar(3, 107, 107.0, 104.0, 105), // retrace
+        makeBar(4, 105, 105.0, 95.0, 96),  // stop out
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 2.0, mode: 'trend' },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      const trade = result.trades[0];
+      expect(trade.stopHistory).toBeDefined();
+      let lastStop = -Infinity;
+      for (const ev of trade.stopHistory!) {
+        if (ev.accepted) {
+          expect(ev.acceptedStopPrice).toBeGreaterThanOrEqual(lastStop);
+          lastStop = ev.acceptedStopPrice;
+        }
+      }
+    });
+
+    it('(4) Stepped mode: candidate stops less protective than current stop are rejected', () => {
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 106.0, 99.8, 105), // +6% -> n=2, stop ratchets
+        makeBar(2, 105, 105.0, 90.0, 92),  // exits
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
+        tradeMode: 'long-only',
+      });
+
+      const trade = result.trades[0];
+      const history = trade.stopHistory!;
+      for (let i = 1; i < history.length; i++) {
+        if (history[i].accepted) {
+          expect(history[i].acceptedStopPrice).toBeGreaterThanOrEqual(history[i - 1].acceptedStopPrice);
+        }
+      }
+    });
+
+    it('(5) Initial stop to break-even transition: break-even never overwrites a stop that locked profit', () => {
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 103.5, 100.0, 103), // +3.5% >= 3% initial stop -> break-even triggers
+        makeBar(2, 103, 103.2, 95.0, 96),   // hits break-even
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
+        tradeMode: 'long-only',
+      });
+
+      const trade = result.trades[0];
+      const beEvent = trade.stopHistory?.find((e) => e.reason === 'breakEven');
+      expect(beEvent).toBeDefined();
+      expect(beEvent?.acceptedStopPrice).toBe(100);
+      expect(trade.exitPrice).toBe(100);
+    });
+
+    it('(6) Dynamic/TDR-derived initial stop: honors dynamic signal metadata when explicitly marked', () => {
+      class DynamicStopStrategy implements Strategy {
+        readonly name = 'DynamicStopStrategy';
+        readonly description = 'Dynamic stop test strategy';
+        readonly requiredCandles = 1;
+        analyze(c: readonly Candle[], index: number): TradeSignal {
+          if (index === 0) {
+            return {
+              action: 'BUY',
+              timestamp: c[0].timestamp,
+              price: c[0].close,
+              reason: 'Dynamic TDR entry',
+              metadata: {
+                useTdrStop: true,
+                tdrStopPercent: 4.5,
+                initialStopPercent: 4.5,
+                stopPrice: 95.5,
+              },
+            };
+          }
+          return { action: 'HOLD', timestamp: c[index].timestamp, price: c[index].close, reason: 'hold' };
+        }
+      }
+
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 101.0, 94.0, 95),
+      ];
+
+      const result = engine.run({
+        strategy: new DynamicStopStrategy(),
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+      });
+
+      const trade = result.trades[0];
+      expect(trade.initialStopPrice).toBe(95.5);
+      expect(trade.initialStopPercent).toBe(4.5);
+      const initEvt = trade.stopHistory?.find((e) => e.reason === 'dynamicStop');
+      expect(initEvt).toBeDefined();
+      expect(initEvt?.candidateStopPrice).toBe(95.5);
+    });
+
+    it('(7) Single-position execution: records stopUpdates on BacktestResult and trade.stopHistory', () => {
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 104.0, 100.0, 103),
+        makeBar(2, 103, 103.0, 90.0, 91),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+      });
+
+      expect(result.stopUpdates).toBeDefined();
+      expect(result.stopUpdates!.length).toBeGreaterThan(0);
+      expect(result.trades[0].stopHistory).toBeDefined();
+      expect(result.trades[0].initialStopPrice).toBeDefined();
+    });
+
+    it('(8) Multi-position execution: concurrent positions independently enforce monotonicity', () => {
+      const engine = new BacktestEngine();
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 101, 104.0, 100.0, 103), // Pos 1 gains, Pos 2 enters
+        makeBar(2, 103, 107.0, 102.0, 106), // Pos 1 & 2 gain
+        makeBar(3, 106, 106.0, 85.0, 86),   // Both stop out
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY', 1: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        positionSizePercent: 20,
+        maxOpenPositions: 2,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        exitMode: 'trailingOnly',
+      });
+
+      expect(result.trades.length).toBe(2);
+      for (const t of result.trades) {
+        expect(t.stopHistory).toBeDefined();
+        let lastStop = -Infinity;
+        for (const ev of t.stopHistory!) {
+          if (ev.accepted) {
+            expect(ev.acceptedStopPrice).toBeGreaterThanOrEqual(lastStop);
+            lastStop = ev.acceptedStopPrice;
+          }
+        }
+      }
+    });
+
+    it('(9) Gap through stop: accepted stop is not moved backward and slippage applies', () => {
+      const engine = new BacktestEngine();
+      // Candle 0: entry at 100, stop at 97.0
+      // Candle 1: high reaches 104 -> stop ratchets to 100.0
+      // Candle 2: opens at 95.0 (gap through stop at 100.0)
+      const candles: Candle[] = [
+        makeBar(0, 100, 100.5, 99.5, 100),
+        makeBar(1, 100, 104.0, 100.0, 103),
+        makeBar(2, 95, 95.5, 92.0, 93),
+      ];
+
+      const strategy = new MockActionStrategy({ 0: 'BUY' });
+      const result = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        tradeMode: 'long-only',
+        slippagePercent: 0.1,
+      });
+
+      const trade = result.trades[0];
+      expect(trade.exitReason).toBe('trailingStop');
+      // Gap exit price is candle.open with slippage: 95 * (1 - 0.001) = 94.905
+      expect(trade.exitPrice).toBeCloseTo(94.905, 2);
+      // The recorded accepted stop was not lowered to 95.0
+      expect(trade.stopPrice).toBeGreaterThanOrEqual(100.0);
+    });
+
+    it('(10) Reported failure sequence (TR-007 scenario): standard strategy metadata does not regress initial stop', () => {
+      // TR-007: Entry 44461.40, initialStopPercent config: 3% (stop 43127.56).
+      // Strategy metadata has initialStopPercent: 5% (without useTdrStop).
+      // Under fixed engine, config 3% governs trailing stop, initial stop is 43127.56.
+      class StrategyWithDefaultMeta implements Strategy {
+        readonly name = 'StrategyWithDefaultMeta';
+        readonly description = 'Passes 5% initialStopPercent by default';
+        readonly requiredCandles = 1;
+        analyze(c: readonly Candle[], index: number): TradeSignal {
+          if (index === 0) {
+            return {
+              action: 'BUY',
+              timestamp: c[0].timestamp,
+              price: 44461.40,
+              reason: 'Entry with standard metadata',
+              metadata: {
+                initialStopPercent: 5, // Non-dynamic strategy default
+              },
+            };
+          }
+          return { action: 'HOLD', timestamp: c[index].timestamp, price: c[index].close, reason: 'hold' };
+        }
+      }
+
+      const engine = new BacktestEngine();
+      const entryPrice = 44461.40;
+      const candles: Candle[] = [
+        makeBar(0, entryPrice, entryPrice + 10, entryPrice - 10, entryPrice),
+        makeBar(1, entryPrice, entryPrice * 1.018, entryPrice - 5, entryPrice * 1.015), // +1.8% MFE
+        makeBar(2, entryPrice * 1.015, entryPrice * 1.015, 42000, 42100),              // Drops
+      ];
+
+      const result = engine.run({
+        strategy: new StrategyWithDefaultMeta(),
+        candles,
+        initialBalance: 10000,
+        trailingStop: { initialStopPercent: 3, stepPercent: 1.5, raisePercent: 1.5, mode: 'stepped' },
+        tradeMode: 'long-only',
+      });
+
+      const trade = result.trades[0];
+      const expectedInitStop = Math.round(entryPrice * 0.97 * 100) / 100; // 43127.56
+      expect(trade.initialStopPrice).toBeCloseTo(expectedInitStop, 1);
+
+      // Invariant: Stop must NEVER be below initial stop of 43127.56
+      for (const ev of trade.stopHistory!) {
+        if (ev.accepted) {
+          expect(ev.acceptedStopPrice).toBeGreaterThanOrEqual(expectedInitStop - 0.01);
+        }
+      }
+    });
+  });
 });
 
 

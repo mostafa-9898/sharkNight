@@ -1,11 +1,14 @@
 import type { TradeSignal } from '../data/models';
-import type { Trade, TradeSide, ExitReason, EntryDiagnostics } from './types';
+import type { Trade, TradeSide, ExitReason, EntryDiagnostics, StopUpdateEvent } from './types';
 import { roundTo } from '../utils/math';
 
 export interface ExtraTradeInfo {
   maxFavorablePercent?: number;
   maxAdversePercent?: number;
   stopPrice?: number;
+  initialStopPrice?: number;
+  initialStopPercent?: number;
+  stopHistory?: StopUpdateEvent[];
   ratchetSteps?: number;
   entryDiagnostics?: EntryDiagnostics;
 }
@@ -199,6 +202,9 @@ export class VirtualPortfolio {
       maxFavorablePercent: roundTo(extra?.maxFavorablePercent ?? defaultMfe, 2),
       maxAdversePercent: roundTo(extra?.maxAdversePercent ?? defaultMae, 2),
       stopPrice: extra?.stopPrice !== undefined ? roundTo(extra.stopPrice, 4) : undefined,
+      initialStopPrice: extra?.initialStopPrice !== undefined ? roundTo(extra.initialStopPrice, 4) : undefined,
+      initialStopPercent: extra?.initialStopPercent,
+      stopHistory: extra?.stopHistory ? [...extra.stopHistory] : undefined,
       ratchetSteps: extra?.ratchetSteps,
       entryDiagnostics: extra?.entryDiagnostics,
     };

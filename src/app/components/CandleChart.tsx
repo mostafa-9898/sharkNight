@@ -17,6 +17,7 @@ import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import RsiSubChart from './RsiSubChart';
 import StochSubChart from './StochSubChart';
+import FisherSubChart from './FisherSubChart';
 
 interface CandleChartProps {
   candles: Candle[];
@@ -41,6 +42,9 @@ interface CandleChartProps {
   stochSmooth?: number;
   stochOversold?: number;
   stochOverbought?: number;
+  // Oscillator Display selection
+  oscillatorDisplay?: 'rsi' | 'fisher' | 'ift';
+  onOscillatorDisplayChange?: (display: 'rsi' | 'fisher' | 'ift') => void;
   // Backtest executed trades
   trades?: Trade[];
 }
@@ -229,6 +233,8 @@ export default function CandleChart({
   stochSmooth = 3,
   stochOversold = 30,
   stochOverbought = 70,
+  oscillatorDisplay = 'rsi',
+  onOscillatorDisplayChange,
   trades = [],
 }: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,6 +258,22 @@ export default function CandleChart({
   const [showRSI, setShowRSI] = useState(false);
   const [showStoch, setShowStoch] = useState(false);
   const [showSignals, setShowSignals] = useState(false);
+
+  // Oscillator Display selection: 'rsi' | 'fisher' | 'ift'
+  const [activeOscillator, setActiveOscillator] = useState<'rsi' | 'fisher' | 'ift'>(oscillatorDisplay);
+
+  useEffect(() => {
+    if (oscillatorDisplay) {
+      setActiveOscillator(oscillatorDisplay);
+    }
+  }, [oscillatorDisplay]);
+
+  const handleOscillatorChange = (type: 'rsi' | 'fisher' | 'ift') => {
+    setActiveOscillator(type);
+    if (onOscillatorDisplayChange) {
+      onOscillatorDisplayChange(type);
+    }
+  };
 
   // Indicators Dropdown menu state
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -891,31 +913,64 @@ export default function CandleChart({
                   <span style={{ fontSize: '10px', color: '#8b949e' }}>TK/Cloud</span>
                 </label>
 
-                {/* Option 2: RSI */}
-                <label
+                {/* Option 2: Oscillator Sub-Chart (RSI / Fisher RSI / IFT-RSI) */}
+                <div
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
+                    flexDirection: 'column',
+                    gap: '6px',
                     padding: '6px 8px',
                     borderRadius: '6px',
                     backgroundColor: showRSI ? 'rgba(168, 85, 247, 0.08)' : 'transparent',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="checkbox"
-                      checked={showRSI}
-                      onChange={(e) => setShowRSI(e.target.checked)}
-                      style={{ accentColor: '#a855f7', cursor: 'pointer' }}
-                    />
-                    <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
-                      🟣 Relative Strength Index (RSI {rsiPeriod})
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={showRSI}
+                        onChange={(e) => setShowRSI(e.target.checked)}
+                        style={{ accentColor: '#a855f7', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '13px', color: '#e6edf3', fontWeight: 500 }}>
+                        {activeOscillator === 'rsi'
+                          ? `🟣 RSI (${rsiPeriod})`
+                          : activeOscillator === 'fisher'
+                          ? `🐟 Fisher RSI (${rsiPeriod})`
+                          : `📊 IFT-RSI (${rsiPeriod})`}
+                      </span>
+                    </label>
+                    <span style={{ fontSize: '10px', color: '#8b949e' }}>Sub-chart</span>
                   </div>
-                  <span style={{ fontSize: '10px', color: '#8b949e' }}>Sub-chart</span>
-                </label>
+
+                  {/* Quick toggle between Standard RSI, Fisher RSI, and IFT-RSI */}
+                  <div style={{ display: 'flex', gap: '4px', marginLeft: '22px' }}>
+                    {(['rsi', 'fisher', 'ift'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOscillatorChange(type);
+                          if (!showRSI) setShowRSI(true);
+                        }}
+                        style={{
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          border: '1px solid',
+                          borderColor: activeOscillator === type ? '#a855f7' : '#30363d',
+                          backgroundColor: activeOscillator === type ? 'rgba(168, 85, 247, 0.2)' : '#161b22',
+                          color: activeOscillator === type ? '#f0f6fc' : '#8b949e',
+                          cursor: 'pointer',
+                          fontWeight: activeOscillator === type ? 600 : 400,
+                        }}
+                      >
+                        {type === 'rsi' ? 'Standard RSI' : type === 'fisher' ? 'Fisher RSI' : 'IFT-RSI'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Option 3: Stochastic Oscillator */}
                 <label
@@ -1008,19 +1063,29 @@ export default function CandleChart({
         )}
       </div>
 
-      {/* RSI Sub-Chart (Synchronized time-axis) */}
+      {/* Oscillator Sub-Chart (Synchronized time-axis: Standard RSI, Fisher RSI, or IFT-RSI) */}
       {showRSI && (
-        <RsiSubChart
-          candles={candles}
-          rsiValues={rsiValues}
-          rsiPeriod={rsiPeriod}
-          rsiBuyMin={rsiBuyMin}
-          rsiBuyMax={rsiBuyMax}
-          rsiSellMin={rsiSellMin}
-          rsiSellMax={rsiSellMax}
-          onClose={() => setShowRSI(false)}
-          mainChartRef={chartRef}
-        />
+        activeOscillator === 'rsi' ? (
+          <RsiSubChart
+            candles={candles}
+            rsiValues={rsiValues}
+            rsiPeriod={rsiPeriod}
+            rsiBuyMin={rsiBuyMin}
+            rsiBuyMax={rsiBuyMax}
+            rsiSellMin={rsiSellMin}
+            rsiSellMax={rsiSellMax}
+            onClose={() => setShowRSI(false)}
+            mainChartRef={chartRef}
+          />
+        ) : (
+          <FisherSubChart
+            candles={candles}
+            fisherKind={activeOscillator}
+            rsiPeriod={rsiPeriod}
+            onClose={() => setShowRSI(false)}
+            mainChartRef={chartRef}
+          />
+        )
       )}
 
       {/* Stochastic Sub-Chart (Synchronized time-axis) */}

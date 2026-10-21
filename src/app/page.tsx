@@ -184,6 +184,7 @@ export default function DashboardPage() {
   const [trendRequirement, setTrendRequirement] = useState<'either' | '4h_and_1h' | '4h_only'>('either');
   const [fisherMode, setFisherMode] = useState<'off' | 'extra-trigger' | 'replace-stoch' | 'confirm'>('confirm');
   const [fisherKind, setFisherKind] = useState<'fisher' | 'ift'>('ift');
+  const [oscillatorDisplay, setOscillatorDisplay] = useState<'rsi' | 'fisher' | 'ift'>('ift');
   const [slippagePercent, setSlippagePercent] = useState(0);
   const [stopCheckMode, setStopCheckMode] = useState<StopCheckMode>('intrabar');
 
@@ -435,7 +436,7 @@ export default function DashboardPage() {
               TradeBot — Algorithmic Crypto Terminal
             </h1>
             <span style={{ fontSize: '13px', color: '#8b949e' }}>
-              Ichimoku Cloud (TK Cross) + RSI Zone Confluence Engine
+              Multi-Timeframe Strategy & Trend Ratchet Engine (Ichimoku + Stoch + Fisher/IFT)
             </span>
           </div>
         </div>
@@ -766,7 +767,7 @@ export default function DashboardPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b949e', letterSpacing: '0.6px' }}>
-              ICHIMOKU + RSI STRATEGY SETTINGS
+              MULTI-TIMEFRAME STRATEGY & INDICATOR SETTINGS
             </span>
           </div>
 
@@ -1138,7 +1139,9 @@ export default function DashboardPage() {
 
               {/* Fisher RSI Mode & Kind */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>Fisher Mode:</label>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }} title="Controls how Fisher/IFT participates in strategy entry logic">
+                  Fisher Mode (Entry):
+                </label>
                 <select
                   value={fisherMode}
                   onChange={(e) => setFisherMode(e.target.value as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm')}
@@ -1151,8 +1154,9 @@ export default function DashboardPage() {
                     padding: '5px 8px',
                     fontSize: '12px',
                   }}
+                  title="Controls how Fisher/IFT participates in strategy entry logic (off, extra-trigger, replace-stoch, confirm)"
                 >
-                  <option value="off">Off</option>
+                  <option value="off">Off (No Filter)</option>
                   <option value="extra-trigger">Extra Trigger</option>
                   <option value="replace-stoch">Replace Stoch</option>
                   <option value="confirm">Confirm</option>
@@ -1160,7 +1164,9 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>Fisher Kind:</label>
+                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }} title="Selects Fisher RSI vs IFT-RSI for strategy entry rules">
+                  Fisher Kind (Strategy):
+                </label>
                 <select
                   value={fisherKind}
                   onChange={(e) => setFisherKind(e.target.value as 'fisher' | 'ift')}
@@ -1173,9 +1179,35 @@ export default function DashboardPage() {
                     padding: '5px 8px',
                     fontSize: '12px',
                   }}
+                  title="Selects Fisher RSI vs IFT-RSI for strategy rules"
                 >
                   <option value="fisher">Fisher RSI</option>
                   <option value="ift">IFT-RSI</option>
+                </select>
+              </div>
+
+              {/* Chart Oscillator Display Selection */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#e879f9', fontWeight: 600 }} title="Controls which oscillator is plotted in the chart sub-chart (does not affect backtest entry signals)">
+                  Oscillator Display:
+                </label>
+                <select
+                  value={oscillatorDisplay}
+                  onChange={(e) => setOscillatorDisplay(e.target.value as 'rsi' | 'fisher' | 'ift')}
+                  style={{
+                    backgroundColor: '#0d1117',
+                    color: '#e879f9',
+                    fontWeight: 600,
+                    border: '1px solid #30363d',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                  }}
+                  title="Controls which oscillator is plotted in the chart sub-chart (does not affect backtest entry signals)"
+                >
+                  <option value="rsi">Standard RSI (0–100)</option>
+                  <option value="fisher">Fisher RSI (Oscillator + Signal)</option>
+                  <option value="ift">IFT-RSI (Inverse Fisher Transform)</option>
                 </select>
               </div>
 
@@ -1692,6 +1724,8 @@ export default function DashboardPage() {
           stochSmooth={stochSmooth}
           stochOversold={stochOversold}
           stochOverbought={stochOverbought}
+          oscillatorDisplay={oscillatorDisplay}
+          onOscillatorDisplayChange={setOscillatorDisplay}
           trades={isBacktestMatchingChart ? backtestResult?.trades : []}
         />
       </section>

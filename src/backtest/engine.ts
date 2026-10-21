@@ -9,21 +9,26 @@ import type {
   TkCrossTraceEvent,
   MultiPositionDiagnostics,
   Trade,
+  StopUpdateEvent,
+  StopUpdateReason,
 } from './types';
 import { VirtualPortfolio } from './portfolio';
 import { calculateMetrics } from './metrics';
 import { roundTo } from '../utils/math';
 
 interface ActiveTradeState {
+  tradeId: number;
   side: TradeSide;
   entryPrice: number;
   entryIndex: number;
   highestHigh: number;
   lowestLow: number;
   stopPrice: number | null;
+  initialStopPrice?: number | null;
   initialStopPercent?: number;
   ratchetSteps: number;
   entryDiagnostics?: EntryDiagnostics;
+  stopHistory: StopUpdateEvent[];
 }
 
 interface TraceableStrategy {
@@ -161,6 +166,9 @@ export class BacktestEngine {
       return positionSizePercent;
     };
 
+    let tradeCount = 0;
+    const allStopUpdates: StopUpdateEvent[] = [];
+
     const initTradeState = (
       side: TradeSide,
       entryPrice: number,
@@ -168,10 +176,22 @@ export class BacktestEngine {
       entryDiagnostics?: EntryDiagnostics,
       signalMetadata?: Record<string, unknown>
     ): ActiveTradeState => {
+      tradeCount++;
+      const tradeId = tradeCount;
       let initialStop: number | null = null;
       let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
 
+      const isDynamic = Boolean(signalMetadata?.useTdrStop || signalMetadata?.tdrStopPercent);
+
       if (
+        isDynamic &&
+        signalMetadata?.initialStopPercent !== undefined &&
+        typeof signalMetadata.initialStopPercent === 'number' &&
+        signalMetadata.initialStopPercent > 0
+      ) {
+        effectiveStopPercent = signalMetadata.initialStopPercent;
+      } else if (
+        effectiveStopPercent === undefined &&
         signalMetadata?.initialStopPercent !== undefined &&
         typeof signalMetadata.initialStopPercent === 'number' &&
         signalMetadata.initialStopPercent > 0
@@ -180,6 +200,7 @@ export class BacktestEngine {
       }
 
       if (
+        isDynamic &&
         signalMetadata?.stopPrice !== undefined &&
         typeof signalMetadata.stopPrice === 'number' &&
         signalMetadata.stopPrice > 0
@@ -192,16 +213,40 @@ export class BacktestEngine {
             : roundTo(entryPrice * (1 + effectiveStopPercent / 100), 8);
       }
 
+      const stopHistory: StopUpdateEvent[] = [];
+      const trailingMode = trailingStop?.mode ?? 'stepped';
+
+      if (initialStop !== null) {
+        const initEvt: StopUpdateEvent = {
+          tradeId,
+          side,
+          timestamp: candles[entryIndex].timestamp,
+          candleIndex: entryIndex,
+          stopPriceBefore: null,
+          candidateStopPrice: initialStop,
+          acceptedStopPrice: initialStop,
+          reason: isDynamic ? 'dynamicStop' : 'initialStop',
+          trailingMode: trailingStop ? trailingMode : undefined,
+          ratchetSteps: 0,
+          accepted: true,
+        };
+        stopHistory.push(initEvt);
+        allStopUpdates.push(initEvt);
+      }
+
       return {
+        tradeId,
         side,
         entryPrice,
         entryIndex,
         highestHigh: entryPrice,
         lowestLow: entryPrice,
         stopPrice: initialStop,
+        initialStopPrice: initialStop,
         initialStopPercent: effectiveStopPercent,
         ratchetSteps: 0,
         entryDiagnostics,
+        stopHistory,
       };
     };
 
@@ -335,6 +380,9 @@ export class BacktestEngine {
             maxFavorablePercent: mfe,
             maxAdversePercent: mae,
             stopPrice: currentStopPrice!,
+            initialStopPrice: tradeState.initialStopPrice ?? undefined,
+            initialStopPercent: tradeState.initialStopPercent,
+            stopHistory: tradeState.stopHistory,
             ratchetSteps: tradeState.ratchetSteps,
             entryDiagnostics: tradeState.entryDiagnostics,
           });
@@ -371,6 +419,9 @@ export class BacktestEngine {
             maxFavorablePercent: mfe,
             maxAdversePercent: mae,
             stopPrice: currentStopPrice ?? undefined,
+            initialStopPrice: tradeState.initialStopPrice ?? undefined,
+            initialStopPercent: tradeState.initialStopPercent,
+            stopHistory: tradeState.stopHistory,
             ratchetSteps: tradeState.ratchetSteps,
             entryDiagnostics: tradeState.entryDiagnostics,
           });
@@ -395,8 +446,24 @@ export class BacktestEngine {
 
             // Capital preservation: Move stop to Break-Even (entry price) once trade gains >= initial risk
             if (mfePercent >= tradeInitialStop) {
-              if (tradeState.stopPrice === null || tradeState.stopPrice < currentPos.entryPrice) {
-                tradeState.stopPrice = currentPos.entryPrice;
+              const candidateBe = currentPos.entryPrice;
+              if (tradeState.stopPrice === null || candidateBe > tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateBe,
+                  acceptedStopPrice: candidateBe,
+                  reason: 'breakEven',
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: true,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                tradeState.stopPrice = candidateBe;
               }
             }
 
@@ -405,6 +472,9 @@ export class BacktestEngine {
               if (n > tradeState.ratchetSteps) {
                 tradeState.ratchetSteps = n;
               }
+
+              let candidateStop: number;
+              let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
                 // Trend-Following Ratchet:
@@ -420,22 +490,53 @@ export class BacktestEngine {
                   tradeState.highestHigh * (1 - trailDistance / 100),
                   8
                 );
-                const candidateStop = Math.max(minLockedPrice, peakTrailPrice);
-                // 3. Golden Rule: Under NO circumstances can stopPrice ever move backward!
-                if (tradeState.stopPrice === null || candidateStop > tradeState.stopPrice) {
-                  tradeState.stopPrice = candidateStop;
-                }
+                candidateStop = Math.max(minLockedPrice, peakTrailPrice);
+                reason = 'trendTrail';
               } else {
                 // 'stepped' Mode: discrete steps from -tradeInitialStop + n * raisePercent
                 const candidateStopPercent =
                   -tradeInitialStop + n * trailingStop.raisePercent;
-                const candidateStopPrice = roundTo(
+                candidateStop = roundTo(
                   currentPos.entryPrice * (1 + candidateStopPercent / 100),
                   8
                 );
-                if (tradeState.stopPrice === null || candidateStopPrice > tradeState.stopPrice) {
-                  tradeState.stopPrice = candidateStopPrice;
-                }
+                reason = 'steppedRatchet';
+              }
+
+              // Invariant: Long stop must NEVER decrease
+              if (tradeState.stopPrice === null || candidateStop > tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: candidateStop,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: true,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                tradeState.stopPrice = candidateStop;
+              } else if (candidateStop < tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: tradeState.stopPrice,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: false,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
               }
             }
           } else {
@@ -445,8 +546,24 @@ export class BacktestEngine {
 
             // Capital preservation: Move stop to Break-Even (entry price) once trade gains >= initial risk
             if (mfePercent >= tradeInitialStop) {
-              if (tradeState.stopPrice === null || tradeState.stopPrice > currentPos.entryPrice) {
-                tradeState.stopPrice = currentPos.entryPrice;
+              const candidateBe = currentPos.entryPrice;
+              if (tradeState.stopPrice === null || candidateBe < tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateBe,
+                  acceptedStopPrice: candidateBe,
+                  reason: 'breakEven',
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: true,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                tradeState.stopPrice = candidateBe;
               }
             }
 
@@ -455,6 +572,9 @@ export class BacktestEngine {
               if (n > tradeState.ratchetSteps) {
                 tradeState.ratchetSteps = n;
               }
+
+              let candidateStop: number;
+              let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
                 // Trend-Following Ratchet:
@@ -468,22 +588,53 @@ export class BacktestEngine {
                   tradeState.lowestLow * (1 + trailDistance / 100),
                   8
                 );
-                const candidateStop = Math.min(minLockedPrice, peakTrailPrice);
-                // Golden Rule: Stop only ratchets DOWN in short, never moves upward!
-                if (tradeState.stopPrice === null || candidateStop < tradeState.stopPrice) {
-                  tradeState.stopPrice = candidateStop;
-                }
+                candidateStop = Math.min(minLockedPrice, peakTrailPrice);
+                reason = 'trendTrail';
               } else {
                 // 'stepped' Mode: discrete steps from -tradeInitialStop + n * raisePercent
                 const candidateStopPercent =
                   -tradeInitialStop + n * trailingStop.raisePercent;
-                const candidateStopPrice = roundTo(
+                candidateStop = roundTo(
                   currentPos.entryPrice * (1 - candidateStopPercent / 100),
                   8
                 );
-                if (tradeState.stopPrice === null || candidateStopPrice < tradeState.stopPrice) {
-                  tradeState.stopPrice = candidateStopPrice;
-                }
+                reason = 'steppedRatchet';
+              }
+
+              // Invariant: Short stop must NEVER increase
+              if (tradeState.stopPrice === null || candidateStop < tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: candidateStop,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: true,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                tradeState.stopPrice = candidateStop;
+              } else if (candidateStop > tradeState.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: tradeState.tradeId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: tradeState.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: tradeState.stopPrice,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: tradeState.ratchetSteps,
+                  accepted: false,
+                };
+                tradeState.stopHistory.push(evt);
+                allStopUpdates.push(evt);
               }
             }
           }
@@ -540,6 +691,9 @@ export class BacktestEngine {
             maxFavorablePercent: mfe,
             maxAdversePercent: mae,
             stopPrice: tradeState.stopPrice ?? undefined,
+            initialStopPrice: tradeState.initialStopPrice ?? undefined,
+            initialStopPercent: tradeState.initialStopPercent,
+            stopHistory: tradeState.stopHistory,
             ratchetSteps: tradeState.ratchetSteps,
             entryDiagnostics: tradeState.entryDiagnostics,
           });
@@ -583,6 +737,9 @@ export class BacktestEngine {
                 maxFavorablePercent: mfe,
                 maxAdversePercent: mae,
                 stopPrice: tradeState?.stopPrice ?? undefined,
+                initialStopPrice: tradeState?.initialStopPrice ?? undefined,
+                initialStopPercent: tradeState?.initialStopPercent,
+                stopHistory: tradeState?.stopHistory,
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
@@ -624,6 +781,9 @@ export class BacktestEngine {
                 maxFavorablePercent: mfe,
                 maxAdversePercent: mae,
                 stopPrice: tradeState?.stopPrice ?? undefined,
+                initialStopPrice: tradeState?.initialStopPrice ?? undefined,
+                initialStopPercent: tradeState?.initialStopPercent,
+                stopHistory: tradeState?.stopHistory,
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
@@ -678,6 +838,9 @@ export class BacktestEngine {
                 maxFavorablePercent: mfe,
                 maxAdversePercent: mae,
                 stopPrice: tradeState?.stopPrice ?? undefined,
+                initialStopPrice: tradeState?.initialStopPrice ?? undefined,
+                initialStopPercent: tradeState?.initialStopPercent,
+                stopHistory: tradeState?.stopHistory,
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
@@ -731,6 +894,9 @@ export class BacktestEngine {
                 maxFavorablePercent: mfe,
                 maxAdversePercent: mae,
                 stopPrice: tradeState?.stopPrice ?? undefined,
+                initialStopPrice: tradeState?.initialStopPrice ?? undefined,
+                initialStopPercent: tradeState?.initialStopPercent,
+                stopHistory: tradeState?.stopHistory,
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
@@ -783,6 +949,9 @@ export class BacktestEngine {
         maxFavorablePercent: mfe,
         maxAdversePercent: mae,
         stopPrice: tradeState?.stopPrice ?? undefined,
+        initialStopPrice: tradeState?.initialStopPrice ?? undefined,
+        initialStopPercent: tradeState?.initialStopPercent,
+        stopHistory: tradeState?.stopHistory,
         ratchetSteps: tradeState?.ratchetSteps,
         entryDiagnostics: tradeState?.entryDiagnostics,
       });
@@ -844,6 +1013,7 @@ export class BacktestEngine {
       activePosition: null,
       trace: collectTrace ? trace : undefined,
       multiPositionDiagnostics,
+      stopUpdates: allStopUpdates,
     };
   }
 
@@ -895,16 +1065,19 @@ export class BacktestEngine {
       entryIndex: number;
       concurrentOpenAtEntry: number;
       initialStopPercent?: number;
+      initialStopPrice?: number | null;
       stopPrice: number | null;
       highestHigh: number;
       lowestLow: number;
       ratchetSteps: number;
       entryDiagnostics?: EntryDiagnostics;
+      stopHistory: StopUpdateEvent[];
     }
 
     let cash = initialBalance;
     const openPositions: ActivePositionState[] = [];
     const completedTrades: Trade[] = [];
+    const allStopUpdates: StopUpdateEvent[] = [];
     const equityCurve: number[] = [];
     let nextPositionId = 1;
     let lastEntryIndex = -Infinity;
@@ -1086,6 +1259,9 @@ export class BacktestEngine {
             maxFavorablePercent: roundTo(mfe, 2),
             maxAdversePercent: roundTo(mae, 2),
             stopPrice: currentStopPrice !== null ? roundTo(currentStopPrice, 4) : undefined,
+            initialStopPrice: pos.initialStopPrice !== null && pos.initialStopPrice !== undefined ? roundTo(pos.initialStopPrice, 4) : undefined,
+            initialStopPercent: pos.initialStopPercent,
+            stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
             ratchetSteps: pos.ratchetSteps,
             entryDiagnostics: pos.entryDiagnostics,
             positionId: pos.positionId,
@@ -1154,6 +1330,9 @@ export class BacktestEngine {
             maxFavorablePercent: roundTo(mfe, 2),
             maxAdversePercent: roundTo(mae, 2),
             stopPrice: currentStopPrice !== null ? roundTo(currentStopPrice, 4) : undefined,
+            initialStopPrice: pos.initialStopPrice !== null && pos.initialStopPrice !== undefined ? roundTo(pos.initialStopPrice, 4) : undefined,
+            initialStopPercent: pos.initialStopPercent,
+            stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
             ratchetSteps: pos.ratchetSteps,
             entryDiagnostics: pos.entryDiagnostics,
             positionId: pos.positionId,
@@ -1176,8 +1355,24 @@ export class BacktestEngine {
           if (pos.side === 'long') {
             const mfePercent = ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
             if (mfePercent >= tradeInitialStop) {
-              if (pos.stopPrice === null || pos.stopPrice < pos.entryPrice) {
-                pos.stopPrice = pos.entryPrice;
+              const candidateBe = pos.entryPrice;
+              if (pos.stopPrice === null || candidateBe > pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateBe,
+                  acceptedStopPrice: candidateBe,
+                  reason: 'breakEven',
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: true,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                pos.stopPrice = candidateBe;
               }
             }
 
@@ -1186,30 +1381,80 @@ export class BacktestEngine {
               if (n > pos.ratchetSteps) {
                 pos.ratchetSteps = n;
               }
+
+              let candidateStop: number;
+              let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
                 const minLockedProfitPercent = n * trailingStop.raisePercent;
                 const trailDistance = trailingStop.raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 + minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.highestHigh * (1 - trailDistance / 100), 8);
-                const candidateStop = Math.max(minLockedPrice, peakTrailPrice);
-                if (pos.stopPrice === null || candidateStop > pos.stopPrice) {
-                  pos.stopPrice = candidateStop;
-                }
+                candidateStop = Math.max(minLockedPrice, peakTrailPrice);
+                reason = 'trendTrail';
               } else {
                 const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
-                const candidateStopPrice = roundTo(pos.entryPrice * (1 + candidateStopPercent / 100), 8);
-                if (pos.stopPrice === null || candidateStopPrice > pos.stopPrice) {
-                  pos.stopPrice = candidateStopPrice;
-                }
+                candidateStop = roundTo(pos.entryPrice * (1 + candidateStopPercent / 100), 8);
+                reason = 'steppedRatchet';
+              }
+
+              if (pos.stopPrice === null || candidateStop > pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: candidateStop,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: true,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                pos.stopPrice = candidateStop;
+              } else if (candidateStop < pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'long',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: pos.stopPrice,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: false,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
               }
             }
           } else {
             // short
             const mfePercent = ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
             if (mfePercent >= tradeInitialStop) {
-              if (pos.stopPrice === null || pos.stopPrice > pos.entryPrice) {
-                pos.stopPrice = pos.entryPrice;
+              const candidateBe = pos.entryPrice;
+              if (pos.stopPrice === null || candidateBe < pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateBe,
+                  acceptedStopPrice: candidateBe,
+                  reason: 'breakEven',
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: true,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                pos.stopPrice = candidateBe;
               }
             }
 
@@ -1219,21 +1464,55 @@ export class BacktestEngine {
                 pos.ratchetSteps = n;
               }
 
+              let candidateStop: number;
+              let reason: StopUpdateReason;
+
               if (trailingMode === 'trend') {
                 const minLockedProfitPercent = n * trailingStop.raisePercent;
                 const trailDistance = trailingStop.raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 - minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.lowestLow * (1 + trailDistance / 100), 8);
-                const candidateStop = Math.min(minLockedPrice, peakTrailPrice);
-                if (pos.stopPrice === null || candidateStop < pos.stopPrice) {
-                  pos.stopPrice = candidateStop;
-                }
+                candidateStop = Math.min(minLockedPrice, peakTrailPrice);
+                reason = 'trendTrail';
               } else {
                 const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
-                const candidateStopPrice = roundTo(pos.entryPrice * (1 - candidateStopPercent / 100), 8);
-                if (pos.stopPrice === null || candidateStopPrice < pos.stopPrice) {
-                  pos.stopPrice = candidateStopPrice;
-                }
+                candidateStop = roundTo(pos.entryPrice * (1 - candidateStopPercent / 100), 8);
+                reason = 'steppedRatchet';
+              }
+
+              if (pos.stopPrice === null || candidateStop < pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: candidateStop,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: true,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
+                pos.stopPrice = candidateStop;
+              } else if (candidateStop > pos.stopPrice) {
+                const evt: StopUpdateEvent = {
+                  tradeId: pos.positionId,
+                  side: 'short',
+                  timestamp: candle.timestamp,
+                  candleIndex: i,
+                  stopPriceBefore: pos.stopPrice,
+                  candidateStopPrice: candidateStop,
+                  acceptedStopPrice: pos.stopPrice,
+                  reason,
+                  trailingMode,
+                  ratchetSteps: pos.ratchetSteps,
+                  accepted: false,
+                };
+                pos.stopHistory.push(evt);
+                allStopUpdates.push(evt);
               }
             }
           }
@@ -1291,6 +1570,9 @@ export class BacktestEngine {
               maxFavorablePercent: roundTo(mfe, 2),
               maxAdversePercent: roundTo(mae, 2),
               stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
+              initialStopPrice: pos.initialStopPrice !== null && pos.initialStopPrice !== undefined ? roundTo(pos.initialStopPrice, 4) : undefined,
+              initialStopPercent: pos.initialStopPercent,
+              stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
               ratchetSteps: pos.ratchetSteps,
               entryDiagnostics: pos.entryDiagnostics,
               positionId: pos.positionId,
@@ -1420,7 +1702,17 @@ export class BacktestEngine {
 
             let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
             const signalMeta = signal.metadata as Record<string, unknown> | undefined;
+            const isDynamic = Boolean(signalMeta?.useTdrStop || signalMeta?.tdrStopPercent);
+
             if (
+              isDynamic &&
+              signalMeta?.initialStopPercent !== undefined &&
+              typeof signalMeta.initialStopPercent === 'number' &&
+              signalMeta.initialStopPercent > 0
+            ) {
+              effectiveStopPercent = signalMeta.initialStopPercent;
+            } else if (
+              effectiveStopPercent === undefined &&
               signalMeta?.initialStopPercent !== undefined &&
               typeof signalMeta.initialStopPercent === 'number' &&
               signalMeta.initialStopPercent > 0
@@ -1430,6 +1722,7 @@ export class BacktestEngine {
 
             let initialStop: number | null = null;
             if (
+              isDynamic &&
               signalMeta?.stopPrice !== undefined &&
               typeof signalMeta.stopPrice === 'number' &&
               signalMeta.stopPrice > 0
@@ -1442,8 +1735,30 @@ export class BacktestEngine {
                   : roundTo(candle.close * (1 + effectiveStopPercent / 100), 8);
             }
 
+            const posId = nextPositionId++;
+            const posStopHistory: StopUpdateEvent[] = [];
+            const trailingMode = trailingStop?.mode ?? 'stepped';
+
+            if (initialStop !== null) {
+              const initEvt: StopUpdateEvent = {
+                tradeId: posId,
+                side: canOpenDirection,
+                timestamp: candle.timestamp,
+                candleIndex: i,
+                stopPriceBefore: null,
+                candidateStopPrice: initialStop,
+                acceptedStopPrice: initialStop,
+                reason: isDynamic ? 'dynamicStop' : 'initialStop',
+                trailingMode: trailingStop ? trailingMode : undefined,
+                ratchetSteps: 0,
+                accepted: true,
+              };
+              posStopHistory.push(initEvt);
+              allStopUpdates.push(initEvt);
+            }
+
             const newPos: ActivePositionState = {
-              positionId: nextPositionId++,
+              positionId: posId,
               side: canOpenDirection,
               quantity,
               entryPrice: candle.close,
@@ -1454,11 +1769,13 @@ export class BacktestEngine {
               entryIndex: i,
               concurrentOpenAtEntry: openPositions.length + 1,
               initialStopPercent: effectiveStopPercent,
+              initialStopPrice: initialStop,
               stopPrice: initialStop,
               highestHigh: candle.close,
               lowestLow: candle.close,
               ratchetSteps: 0,
               entryDiagnostics: entryDiag,
+              stopHistory: posStopHistory,
             };
 
             openPositions.push(newPos);
@@ -1525,6 +1842,9 @@ export class BacktestEngine {
           maxFavorablePercent: roundTo(mfe, 2),
           maxAdversePercent: roundTo(mae, 2),
           stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
+          initialStopPrice: pos.initialStopPrice !== null && pos.initialStopPrice !== undefined ? roundTo(pos.initialStopPrice, 4) : undefined,
+          initialStopPercent: pos.initialStopPercent,
+          stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
           ratchetSteps: pos.ratchetSteps,
           entryDiagnostics: pos.entryDiagnostics,
           positionId: pos.positionId,
@@ -1596,6 +1916,7 @@ export class BacktestEngine {
       activePosition: null,
       trace: collectTrace ? trace : undefined,
       multiPositionDiagnostics,
+      stopUpdates: allStopUpdates,
     };
   }
 }

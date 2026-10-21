@@ -1,10 +1,10 @@
 # Automated Backtest Review Report
-Generated: **2026-10-20T11:38:20.695Z** | Config Hash: `f71c9fab`
+Generated: **2026-10-21T06:13:07.722Z** | Config Hash: `f71c9fab`
 
 ## Section A: Run Header
 | Property | Value |
 |---|---|
-| **Git Commit** | `81d40ef` (⚠️ dirty) |
+| **Git Commit** | `530551e` (⚠️ dirty) |
 | **Strategy** | MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled) |
 | **Symbol / Interval / Period** | `BTCUSDT` / `4h` / `all` |
 | **Total Candles** | 7 |
@@ -146,3 +146,4 @@ Generated: **2026-10-20T11:38:20.695Z** | Config Hash: `f71c9fab`
 | **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚠️ INCOMPLETE | 0 | 0/0 checked stop exits verified (1/1 uncheckable due to missing stop price or exit candle) |
 | **Trade Non-Overlap (Single Position Invariant)** | ⚪ N/A | 0 | Only 1 trade executed; no adjacent trade pairs exist to evaluate overlap (0 trade pairs) |
 | **Trailing Ratchet Step Non-Negativity** | ⚪ N/A | 0 | Trailing stop disabled in configuration (0 applicable trades) |
+| **Trailing Stop Monotonicity (Non-Retreating Guard)** | ⚪ N/A | 0 | Trailing stop disabled in configuration (0 applicable trades) |

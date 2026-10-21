@@ -994,7 +994,7 @@ async function main(): Promise<void> {
 
   const lines: string[] = [];
   lines.push('# Multi-Timeframe Strategy Validation Report (Candidates B & D)');
-  lines.push(`> Generated: **${new Date().toISOString()}** | Commit: \`${gitCommit.slice(0, 8)}\` | Capital: \$10,000 | Fee: 0.1% | Trailing: 3/3/1.5`);
+  lines.push(`> Generated: **${new Date().toISOString()}** | Commit: \`${gitCommit.slice(0, 8)}\` | Capital: $10,000 | Fee: 0.1% | Trailing: 3/3/1.5`);
   lines.push('');
 
   // 1. Verdict Table for B and D

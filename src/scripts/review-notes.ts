@@ -4,7 +4,8 @@ import { execSync } from 'child_process';
 import * as os from 'os';
 import { JsonStorage } from '../data/storage/json-storage';
 import { BacktestEngine } from '../backtest/engine';
-import { IchimokuRsiStrategy } from '../strategies/ichimoku-rsi-strategy';
+// TODO: This script was designed for the removed IchimokuRsiStrategy and needs a dedicated MTF review.
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { VirtualPortfolio } from '../backtest/portfolio';
@@ -301,17 +302,17 @@ async function runReviewNotes(): Promise<void> {
     }
 
     for (const L of lookbacks) {
-      const strategy = new IchimokuRsiStrategy({
+      const strategy = new MultiTimeframeStrategy({
         tenkan: 9,
         kijun: 26,
         senkouB: 52,
         displacement: 26,
         rsiPeriod: 14,
-        rsiBuyMin: 20,
-        rsiBuyMax: 40,
-        rsiSellMin: 60,
-        rsiSellMax: 80,
-        rsiLookback: L,
+        stochKPeriod: 14,
+        stochDPeriod: 3,
+        stochSmooth: 3,
+        stochOversold: 30,
+        stochOverbought: 70,
       });
 
       let buySetups = 0;
@@ -333,7 +334,16 @@ async function runReviewNotes(): Promise<void> {
         tradeMode: 'long-short',
       });
 
-      const diag = strategy.getDiagnostics(candles);
+      const stratWithDiag = strategy as unknown as {
+        getDiagnostics?: (c: readonly Candle[]) => {
+          tkCrossUpCount: number;
+          tkCrossDownCount: number;
+          tkCrossEqualityStartCount: number;
+        };
+      };
+      const diag = typeof stratWithDiag.getDiagnostics === 'function'
+        ? stratWithDiag.getDiagnostics(candles)
+        : { tkCrossUpCount: 0, tkCrossDownCount: 0, tkCrossEqualityStartCount: 0 };
 
       funnelRows.push({
         symbol: ds.symbol,
@@ -355,17 +365,17 @@ async function runReviewNotes(): Promise<void> {
 
   // 4. Default Backtest Runs
   console.log('-> Executing default backtests...');
-  const defaultStrategy = new IchimokuRsiStrategy({
+  const defaultStrategy = new MultiTimeframeStrategy({
     tenkan: 9,
     kijun: 26,
     senkouB: 52,
     displacement: 26,
     rsiPeriod: 14,
-    rsiBuyMin: 20,
-    rsiBuyMax: 40,
-    rsiSellMin: 60,
-    rsiSellMax: 80,
-    rsiLookback: 10,
+    stochKPeriod: 14,
+    stochDPeriod: 3,
+    stochSmooth: 3,
+    stochOversold: 30,
+    stochOverbought: 70,
   });
 
   const btcCandles = loadedCandles.get('BTCUSDT_1h') || [];

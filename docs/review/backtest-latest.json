@@ -1,8 +1,8 @@
 {
   "meta": {
-    "generatedAt": "2026-10-20T11:38:20.695Z",
+    "generatedAt": "2026-10-21T06:13:07.722Z",
     "configHash": "f71c9fab",
-    "gitCommit": "81d40ef",
+    "gitCommit": "530551e",
     "isDirty": true,
     "symbol": "BTCUSDT",
     "interval": "4h",
@@ -286,6 +286,12 @@
     },
     {
       "name": "Trailing Ratchet Step Non-Negativity",
+      "status": "NOT_APPLICABLE",
+      "violations": 0,
+      "details": "Trailing stop disabled in configuration (0 applicable trades)"
+    },
+    {
+      "name": "Trailing Stop Monotonicity (Non-Retreating Guard)",
       "status": "NOT_APPLICABLE",
       "violations": 0,
       "details": "Trailing stop disabled in configuration (0 applicable trades)"

@@ -1,14 +1,14 @@
 # Trade Diagnostics Report — Latest Backtest Run
 
-> **Canonical Diagnostic Log** | Generated: `2026-10-20T11:38:20.696Z` | Git: `81d40ef` (dirty) | Config Hash: `f71c9fab`
+> **Canonical Diagnostic Log** | Generated: `2026-10-21T06:13:07.723Z` | Git: `530551e` (dirty) | Config Hash: `f71c9fab`
 
 ---
 
 ## Section 1: Run Identity & Reproducibility
 | Parameter | Value | Specification Details |
 |---|---|---|
-| **Run Timestamp (UTC)** | `2026-10-20T11:38:20.696Z` | Deterministic backtest execution |
-| **Git Revision** | `81d40ef` | Working tree: `DIRTY` |
+| **Run Timestamp (UTC)** | `2026-10-21T06:13:07.723Z` | Deterministic backtest execution |
+| **Git Revision** | `530551e` | Working tree: `DIRTY` |
 | **Strategy** | **MultiTimeframe (strict, cross, fisher=confirm/ift) (kijunSlopeFilter: disabled, structureFilter: disabled)** | Strategy engine configuration |
 | **Symbol & Timeframe** | `BTCUSDT` / `4h` | Higher-timeframe context |
 | **Evaluation Type** | **Standard Evaluation Window** | Out-of-sample / In-sample protocol |
@@ -77,6 +77,7 @@
 | **Stop Fill Integrity (Intrabar Gap/Slippage)** | ⚠️ INCOMPLETE | 0 | 0/0 checked stop exits verified (1/1 uncheckable due to missing stop price or exit candle) |
 | **Trade Non-Overlap (Single Position Invariant)** | ⚪ N/A | 0 | Only 1 trade executed; no adjacent trade pairs exist to evaluate overlap (0 trade pairs) |
 | **Trailing Ratchet Step Non-Negativity** | ⚪ N/A | 0 | Trailing stop disabled in configuration (0 applicable trades) |
+| **Trailing Stop Monotonicity (Non-Retreating Guard)** | ⚪ N/A | 0 | Trailing stop disabled in configuration (0 applicable trades) |
 
 ## Section 6: Reproduction & Report Lifecycle
 - **Canonical Diagnostics Report:** `docs/review/TRADE_DIAGNOSTICS_LATEST.md`

@@ -93,6 +93,28 @@ export interface BacktestConfig {
   collectTrace?: boolean;         // optional passive trace collector
 }
 
+export type StopUpdateReason =
+  | 'initialStop'
+  | 'dynamicStop'
+  | 'breakEven'
+  | 'trendTrail'
+  | 'steppedRatchet';
+
+export interface StopUpdateEvent {
+  positionId?: number;
+  tradeId?: number;
+  side: TradeSide;
+  timestamp: number;
+  candleIndex?: number;
+  stopPriceBefore: number | null;
+  candidateStopPrice: number;
+  acceptedStopPrice: number;
+  reason: StopUpdateReason;
+  trailingMode?: 'trend' | 'stepped';
+  ratchetSteps: number;
+  accepted: boolean;
+}
+
 export interface Trade {
   side: TradeSide;
   exitReason: ExitReason;
@@ -110,6 +132,9 @@ export interface Trade {
   maxFavorablePercent: number;    // Best unrealized favorable move (% of entry price)
   maxAdversePercent: number;      // Worst unrealized adverse move (% of entry price)
   stopPrice?: number;             // Stop level at time of exit (if stopped out or tracked)
+  initialStopPrice?: number;      // Initial stop price upon entry
+  initialStopPercent?: number;    // Initial stop loss % upon entry
+  stopHistory?: StopUpdateEvent[];// Recorded chronological stop price lifecycle
   ratchetSteps?: number;          // Number of trailing ratchet steps reached
   entryDiagnostics?: EntryDiagnostics;
   positionId?: number;
@@ -200,4 +225,5 @@ export interface BacktestResult {
   activePosition?: ActivePosition | null;
   trace?: BacktestTrace;
   multiPositionDiagnostics?: MultiPositionDiagnostics;
+  stopUpdates?: StopUpdateEvent[];
 }

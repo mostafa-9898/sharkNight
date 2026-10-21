@@ -1011,6 +1011,51 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     });
   }
 
+  // Check 5: Trailing Stop Monotonicity Invariant (Non-Retreating Guard)
+  if (!config.trailingStop) {
+    invariantResults.push({
+      name: 'Trailing Stop Monotonicity (Non-Retreating Guard)',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details: 'Trailing stop disabled in configuration (0 applicable trades)',
+    });
+  } else if (trades.length === 0) {
+    invariantResults.push({
+      name: 'Trailing Stop Monotonicity (Non-Retreating Guard)',
+      status: 'NOT_APPLICABLE',
+      violations: 0,
+      details: 'No trades executed to evaluate trailing stop updates (0 applicable trades)',
+    });
+  } else {
+    let monotonicityViolations = 0;
+    let checkedUpdates = 0;
+    for (const t of trades) {
+      if (t.stopHistory && t.stopHistory.length > 1) {
+        for (let sIdx = 1; sIdx < t.stopHistory.length; sIdx++) {
+          const prev = t.stopHistory[sIdx - 1];
+          const curr = t.stopHistory[sIdx];
+          if (curr.accepted) {
+            checkedUpdates++;
+            if (t.side === 'long' && curr.acceptedStopPrice < prev.acceptedStopPrice) {
+              monotonicityViolations++;
+            } else if (t.side === 'short' && curr.acceptedStopPrice > prev.acceptedStopPrice) {
+              monotonicityViolations++;
+            }
+          }
+        }
+      }
+    }
+    invariantResults.push({
+      name: 'Trailing Stop Monotonicity (Non-Retreating Guard)',
+      status: monotonicityViolations === 0 ? 'PASS' : 'FAIL',
+      violations: monotonicityViolations,
+      details:
+        monotonicityViolations === 0
+          ? `All accepted stop updates monotonically protective (${checkedUpdates} updates across ${trades.length} trades verified)`
+          : `Protective stop retreat detected in ${monotonicityViolations}/${checkedUpdates} stop updates`,
+    });
+  }
+
   // ==========================================
   // BUILD MARKDOWN (SECTIONS A TO K IN ORDER)
   // ==========================================
@@ -1780,8 +1825,15 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     const exitPrice = `$${t.exitPrice.toFixed(2)}`;
     const qty = t.quantity.toFixed(4);
     const posVal = `$${(t.quantity * t.entryPrice).toFixed(2)}`;
-    const riskDollar = `$${((t.quantity * t.entryPrice) * (initialStopPercent / 100)).toFixed(2)}`;
-    const initStop = `$${(t.side === 'long' ? t.entryPrice * (1 - initialStopPercent / 100) : t.entryPrice * (1 + initialStopPercent / 100)).toFixed(2)}`;
+    const tradeInitStopPct = t.initialStopPercent ?? initialStopPercent;
+    const riskDollar = `$${((t.quantity * t.entryPrice) * (tradeInitStopPct / 100)).toFixed(2)}`;
+    const initStopVal =
+      t.initialStopPrice !== undefined
+        ? t.initialStopPrice
+        : t.side === 'long'
+        ? t.entryPrice * (1 - tradeInitStopPct / 100)
+        : t.entryPrice * (1 + tradeInitStopPct / 100);
+    const initStop = `$${initStopVal.toFixed(2)}`;
     const reason = `\`${t.exitReason}\``;
     const grossPnlVal = t.side === 'long' ? (t.exitPrice - t.entryPrice) * t.quantity : (t.entryPrice - t.exitPrice) * t.quantity;
     const grossPnl = formatCurrency(roundTo(grossPnlVal, 2));
@@ -1790,8 +1842,8 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     const retPct = `**${formatPercent(t.pnlPercent)}**`;
     const mfe = t.maxFavorablePercent ?? 0;
     const mae = t.maxAdversePercent ?? 0;
-    const mfeR = (mfe / initialStopPercent).toFixed(2);
-    const maeR = (mae / initialStopPercent).toFixed(2);
+    const mfeR = (mfe / tradeInitStopPct).toFixed(2);
+    const maeR = (mae / tradeInitStopPct).toFixed(2);
     const mfeStr = `+${mfe.toFixed(1)}% (+${mfeR}R)`;
     const maeStr = `-${mae.toFixed(1)}% (-${maeR}R)`;
     const givebackPct = roundTo(Math.max(0, mfe - Math.max(0, t.pnlPercent ?? 0)), 1);
@@ -1811,6 +1863,63 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
     );
   });
   lines.push(``);
+
+  // Trailing Stop Diagnostic & Update Trace
+  const tradesWithStopUpdates = completedTrades.filter((t) => t.stopHistory && t.stopHistory.length > 0);
+  if (config.trailingStop && tradesWithStopUpdates.length > 0) {
+    lines.push(`### Trailing Stop Execution & Invariant Verification`);
+    lines.push(`> 🛡️ **Invariant Guarantee:** Long stop prices must never decrease; Short stop prices must never increase. Candidate stops that would loosen protection are rejected.`);
+    lines.push(``);
+    lines.push(`| Trade ID | Side | Entry Price | Initial Stop | Final Stop Price | Steps | Total Updates | Monotonic Check |`);
+    lines.push(`|---|---|---|---|---|---|---|---|`);
+    for (let i = 0; i < completedTrades.length; i++) {
+      const t = completedTrades[i];
+      if (!t.stopHistory || t.stopHistory.length === 0) continue;
+      const id = `TR-${String(i + 1).padStart(3, '0')}`;
+      const side = `\`${t.side.toUpperCase()}\``;
+      const entryPrice = `$${t.entryPrice.toFixed(2)}`;
+      const initStop = t.initialStopPrice !== undefined ? `$${t.initialStopPrice.toFixed(2)}` : 'N/A';
+      const finalStop = t.stopPrice !== undefined ? `$${t.stopPrice.toFixed(2)}` : 'N/A';
+      const steps = t.ratchetSteps ?? 0;
+      const totalUpdates = t.stopHistory.length;
+      let isMonotonic = true;
+      for (let sIdx = 1; sIdx < t.stopHistory.length; sIdx++) {
+        const prev = t.stopHistory[sIdx - 1];
+        const curr = t.stopHistory[sIdx];
+        if (curr.accepted) {
+          if (t.side === 'long' && curr.acceptedStopPrice < prev.acceptedStopPrice) isMonotonic = false;
+          if (t.side === 'short' && curr.acceptedStopPrice > prev.acceptedStopPrice) isMonotonic = false;
+        }
+      }
+      lines.push(
+        `| ${id} | ${side} | ${entryPrice} | ${initStop} | ${finalStop} | ${steps} | ${totalUpdates} | ${isMonotonic ? '✅ Monotonic' : '❌ Retreat Detected'} |`
+      );
+    }
+    lines.push(``);
+
+    const allUpdates = backtestResult.stopUpdates ?? [];
+    if (allUpdates.length > 0) {
+      lines.push(`#### Stop Update Event Log (Deterministic Engine Diagnostics)`);
+      lines.push(`| Trade | Side | Timestamp (UTC) | Reason | Mode | Step | Before Stop | Candidate Stop | Accepted Stop | Status |`);
+      lines.push(`|---|---|---|---|---|---|---|---|---|---|`);
+      const eventsToShow = allUpdates.slice(-50);
+      for (const ev of eventsToShow) {
+        const trId = `TR-${String(ev.tradeId).padStart(3, '0')}`;
+        const side = `\`${ev.side.toUpperCase()}\``;
+        const timeStr = formatDate(ev.timestamp);
+        const reason = `\`${ev.reason}\``;
+        const mode = ev.trailingMode ?? 'stepped';
+        const beforeStr = ev.stopPriceBefore !== null ? `$${ev.stopPriceBefore.toFixed(2)}` : 'None';
+        const candidateStr = `$${ev.candidateStopPrice.toFixed(2)}`;
+        const acceptedStr = `$${ev.acceptedStopPrice.toFixed(2)}`;
+        const statusStr = ev.accepted ? '✅ Accepted' : '🚫 Rejected (Retreat Guard)';
+        lines.push(
+          `| ${trId} | ${side} | ${timeStr} | ${reason} | ${mode} | ${ev.ratchetSteps} | ${beforeStr} | ${candidateStr} | ${acceptedStr} | ${statusStr} |`
+        );
+      }
+      lines.push(``);
+    }
+  }
 
   // Open position subsection
   lines.push(`### Open Position at Backtest Conclusion`);

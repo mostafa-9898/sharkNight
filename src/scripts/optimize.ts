@@ -3,7 +3,8 @@ import * as path from 'path';
 import { JsonStorage } from '../data/storage/json-storage';
 import { BacktestEngine } from '../backtest/engine';
 import type { TradeMode, TrailingStopConfig } from '../backtest/types';
-import { IchimokuRsiStrategy } from '../strategies/ichimoku-rsi-strategy';
+// TODO: This script was designed for the removed IchimokuRsiStrategy and needs a dedicated MTF optimizer.
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import {
   getIntervalMs,
   performCandleSanityCheck,
@@ -82,7 +83,7 @@ function isDatasetSynthetic(candles: readonly Candle[]): boolean {
 }
 
 function runBacktestSlice(
-  strategy: IchimokuRsiStrategy,
+  strategy: MultiTimeframeStrategy,
   candles: readonly Candle[],
   interval: CandleInterval,
   tradeMode: TradeMode,
@@ -157,6 +158,7 @@ function runBacktestSlice(
 }
 
 async function runOptimization() {
+  console.warn('⚠️ WARNING: This optimizer was designed for the removed IchimokuRsiStrategy. Results may not be meaningful with MultiTimeframeStrategy. A dedicated MTF optimizer is needed.');
   const args = process.argv.slice(2);
   let targetSymbol = 'BTCUSDT';
   for (const a of args) {
@@ -277,30 +279,30 @@ async function runOptimization() {
             const L = lookbacks[lIdx];
 
             // Instantiate strategies once per indicator combination (leverages WeakMap candle caching)
-            const strategyTrain = new IchimokuRsiStrategy({
+            const strategyTrain = new MultiTimeframeStrategy({
               tenkan: ich.tenkan,
               kijun: ich.kijun,
               senkouB: ich.senkouB,
               displacement: ich.displacement,
               rsiPeriod: 14,
-              rsiBuyMin: buyZ.min,
-              rsiBuyMax: buyZ.max,
-              rsiSellMin: sellZ.min,
-              rsiSellMax: sellZ.max,
-              rsiLookback: L,
+              stochKPeriod: 14,
+              stochDPeriod: 3,
+              stochSmooth: 3,
+              stochOversold: 30,
+              stochOverbought: 70,
             });
 
-            const strategyTest = new IchimokuRsiStrategy({
+            const strategyTest = new MultiTimeframeStrategy({
               tenkan: ich.tenkan,
               kijun: ich.kijun,
               senkouB: ich.senkouB,
               displacement: ich.displacement,
               rsiPeriod: 14,
-              rsiBuyMin: buyZ.min,
-              rsiBuyMax: buyZ.max,
-              rsiSellMin: sellZ.min,
-              rsiSellMax: sellZ.max,
-              rsiLookback: L,
+              stochKPeriod: 14,
+              stochDPeriod: 3,
+              stochSmooth: 3,
+              stochOversold: 30,
+              stochOverbought: 70,
             });
 
             for (let mIdx = 0; mIdx < tradeModes.length; mIdx++) {

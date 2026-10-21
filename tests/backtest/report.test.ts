@@ -277,7 +277,7 @@ describe('Backtest Report Builder & Tracing', () => {
       const output = buildBacktestReport(input);
 
       const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number; details: string }>;
-      expect(invariants).toHaveLength(4);
+      expect(invariants).toHaveLength(5);
 
       const cashInv = invariants.find((i) => i.name === 'Cash / Equity Conservation')!;
       expect(cashInv.status).toBe('PASS');
@@ -292,6 +292,10 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(overlapInv.status).toBe('NOT_APPLICABLE');
       expect(overlapInv.violations).toBe(0);
       expect(overlapInv.details).toContain('0 trade pairs');
+
+      const monoInv = invariants.find((i) => i.name === 'Trailing Stop Monotonicity (Non-Retreating Guard)')!;
+      expect(monoInv.status).toBe('NOT_APPLICABLE');
+      expect(monoInv.violations).toBe(0);
 
       const ratchetInv = invariants.find((i) => i.name === 'Trailing Ratchet Step Non-Negativity')!;
       expect(ratchetInv.status).toBe('NOT_APPLICABLE');
@@ -603,7 +607,7 @@ describe('Backtest Report Builder & Tracing', () => {
 
       const output = buildBacktestReport(input);
       const invariants = output.json.invariants as Array<{ name: string; status: string; violations: number }>;
-      expect(invariants).toHaveLength(4);
+      expect(invariants).toHaveLength(5);
 
       for (const inv of invariants) {
         expect(inv.status).toBe('PASS');
