@@ -167,6 +167,14 @@ function calcReturnWithoutBest(trades: readonly Trade[], totalPnl: number, initi
   return roundTo((pnlWithoutBest / initialBalance) * 100, 2);
 }
 
+function calcReturnWithoutTop3(trades: readonly Trade[], totalPnl: number, initialBalance: number): number {
+  if (trades.length === 0) return 0;
+  const sorted = [...trades].sort((a, b) => (b.pnl || 0) - (a.pnl || 0));
+  const top3Pnl = sorted.slice(0, 3).reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const pnlWithoutTop3 = totalPnl - top3Pnl;
+  return roundTo((pnlWithoutTop3 / initialBalance) * 100, 2);
+}
+
 // Calibrates random signal multiplier so that simulated trade count matches targetTrades within ~12%
 function calibrateMultiplier(
   engine: BacktestEngine,
@@ -739,9 +747,9 @@ async function main(): Promise<void> {
     },
     candidateDefinitions: {
       A: 'Stop 3% + reverse, kijunSlopeFilter: true, structureFilter: true',
-      B: 'trailingOnly with 3/3/1.5, tradeMode: long-short, kijunSlopeFilter: true, structureFilter: true',
+      B: 'trailingOnly with 5/3/1.5 (initial/step/raise), tradeMode: long-short, kijunSlopeFilter: true, structureFilter: true',
       C: 'Stop 3% + reverse, kijunSlopeFilter: false, structureFilter: false',
-      D: 'trailingOnly with 3/3/1.5, tradeMode: long-only, kijunSlopeFilter: true, structureFilter: true',
+      D: 'trailingOnly with 5/3/1.5 (initial/step/raise), tradeMode: long-only, kijunSlopeFilter: true, structureFilter: true',
     },
   };
   await fs.writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf-8');
@@ -992,9 +1000,109 @@ async function main(): Promise<void> {
     }
   }
 
+  // Real 3% Initial Stop Reference Runs (D0 vs D*)
+  console.log('\n--- Running Real 3% Initial Stop Reference Runs (D0 vs D*) ---');
+  interface Real3PctRow {
+    market: string;
+    cfg: 'D0' | 'D*';
+    returnPct: number;
+    maxDDPct: number;
+    trades: number;
+    retNoTop3: number;
+    randomPctile: number;
+  }
+  const real3PctResults: Real3PctRow[] = [];
+
+  const primaryMarketKeys = ['BTC_15m', 'BTC_1h', 'BTC_4h', 'ETH_15m', 'ETH_1h', 'ETH_4h'] as const;
+  const real3Configs = [
+    { id: 'D0' as const, fisherMode: 'off' as const, fisherKind: 'fisher' as const },
+    { id: 'D*' as const, fisherMode: 'confirm' as const, fisherKind: 'ift' as const },
+  ];
+
+  for (const m of primaryMarketKeys) {
+    const [sym, tf] = m.split('_') as ['BTC' | 'ETH', '15m' | '1h' | '4h'];
+    const symCandles = candleData[sym];
+    const c1h = symCandles['1h'];
+    const c4h = symCandles['4h'];
+    const activeCandles = symCandles[tf];
+
+    for (const cDef of real3Configs) {
+      const strat = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: cDef.fisherMode,
+        fisherKind: cDef.fisherKind,
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
+      });
+
+      const simCfg = {
+        initialBalance,
+        positionSizePercent: 5,
+        tradeFeePercent: baseFee,
+        tradeMode: 'long-only' as const,
+        exitMode: 'trailingOnly' as const,
+        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+      };
+
+      const res = engine.run({
+        ...simCfg,
+        strategy: strat,
+        candles: activeCandles,
+      });
+
+      const returnPct = roundTo(res.metrics.totalPnlPercent, 1);
+      const maxDDPct = roundTo(res.metrics.maxDrawdownPercent, 1);
+      const trades = res.metrics.totalTrades;
+      const retNoTop3 = calcReturnWithoutTop3(res.trades, res.metrics.totalPnl, initialBalance);
+
+      const eligibleLongOnly: Array<{ idx: number; dir: 1 | -1 }> = [];
+      for (let i = 0; i < activeCandles.length; i++) {
+        if (strat.getStrictHtfDirection(activeCandles, i) === 1) {
+          eligibleLongOnly.push({ idx: i, dir: 1 });
+        }
+      }
+
+      const mult = calibrateMultiplier(engine, activeCandles, eligibleLongOnly, trades, simCfg);
+      const sampleCount = Math.min(eligibleLongOnly.length, Math.max(1, Math.round(trades * mult)));
+
+      const simReturns: number[] = [];
+      for (let s = 0; s < 200; s++) {
+        const rng = mulberry32(42 + s);
+        const chosen = sampleDistinctIndices(eligibleLongOnly.length, sampleCount, rng);
+        const sigMap = new Map<number, 1 | -1>();
+        for (const idx of chosen) sigMap.set(eligibleLongOnly[idx].idx, 1);
+        const simRes = engine.run({
+          ...simCfg,
+          strategy: new RandomEntryStrategy(sigMap),
+          candles: activeCandles,
+        });
+        simReturns.push(roundTo(simRes.metrics.totalPnlPercent, 2));
+      }
+
+      const sortedSims = [...simReturns].sort((a, b) => a - b);
+      const strictlyBelow = sortedSims.filter((v) => v < res.metrics.totalPnlPercent).length;
+      const equalCount = sortedSims.filter((v) => v === res.metrics.totalPnlPercent).length;
+      const randomPctile = roundTo(((strictlyBelow + 0.5 * equalCount) / sortedSims.length) * 100, 1);
+
+      real3PctResults.push({
+        market: m,
+        cfg: cDef.id,
+        returnPct,
+        maxDDPct,
+        trades,
+        retNoTop3,
+        randomPctile,
+      });
+      console.log(`[Real 3% Stop] ${m} ${cDef.id}: Ret=+${returnPct}%, DD=${maxDDPct}%, Trades=${trades}, NoTop3=+${retNoTop3}%, Pctile=${randomPctile}%`);
+    }
+  }
+
   const lines: string[] = [];
   lines.push('# Multi-Timeframe Strategy Validation Report (Candidates B & D)');
-  lines.push(`> Generated: **${new Date().toISOString()}** | Commit: \`${gitCommit.slice(0, 8)}\` | Capital: $10,000 | Fee: 0.1% | Trailing: 3/3/1.5`);
+  lines.push(`> Generated: **${new Date().toISOString()}** | Commit: \`${gitCommit.slice(0, 8)}\` | Capital: $10,000 | Fee: 0.1% | Trailing: 5/3/1.5 (initial/step/raise)`);
   lines.push('');
 
   // 1. Verdict Table for B and D
@@ -1023,7 +1131,7 @@ async function main(): Promise<void> {
     const ethPass = rows.some((r) => r.market.startsWith('ETH') && r.pass);
     const finalOk = passCount >= 2 && btcPass && ethPass;
     const nameStr = cfg === 'D' ? '**Candidate D@5%**' : `**Candidate ${cfg}**`;
-    const desc = cfg === 'B' ? 'Dual Filter, Long-Short Trailing 3/3/1.5' : 'Dual Filter, Long-Only Trailing 3/3/1.5, Size 5%';
+    const desc = cfg === 'B' ? 'Dual Filter, Long-Short Trailing 5/3/1.5 (initial/step/raise)' : 'Dual Filter, Long-Only Trailing 5/3/1.5 (initial/step/raise), Size 5%';
     lines.push(
       `| ${nameStr} | ${desc} | ${passCount} / 6 | ${btcPass ? '✅ Yes' : '❌ No'} | ${ethPass ? '✅ Yes' : '❌ No'} | ${finalOk ? '**ACCEPTED**' : '**REJECTED**'} |`
     );
@@ -1042,8 +1150,21 @@ async function main(): Promise<void> {
   }
   lines.push('');
 
-  // 3. Position Size Sensitivity Summary for Candidate D
-  lines.push('### 3. Position Size Sensitivity Summary (Candidate D)');
+  // 3. Real 3% Initial Stop Reference (D0 vs D*)
+  lines.push('### 3. Real 3% Initial Stop Comparison (D0 & D* Reference Only)');
+  lines.push('| Market | Cfg | Ret% | MaxDD% | Trades | Ret w/o Top3% | Random Pctile |');
+  lines.push('|---|:---:|:---:|:---:|:---:|:---:|:---:|');
+  for (const r of real3PctResults) {
+    const retStr = (r.returnPct > 0 ? '+' : '') + r.returnPct.toFixed(1) + '%';
+    const no3Str = (r.retNoTop3 > 0 ? '+' : '') + r.retNoTop3.toFixed(1) + '%';
+    lines.push(
+      `| \`${r.market}\` | ${r.cfg} | ${retStr} | ${r.maxDDPct.toFixed(1)}% | ${r.trades} | ${no3Str} | ${r.randomPctile.toFixed(1)}% |`
+    );
+  }
+  lines.push('');
+
+  // 4. Position Size Sensitivity Summary for Candidate D
+  lines.push('### 4. Position Size Sensitivity Summary (Candidate D)');
   lines.push('| Market | Size 5.0% (Ret% / MaxDD%) | Size 7.5% (Ret% / MaxDD%) | Size 10.0% (Ret% / MaxDD%) | Trades |');
   lines.push('|---|:---:|:---:|:---:|:---:|');
   const marketKeys = ['BTC_15m', 'BTC_1h', 'BTC_4h', 'ETH_15m', 'ETH_1h', 'ETH_4h'];
@@ -1057,8 +1178,8 @@ async function main(): Promise<void> {
   }
   lines.push('');
 
-  // 4. Out-of-Sample Performance Summary (Candidate D)
-  lines.push('### 4. Out-of-Sample Coin Validation (Candidate D, Fixed Params)');
+  // 5. Out-of-Sample Performance Summary (Candidate D)
+  lines.push('### 5. Out-of-Sample Coin Validation (Candidate D, Fixed Params)');
   lines.push('| Sym | TF | Candles | Start Date | Ret% | MaxDD% | Trades | NoBest% | Random Pctile |');
   lines.push('|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|');
   for (const o of oosResults) {
@@ -1068,8 +1189,8 @@ async function main(): Promise<void> {
   }
   lines.push('');
 
-  // 5. Executive Synthesis & Review Notes
-  lines.push('### 5. Review Notes & Conclusions');
+  // 6. Executive Synthesis & Review Notes
+  lines.push('### 6. Review Notes & Conclusions');
   lines.push('- **Candidate D (Long-Only Trailing)** eliminates adverse short exposures during structural crypto bull regimes while maintaining tight maximum drawdowns.');
   lines.push('- **Random Entry Null Distribution**: Null hypothesis calibration ensures simulated trade counts align within ±12% of actual strategy executions.');
   lines.push('- **Out-of-Sample Robustness**: Fixed parameter candidate D demonstrates positive expectancy without parameter refitting on alternative large-cap assets.');

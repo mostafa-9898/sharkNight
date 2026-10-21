@@ -378,7 +378,7 @@ export async function runValidateFisher(): Promise<{ winner: ConfigDef; superior
   const mdLines: string[] = [];
   mdLines.push('# Fisher RSI / IFT A/B Testing & Selection');
   mdLines.push('');
-  mdLines.push('## 1. Matrix Results Across BTC & ETH (5% size, 0.1% fee, trailingOnly 3/3/1.5, maxPos 1)');
+  mdLines.push('## 1. Matrix Results Across BTC & ETH (5% size, 0.1% fee, trailingOnly 5/3/1.5 (initial/step/raise), maxPos 1)');
   mdLines.push('');
   mdLines.push('| Config | Market | Return | MaxDD | Trades | H2 Ret | Ret w/o Top3 | Ret/MaxDD | Null Pct |');
   mdLines.push('|---|---|---|---|---|---|---|---|---|');

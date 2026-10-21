@@ -60,7 +60,7 @@ interface PortfolioPosition {
 }
 
 export interface PortfolioSimResult {
-  version: 'P1' | 'P2';
+  version: 'P1' | 'P2' | 'P3';
   totalReturnPct: number;
   maxDrawdownPct: number;
   yearlyReturns: Record<number, number>;
@@ -72,7 +72,8 @@ export interface PortfolioSimResult {
     brakeActive: number;
   };
   maxConcurrentNotionalUSD: number;
-  maxConcurrentNotionalPct: number;
+  maxConcurrentEntryNotionalPct: number;
+  maxDailyMtmNotionalPct: number;
   returnWithoutTop3Pct: number;
   pass: boolean;
   dailyEquity: Array<{
@@ -92,6 +93,7 @@ export async function runPortfolioSimulation(): Promise<void> {
 
   const symbols = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA'] as const;
   const intervals = ['1h', '4h'] as const;
+  const years = [2021, 2022, 2023, 2024, 2025, 2026] as const;
 
   // 1. Load candles
   console.log('Loading candles for 6 symbols...');
@@ -131,7 +133,7 @@ export async function runPortfolioSimulation(): Promise<void> {
         tradeFeePercent: 0.1,
         tradeMode: 'long-only',
         exitMode: 'trailingOnly',
-        trailingStop: { initialStopPercent: 3, stepPercent: 3, raisePercent: 1.5 },
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
         strategy: strat,
         candles: activeCandles,
       });
@@ -217,7 +219,7 @@ export async function runPortfolioSimulation(): Promise<void> {
   }
 
   // 4. Portfolio Simulator Engine
-  function simulate(withBrake: boolean, version: 'P1' | 'P2'): PortfolioSimResult {
+  function simulate(withBrake: boolean, positionSizePct: number, version: 'P1' | 'P2' | 'P3'): PortfolioSimResult {
     const initialBalance = 10000;
     const feeRate = 0.001; // 0.1%
     let cash = initialBalance;
@@ -230,11 +232,12 @@ export async function runPortfolioSimulation(): Promise<void> {
     let executedCount = 0;
 
     let peakEquity = initialBalance;
-    let maxDrawdownPct = 0;
     let brakeActive = false;
+    let brakeStartTime = 0;
 
     let maxConcurrentNotionalUSD = 0;
-    let maxConcurrentNotionalPct = 0;
+    let maxConcurrentEntryNotionalPct = 0;
+    let maxDailyMtmNotionalPct = 0;
 
     const dailyEquityMap = new Map<string, { equity: number; ddPct: number }>();
 
@@ -274,29 +277,37 @@ export async function runPortfolioSimulation(): Promise<void> {
 
       // B. Mark-to-Market Equity
       const { equity: curEq, totalNotional: curNotional } = getMarkToMarketEquity(ts);
-      if (curEq > peakEquity) {
-        peakEquity = curEq;
-      }
-      const curDD = peakEquity > 0 ? ((peakEquity - curEq) / peakEquity) * 100 : 0;
-      if (curDD > maxDrawdownPct) {
-        maxDrawdownPct = curDD;
-      }
 
-      // Brake logic
       if (withBrake) {
-        if (curDD >= 10) {
-          brakeActive = true;
-        } else if (curDD <= 5) {
-          brakeActive = false;
+        if (!brakeActive) {
+          if (curEq > peakEquity) {
+            peakEquity = curEq;
+          }
+          const curDD = peakEquity > 0 ? ((peakEquity - curEq) / peakEquity) * 100 : 0;
+          if (curDD >= 10) {
+            brakeActive = true;
+            brakeStartTime = ts;
+          }
+        } else {
+          // Non-locking circuit brake:
+          // Tripped at DD >= 10%; resumes after 30 calendar days or when DD <= 5%, whichever is first.
+          // On resumption, rebase peak equity to current equity so prior drawdown doesn't block future brakes.
+          const curDD = peakEquity > 0 ? ((peakEquity - curEq) / peakEquity) * 100 : 0;
+          const daysElapsed = (ts - brakeStartTime) / (86400 * 1000);
+          if (daysElapsed >= 30 || curDD <= 5) {
+            brakeActive = false;
+            brakeStartTime = 0;
+            peakEquity = curEq; // Rebase
+          }
+        }
+      } else {
+        if (curEq > peakEquity) {
+          peakEquity = curEq;
         }
       }
 
       if (curNotional > maxConcurrentNotionalUSD) {
         maxConcurrentNotionalUSD = curNotional;
-      }
-      const notionalPct = curEq > 0 ? (curNotional / curEq) * 100 : 0;
-      if (notionalPct > maxConcurrentNotionalPct) {
-        maxConcurrentNotionalPct = notionalPct;
       }
 
       // C. Process Entries
@@ -314,14 +325,16 @@ export async function runPortfolioSimulation(): Promise<void> {
             continue;
           }
 
-          const proposedNotional = 0.05 * curEq;
-          let currentNotionalSum = 0;
-          for (const pos of openPositions) {
-            const pPrice = priceMaps[pos.symbol]?.get(ts) ?? pos.entryPrice;
-            currentNotionalSum += pos.quantity * pPrice;
-          }
+          const proposedNotional = (positionSizePct / 100) * curEq;
 
-          if (currentNotionalSum + proposedNotional > 0.30 * curEq + 1e-6) {
+          // Rule: In entry moment: sum of open positions entry notional (at their entry price) + new notional <= 30% of current equity
+          const openEntryNotionalSum = openPositions.reduce(
+            (sum, p) => sum + p.quantity * p.entryPrice,
+            0
+          );
+          const totalEntryNotional = openEntryNotionalSum + proposedNotional;
+
+          if (totalEntryNotional > 0.30 * curEq + 1e-6) {
             rejectedCapExposure++;
             continue;
           }
@@ -329,6 +342,11 @@ export async function runPortfolioSimulation(): Promise<void> {
           if (cash < proposedNotional) {
             rejectedCapExposure++;
             continue;
+          }
+
+          const entryNotionalPct = curEq > 0 ? (totalEntryNotional / curEq) * 100 : 0;
+          if (entryNotionalPct > maxConcurrentEntryNotionalPct) {
+            maxConcurrentEntryNotionalPct = entryNotionalPct;
           }
 
           const allocatedAmount = proposedNotional;
@@ -362,15 +380,26 @@ export async function runPortfolioSimulation(): Promise<void> {
         const dayEq = getMarkToMarketEquity(ts).equity;
         const dayDD = peakEquity > 0 ? ((peakEquity - dayEq) / peakEquity) * 100 : 0;
         dailyEquityMap.set(dateStr, { equity: roundTo(dayEq, 2), ddPct: roundTo(dayDD, 2) });
+
+        const dayMtmPct = dayEq > 0 ? (curNotional / dayEq) * 100 : 0;
+        if (dayMtmPct > maxDailyMtmNotionalPct) {
+          maxDailyMtmNotionalPct = dayMtmPct;
+        }
       }
     }
 
     const sortedDates = Array.from(dailyEquityMap.keys()).sort();
-    const dailyEquity = sortedDates.map((d) => ({
-      date: d,
-      equity: dailyEquityMap.get(d)!.equity,
-      drawdownPct: dailyEquityMap.get(d)!.ddPct,
-    }));
+    let runDailyPeak = initialBalance;
+    const dailyEquity = sortedDates.map((d) => {
+      const eq = dailyEquityMap.get(d)!.equity;
+      if (eq > runDailyPeak) runDailyPeak = eq;
+      const dd = runDailyPeak > 0 ? ((runDailyPeak - eq) / runDailyPeak) * 100 : 0;
+      return {
+        date: d,
+        equity: eq,
+        drawdownPct: roundTo(dd, 2),
+      };
+    });
 
     let dailyPeak = initialBalance;
     let dailyMaxDD = 0;
@@ -383,7 +412,6 @@ export async function runPortfolioSimulation(): Promise<void> {
     const finalEquity = dailyEquity.length > 0 ? dailyEquity[dailyEquity.length - 1].equity : initialBalance;
     const totalReturnPct = roundTo(((finalEquity - initialBalance) / initialBalance) * 100, 2);
 
-    const years = [2021, 2022, 2023, 2024, 2025, 2026];
     const yearlyReturns: Record<number, number> = {};
     for (const y of years) {
       const yearDays = dailyEquity.filter((d) => d.date.startsWith(String(y)));
@@ -404,11 +432,13 @@ export async function runPortfolioSimulation(): Promise<void> {
     const returnWithoutTop3Pct = roundTo((pnlWithoutTop3 / initialBalance) * 100, 2);
 
     const losingYears = years.filter((y) => (yearlyReturns[y] ?? 0) <= 0).length;
-    const c1 = losingYears <= 2;
-    const c2 = dailyMaxDD <= 12;
-    const c3 = returnWithoutTop3Pct > 0;
+    const c1 = totalReturnPct > 0;
+    const c2 = losingYears <= 2;
+    const c3 = dailyMaxDD <= 12;
+    const c4 = returnWithoutTop3Pct > 0;
+    const c5 = maxConcurrentEntryNotionalPct <= 30.0 + 1e-4;
 
-    const pass = c1 && c2 && c3;
+    const pass = c1 && c2 && c3 && c4 && c5;
 
     return {
       version,
@@ -423,33 +453,42 @@ export async function runPortfolioSimulation(): Promise<void> {
         brakeActive: rejectedBrakeActive,
       },
       maxConcurrentNotionalUSD: roundTo(maxConcurrentNotionalUSD, 2),
-      maxConcurrentNotionalPct: roundTo(maxConcurrentNotionalPct, 2),
+      maxConcurrentEntryNotionalPct: roundTo(maxConcurrentEntryNotionalPct, 2),
+      maxDailyMtmNotionalPct: roundTo(maxDailyMtmNotionalPct, 2),
       returnWithoutTop3Pct,
       pass,
       dailyEquity,
     };
   }
 
-  const resP1 = simulate(false, 'P1');
-  const resP2 = simulate(true, 'P2');
+  const resP1 = simulate(false, 5, 'P1');
+  const resP2 = simulate(true, 5, 'P2');
+  const resP3 = simulate(true, 2.5, 'P3');
 
   console.log('\n--- Portfolio Simulation Results (D*) ---');
-  console.log(`P1 (No Brake): Return=+${resP1.totalReturnPct}%, MaxDD=${resP1.maxDrawdownPct}%, Executed=${resP1.executedTrades}, Rejected=${resP1.rejectedTrades}, NoTop3=${resP1.returnWithoutTop3Pct}%, Pass=${resP1.pass}`);
-  console.log(`P2 (With Brake): Return=+${resP2.totalReturnPct}%, MaxDD=${resP2.maxDrawdownPct}%, Executed=${resP2.executedTrades}, Rejected=${resP2.rejectedTrades}, NoTop3=${resP2.returnWithoutTop3Pct}%, Pass=${resP2.pass}`);
+  console.log(`P1 (No Brake, 5%): Return=+${resP1.totalReturnPct}%, MaxDD=${resP1.maxDrawdownPct}%, Executed=${resP1.executedTrades}, Rejected=${resP1.rejectedTrades}, NoTop3=${resP1.returnWithoutTop3Pct}%, EntryCap=${resP1.maxConcurrentEntryNotionalPct}%, Pass=${resP1.pass}`);
+  console.log(`P2 (With Brake, 5%): Return=+${resP2.totalReturnPct}%, MaxDD=${resP2.maxDrawdownPct}%, Executed=${resP2.executedTrades}, Rejected=${resP2.rejectedTrades}, NoTop3=${resP2.returnWithoutTop3Pct}%, EntryCap=${resP2.maxConcurrentEntryNotionalPct}%, Pass=${resP2.pass}`);
+  console.log(`P3 (With Brake, 2.5%): Return=+${resP3.totalReturnPct}%, MaxDD=${resP3.maxDrawdownPct}%, Executed=${resP3.executedTrades}, Rejected=${resP3.rejectedTrades}, NoTop3=${resP3.returnWithoutTop3Pct}%, EntryCap=${resP3.maxConcurrentEntryNotionalPct}%, Pass=${resP3.pass}`);
 
   // 5. Write docs/review/validation/portfolio_equity.csv.gz
   const allDates = Array.from(
-    new Set([...resP1.dailyEquity.map((d) => d.date), ...resP2.dailyEquity.map((d) => d.date)])
+    new Set([
+      ...resP1.dailyEquity.map((d) => d.date),
+      ...resP2.dailyEquity.map((d) => d.date),
+      ...resP3.dailyEquity.map((d) => d.date),
+    ])
   ).sort();
 
   const p1Map = new Map(resP1.dailyEquity.map((d) => [d.date, d]));
   const p2Map = new Map(resP2.dailyEquity.map((d) => [d.date, d]));
+  const p3Map = new Map(resP3.dailyEquity.map((d) => [d.date, d]));
 
-  const eqHeader = 'date,equity_p1,drawdown_p1,equity_p2,drawdown_p2\n';
+  const eqHeader = 'date,equity_p1,drawdown_p1,equity_p2,drawdown_p2,equity_p3,drawdown_p3\n';
   const eqRows = allDates.map((d) => {
     const d1 = p1Map.get(d) ?? { equity: 10000, drawdownPct: 0 };
     const d2 = p2Map.get(d) ?? { equity: 10000, drawdownPct: 0 };
-    return `${d},${d1.equity.toFixed(2)},${d1.drawdownPct.toFixed(2)},${d2.equity.toFixed(2)},${d2.drawdownPct.toFixed(2)}`;
+    const d3 = p3Map.get(d) ?? { equity: 10000, drawdownPct: 0 };
+    return `${d},${d1.equity.toFixed(2)},${d1.drawdownPct.toFixed(2)},${d2.equity.toFixed(2)},${d2.drawdownPct.toFixed(2)},${d3.equity.toFixed(2)},${d3.drawdownPct.toFixed(2)}`;
   });
 
   const eqCsvCompressed = await gzip(Buffer.from(eqHeader + eqRows.join('\n') + '\n', 'utf-8'));
@@ -459,33 +498,35 @@ export async function runPortfolioSimulation(): Promise<void> {
   // 6. Write docs/review/PORTFOLIO.md (<= 100 lines)
   const mdLines: string[] = [
     '# Multi-Market Portfolio Simulation Report (D*)',
-    '> Capital: $10,000 | 12 Markets (BTC, ETH, SOL, BNB, XRP, ADA on 1h & 4h) | D* (Size 5%, Trailing 3/3/1.5, Notional Cap 30%)',
+    '> Capital: $10,000 | 12 Markets (BTC, ETH, SOL, BNB, XRP, ADA on 1h & 4h) | Trailing 5/3/1.5 (initial/step/raise) | Notional Cap 30%',
     '',
-    '### 1. Performance Overview',
-    '| Metric | P1 (No Brake) | P2 (Circuit Brake: Halt ≥10%, Resume ≤5%) | Acceptance Criterion |',
-    '|---|:---:|:---:|:---:|',
-    `| **Total Return** | +${resP1.totalReturnPct.toFixed(1)}% | +${resP2.totalReturnPct.toFixed(1)}% | - |`,
-    `| **Max Drawdown (Daily Close)** | ${resP1.maxDrawdownPct.toFixed(1)}% | ${resP2.maxDrawdownPct.toFixed(1)}% | ≤ 12.0% |`,
-    `| **Return Without Top 3 Trades** | +${resP1.returnWithoutTop3Pct.toFixed(1)}% | +${resP2.returnWithoutTop3Pct.toFixed(1)}% | > 0% |`,
-    `| **Executed Trades** | ${resP1.executedTrades} | ${resP2.executedTrades} | - |`,
-    `| **Rejected Trades (Cap / Symbol / Brake)** | ${resP1.rejectedTrades} (${resP1.rejectedReasons.capExposure} / ${resP1.rejectedReasons.symbolOccupied} / ${resP1.rejectedReasons.brakeActive}) | ${resP2.rejectedTrades} (${resP2.rejectedReasons.capExposure} / ${resP2.rejectedReasons.symbolOccupied} / ${resP2.rejectedReasons.brakeActive}) | - |`,
-    `| **Max Concurrent Notional** | $${resP1.maxConcurrentNotionalUSD.toFixed(0)} (${resP1.maxConcurrentNotionalPct.toFixed(1)}%) | $${resP2.maxConcurrentNotionalUSD.toFixed(0)} (${resP2.maxConcurrentNotionalPct.toFixed(1)}%) | ≤ 30.0% |`,
-    `| **Verdict** | ${resP1.pass ? '**PASS**' : '**FAIL**'} | ${resP2.pass ? '**PASS**' : '**FAIL**'} | All 3 criteria met |`,
+    '### 1. Performance Overview & Acceptance Criteria',
+    '| Metric | P1 (No Brake, 5%) | P2 (Circuit Brake, 5%) | P3 (Circuit Brake, 2.5%) | Criterion |',
+    '|---|:---:|:---:|:---:|:---:|',
+    `| **Total Return** | +${resP1.totalReturnPct.toFixed(1)}% | +${resP2.totalReturnPct.toFixed(1)}% | +${resP3.totalReturnPct.toFixed(1)}% | > 0% |`,
+    `| **Max Drawdown (Daily Close)** | ${resP1.maxDrawdownPct.toFixed(1)}% | ${resP2.maxDrawdownPct.toFixed(1)}% | ${resP3.maxDrawdownPct.toFixed(1)}% | ≤ 12.0% |`,
+    `| **Return Without Top 3 Trades** | +${resP1.returnWithoutTop3Pct.toFixed(1)}% | +${resP2.returnWithoutTop3Pct.toFixed(1)}% | +${resP3.returnWithoutTop3Pct.toFixed(1)}% | > 0% |`,
+    `| **Losing Years (≤ 0%)** | ${years.filter((y) => (resP1.yearlyReturns[y] ?? 0) <= 0).length} / 6 | ${years.filter((y) => (resP2.yearlyReturns[y] ?? 0) <= 0).length} / 6 | ${years.filter((y) => (resP3.yearlyReturns[y] ?? 0) <= 0).length} / 6 | ≤ 2 of 6 |`,
+    `| **Max Entry Notional / Equity** | ${resP1.maxConcurrentEntryNotionalPct.toFixed(1)}% | ${resP2.maxConcurrentEntryNotionalPct.toFixed(1)}% | ${resP3.maxConcurrentEntryNotionalPct.toFixed(1)}% | ≤ 30.0% |`,
+    `| **Max Daily MTM Notional / Equity** | ${resP1.maxDailyMtmNotionalPct.toFixed(1)}% | ${resP2.maxDailyMtmNotionalPct.toFixed(1)}% | ${resP3.maxDailyMtmNotionalPct.toFixed(1)}% | (Info) |`,
+    `| **Executed Trades** | ${resP1.executedTrades} | ${resP2.executedTrades} | ${resP3.executedTrades} | - |`,
+    `| **Rejected Trades (Cap / Symbol / Brake)** | ${resP1.rejectedTrades} (${resP1.rejectedReasons.capExposure} / ${resP1.rejectedReasons.symbolOccupied} / ${resP1.rejectedReasons.brakeActive}) | ${resP2.rejectedTrades} (${resP2.rejectedReasons.capExposure} / ${resP2.rejectedReasons.symbolOccupied} / ${resP2.rejectedReasons.brakeActive}) | ${resP3.rejectedTrades} (${resP3.rejectedReasons.capExposure} / ${resP3.rejectedReasons.symbolOccupied} / ${resP3.rejectedReasons.brakeActive}) | - |`,
+    `| **Verdict** | ${resP1.pass ? '**PASS**' : '**FAIL**'} | ${resP2.pass ? '**PASS**' : '**FAIL**'} | ${resP3.pass ? '**PASS**' : '**FAIL**'} | All 5 met |`,
     '',
     '### 2. Yearly Returns Breakdown (2021–2026)',
-    '| Year | P1 (No Brake) | P2 (Circuit Brake) |',
-    '|:---:|:---:|:---:|',
-    `| 2021 | ${resP1.yearlyReturns[2021] > 0 ? '+' : ''}${resP1.yearlyReturns[2021].toFixed(1)}% | ${resP2.yearlyReturns[2021] > 0 ? '+' : ''}${resP2.yearlyReturns[2021].toFixed(1)}% |`,
-    `| 2022 | ${resP1.yearlyReturns[2022] > 0 ? '+' : ''}${resP1.yearlyReturns[2022].toFixed(1)}% | ${resP2.yearlyReturns[2022] > 0 ? '+' : ''}${resP2.yearlyReturns[2022].toFixed(1)}% |`,
-    `| 2023 | ${resP1.yearlyReturns[2023] > 0 ? '+' : ''}${resP1.yearlyReturns[2023].toFixed(1)}% | ${resP2.yearlyReturns[2023] > 0 ? '+' : ''}${resP2.yearlyReturns[2023].toFixed(1)}% |`,
-    `| 2024 | ${resP1.yearlyReturns[2024] > 0 ? '+' : ''}${resP1.yearlyReturns[2024].toFixed(1)}% | ${resP2.yearlyReturns[2024] > 0 ? '+' : ''}${resP2.yearlyReturns[2024].toFixed(1)}% |`,
-    `| 2025 | ${resP1.yearlyReturns[2025] > 0 ? '+' : ''}${resP1.yearlyReturns[2025].toFixed(1)}% | ${resP2.yearlyReturns[2025] > 0 ? '+' : ''}${resP2.yearlyReturns[2025].toFixed(1)}% |`,
-    `| 2026 | ${resP1.yearlyReturns[2026] > 0 ? '+' : ''}${resP1.yearlyReturns[2026].toFixed(1)}% | ${resP2.yearlyReturns[2026] > 0 ? '+' : ''}${resP2.yearlyReturns[2026].toFixed(1)}% |`,
+    '| Year | P1 (No Brake, 5%) | P2 (Circuit Brake, 5%) | P3 (Circuit Brake, 2.5%) |',
+    '|:---:|:---:|:---:|:---:|',
+    `| 2021 | ${resP1.yearlyReturns[2021] > 0 ? '+' : ''}${resP1.yearlyReturns[2021].toFixed(1)}% | ${resP2.yearlyReturns[2021] > 0 ? '+' : ''}${resP2.yearlyReturns[2021].toFixed(1)}% | ${resP3.yearlyReturns[2021] > 0 ? '+' : ''}${resP3.yearlyReturns[2021].toFixed(1)}% |`,
+    `| 2022 | ${resP1.yearlyReturns[2022] > 0 ? '+' : ''}${resP1.yearlyReturns[2022].toFixed(1)}% | ${resP2.yearlyReturns[2022] > 0 ? '+' : ''}${resP2.yearlyReturns[2022].toFixed(1)}% | ${resP3.yearlyReturns[2022] > 0 ? '+' : ''}${resP3.yearlyReturns[2022].toFixed(1)}% |`,
+    `| 2023 | ${resP1.yearlyReturns[2023] > 0 ? '+' : ''}${resP1.yearlyReturns[2023].toFixed(1)}% | ${resP2.yearlyReturns[2023] > 0 ? '+' : ''}${resP2.yearlyReturns[2023].toFixed(1)}% | ${resP3.yearlyReturns[2023] > 0 ? '+' : ''}${resP3.yearlyReturns[2023].toFixed(1)}% |`,
+    `| 2024 | ${resP1.yearlyReturns[2024] > 0 ? '+' : ''}${resP1.yearlyReturns[2024].toFixed(1)}% | ${resP2.yearlyReturns[2024] > 0 ? '+' : ''}${resP2.yearlyReturns[2024].toFixed(1)}% | ${resP3.yearlyReturns[2024] > 0 ? '+' : ''}${resP3.yearlyReturns[2024].toFixed(1)}% |`,
+    `| 2025 | ${resP1.yearlyReturns[2025] > 0 ? '+' : ''}${resP1.yearlyReturns[2025].toFixed(1)}% | ${resP2.yearlyReturns[2025] > 0 ? '+' : ''}${resP2.yearlyReturns[2025].toFixed(1)}% | ${resP3.yearlyReturns[2025] > 0 ? '+' : ''}${resP3.yearlyReturns[2025].toFixed(1)}% |`,
+    `| 2026 | ${resP1.yearlyReturns[2026] > 0 ? '+' : ''}${resP1.yearlyReturns[2026].toFixed(1)}% | ${resP2.yearlyReturns[2026] > 0 ? '+' : ''}${resP2.yearlyReturns[2026].toFixed(1)}% | ${resP3.yearlyReturns[2026] > 0 ? '+' : ''}${resP3.yearlyReturns[2026].toFixed(1)}% |`,
     '',
     '### 3. Summary & Observations',
     '- **Cross-Asset Diversification**: Spreading capital across 6 major crypto assets dampens individual asset drawdowns while participating in major structural trends.',
-    '- **Capital Protection**: Position sizing at 5% per trade with a 30% aggregate exposure ceiling strictly bounds portfolio leverage and risk.',
-    '- **Circuit Brake Mechanics**: P2 halts subsequent entries whenever portfolio drawdown touches 10%, resuming only after recovery to ≤ 5%, providing a systematic governor against cascading losses.',
+    '- **Notional Exposure Cap**: Aggregate entry notional across open positions is strictly bounded at ≤ 30% of current equity at every entry moment.',
+    '- **Circuit Brake Mechanics**: Trips at portfolio drawdown ≥ 10% from peak. Automatically resumes when 30 calendar days elapse or when drawdown recovers to ≤ 5%, rebasing peak equity to current equity upon resumption.',
   ];
 
   const mdContent = mdLines.join('\n') + '\n';

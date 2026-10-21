@@ -193,7 +193,7 @@ function calibrateMultiplier(
 
 export interface MultiRunRecord {
   market: string;
-  cfg: 'M1' | 'M2' | 'M3' | 'M4';
+  cfg: 'M1' | 'M2' | 'M3' | 'M4' | 'M5';
   totalReturn: number;
   maxDD: number;
   trades: number;
@@ -214,7 +214,7 @@ export interface MultiRunRecord {
 }
 
 export async function runMultiValidation(): Promise<void> {
-  console.log('=== Step 4: Multi-Position Evaluation (M1, M2, M3, M4) ===');
+  console.log('=== Step 4: Multi-Position Evaluation (M1, M2, M3, M4, M5) ===');
 
   const rootDir = process.cwd();
   const dataDir = path.resolve(rootDir, 'docs', 'review', 'data');
@@ -251,6 +251,7 @@ export async function runMultiValidation(): Promise<void> {
     { id: 'M2' as const, maxOpenPositions: 3, positionSizePercent: 5, maxTotalExposurePercent: 15, minBarsBetweenEntries: 0 },
     { id: 'M3' as const, maxOpenPositions: 10, positionSizePercent: 5, maxTotalExposurePercent: 50, minBarsBetweenEntries: 0 },
     { id: 'M4' as const, maxOpenPositions: 10, positionSizePercent: 1.5, maxTotalExposurePercent: 15, minBarsBetweenEntries: 0 },
+    { id: 'M5' as const, maxOpenPositions: 10, positionSizePercent: 3, maxTotalExposurePercent: 30, minBarsBetweenEntries: 0 },
   ];
 
   const allRecords: MultiRunRecord[] = [];
@@ -376,92 +377,94 @@ export async function runMultiValidation(): Promise<void> {
     }
   }
 
-  // Random-Entry Null Hypothesis Test for M3 on 6 BTC/ETH markets
-  console.log('\n--- Running Random-Entry Null Tests for M3 (200 sims) ---');
-  for (const m of markets.filter((mk) => mk.isPrimary)) {
-    const symCandles = candleStore[m.sym];
-    const c1h = symCandles['1h'];
-    const c4h = symCandles['4h'];
-    const activeCandles = symCandles[m.tf];
+  // Random-Entry Null Hypothesis Test for M3 and M5 on 6 BTC/ETH markets
+  console.log('\n--- Running Random-Entry Null Tests for M3 and M5 (200 sims) ---');
+  for (const targetCfg of ['M3', 'M5'] as const) {
+    for (const m of markets.filter((mk) => mk.isPrimary)) {
+      const symCandles = candleStore[m.sym];
+      const c1h = symCandles['1h'];
+      const c4h = symCandles['4h'];
+      const activeCandles = symCandles[m.tf];
 
-    const refStrategy = new MultiTimeframeStrategy({
-      htfMode: 'strict',
-      entryMode: 'cross',
-      fisherMode: 'confirm',
-      fisherKind: 'ift',
-      htf1hCandles: c1h,
-      htf4hCandles: c4h,
-      kijunSlopeFilter: true,
-      structureFilter: true,
-    });
-
-    const eligibleLongOnly: Array<{ idx: number; dir: 1 | -1 }> = [];
-    for (let i = 0; i < activeCandles.length; i++) {
-      if (refStrategy.getStrictHtfDirection(activeCandles, i) === 1) {
-        eligibleLongOnly.push({ idx: i, dir: 1 });
-      }
-    }
-
-    const m3Record = allRecords.find((r) => r.market === m.key && r.cfg === 'M3')!;
-    const targetTrades = m3Record.trades;
-
-    const simConfig = {
-      initialBalance: 10000,
-      positionSizePercent: 5,
-      maxOpenPositions: 10,
-      maxTotalExposurePercent: 50,
-      minBarsBetweenEntries: 0,
-      tradeFeePercent: 0.1,
-      tradeMode: 'long-only' as const,
-      exitMode: 'trailingOnly' as const,
-      trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
-    };
-
-    const multiplier = calibrateMultiplier(engine, activeCandles, eligibleLongOnly, targetTrades, simConfig);
-    const sampleCount = Math.min(eligibleLongOnly.length, Math.max(1, Math.round(targetTrades * multiplier)));
-
-    const simReturns: number[] = [];
-    for (let s = 0; s < 200; s++) {
-      const rng = mulberry32(42 + s);
-      const chosen = sampleDistinctIndices(eligibleLongOnly.length, sampleCount, rng);
-      const sigMap = new Map<number, 1 | -1>();
-      for (const itemIdx of chosen) {
-        sigMap.set(eligibleLongOnly[itemIdx].idx, eligibleLongOnly[itemIdx].dir);
-      }
-      const simRes = engine.run({
-        ...simConfig,
-        strategy: new RandomEntryStrategy(sigMap),
-        candles: activeCandles,
+      const refStrategy = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'confirm',
+        fisherKind: 'ift',
+        htf1hCandles: c1h,
+        htf4hCandles: c4h,
+        kijunSlopeFilter: true,
+        structureFilter: true,
       });
-      simReturns.push(roundTo(simRes.metrics.totalPnlPercent, 2));
+
+      const eligibleLongOnly: Array<{ idx: number; dir: 1 | -1 }> = [];
+      for (let i = 0; i < activeCandles.length; i++) {
+        if (refStrategy.getStrictHtfDirection(activeCandles, i) === 1) {
+          eligibleLongOnly.push({ idx: i, dir: 1 });
+        }
+      }
+
+      const rec = allRecords.find((r) => r.market === m.key && r.cfg === targetCfg)!;
+      const targetTrades = rec.trades;
+
+      const simConfig = {
+        initialBalance: 10000,
+        positionSizePercent: targetCfg === 'M5' ? 3 : 5,
+        maxOpenPositions: 10,
+        maxTotalExposurePercent: targetCfg === 'M5' ? 30 : 50,
+        minBarsBetweenEntries: 0,
+        tradeFeePercent: 0.1,
+        tradeMode: 'long-only' as const,
+        exitMode: 'trailingOnly' as const,
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5 },
+      };
+
+      const multiplier = calibrateMultiplier(engine, activeCandles, eligibleLongOnly, targetTrades, simConfig);
+      const sampleCount = Math.min(eligibleLongOnly.length, Math.max(1, Math.round(targetTrades * multiplier)));
+
+      const simReturns: number[] = [];
+      for (let s = 0; s < 200; s++) {
+        const rng = mulberry32(42 + s);
+        const chosen = sampleDistinctIndices(eligibleLongOnly.length, sampleCount, rng);
+        const sigMap = new Map<number, 1 | -1>();
+        for (const itemIdx of chosen) {
+          sigMap.set(eligibleLongOnly[itemIdx].idx, eligibleLongOnly[itemIdx].dir);
+        }
+        const simRes = engine.run({
+          ...simConfig,
+          strategy: new RandomEntryStrategy(sigMap),
+          candles: activeCandles,
+        });
+        simReturns.push(roundTo(simRes.metrics.totalPnlPercent, 2));
+      }
+
+      const strictlyLower = simReturns.filter((r) => r < rec.totalReturn).length;
+      const exactlyEqual = simReturns.filter((r) => r === rec.totalReturn).length;
+      const percentile = roundTo(((strictlyLower + 0.5 * exactlyEqual) / 200) * 100, 2);
+      rec.randomPctile = percentile;
+
+      await fs.writeFile(
+        path.join(outDir, `null_${m.sym}_${m.tf}_${targetCfg}.json`),
+        JSON.stringify(
+          {
+            market: m.key,
+            cfg: targetCfg,
+            actualReturn: rec.totalReturn,
+            percentile,
+            sampleCount,
+            targetTrades,
+            samples: simReturns,
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      );
+      console.log(`[${m.key}] ${targetCfg} Null Percentile: ${percentile}% (targetTrades=${targetTrades})`);
     }
-
-    const strictlyLower = simReturns.filter((r) => r < m3Record.totalReturn).length;
-    const exactlyEqual = simReturns.filter((r) => r === m3Record.totalReturn).length;
-    const percentile = roundTo(((strictlyLower + 0.5 * exactlyEqual) / 200) * 100, 2);
-    m3Record.randomPctile = percentile;
-
-    await fs.writeFile(
-      path.join(outDir, `null_${m.sym}_${m.tf}_M3.json`),
-      JSON.stringify(
-        {
-          market: m.key,
-          cfg: 'M3',
-          actualReturn: m3Record.totalReturn,
-          percentile,
-          sampleCount,
-          targetTrades,
-          samples: simReturns,
-        },
-        null,
-        2
-      ),
-      'utf-8'
-    );
-    console.log(`[${m.key}] M3 Null Percentile: ${percentile}% (targetTrades=${targetTrades})`);
   }
 
-  // Evaluate Pass / Fail Criteria for each M (M2, M3, M4) vs M1
+  // Evaluate Pass / Fail Criteria for each M (M2, M3, M4, M5) vs M1
   for (const r of allRecords) {
     if (r.cfg === 'M1') {
       r.pass = true; // M1 is baseline
@@ -476,7 +479,7 @@ export async function runMultiValidation(): Promise<void> {
     const c2 = r.maxDD <= 12;
     const c3 = r.retNoTop3 > 0;
     const c4 = r.retSecondHalf > 0;
-    const c5 = r.cfg === 'M3' ? (r.randomPctile ?? 0) >= 90 : true;
+    const c5 = (r.cfg === 'M3' || r.cfg === 'M5') ? (r.randomPctile ?? 0) >= 90 : true;
 
     r.pass = c1 && c2 && c3 && c4 && c5;
   }
@@ -504,19 +507,19 @@ export async function runMultiValidation(): Promise<void> {
   const validationMdPath = path.resolve(rootDir, 'docs', 'review', 'VALIDATION.md');
   const existingMd = await fs.readFile(validationMdPath, 'utf-8');
 
-  // Check if Section 6 already exists; if so, replace it
-  const baseMd = existingMd.includes('### 6. Multi-Position Evaluation')
-    ? existingMd.split('### 6. Multi-Position Evaluation')[0].trim()
+  // Check if Multi-Position section already exists; if so, replace it
+  const baseMd = existingMd.includes('Multi-Position Evaluation')
+    ? existingMd.split(/### \d+\. Multi-Position Evaluation/)[0].trim()
     : existingMd.trim();
 
-  const mdLines: string[] = [baseMd, '', '### 6. Multi-Position Evaluation (M1–M4)'];
+  const mdLines: string[] = [baseMd, '', '### 7. Multi-Position Evaluation (M1–M5)'];
   mdLines.push('| Market | Cfg | Ret% | MaxDD% | Trades | NoTop3% | 2ndHalf% | AvgConc | WorstDay% | Pctile | Verdict |');
   mdLines.push('|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|');
 
   // Primary 6 markets first, then OOS summary
   const primaryKeys = ['BTC_15m', 'BTC_1h', 'BTC_4h', 'ETH_15m', 'ETH_1h', 'ETH_4h'];
   for (const m of primaryKeys) {
-    for (const cfg of ['M1', 'M2', 'M3', 'M4'] as const) {
+    for (const cfg of ['M1', 'M2', 'M3', 'M4', 'M5'] as const) {
       const r = allRecords.find((x) => x.market === m && x.cfg === cfg)!;
       const vStr = cfg === 'M1' ? 'BASE' : r.pass ? '**PASS**' : 'FAIL';
       const pctStr = r.randomPctile !== undefined ? `${r.randomPctile.toFixed(0)}%` : '-';
@@ -531,7 +534,7 @@ export async function runMultiValidation(): Promise<void> {
   mdLines.push('| Config | Parameters | BTC/ETH Passed (/6) | Global Status |');
   mdLines.push('|---|---|:---:|:---:|');
 
-  for (const cfg of ['M2', 'M3', 'M4'] as const) {
+  for (const cfg of ['M2', 'M3', 'M4', 'M5'] as const) {
     const passedPrimary = allRecords.filter((r) => primaryKeys.includes(r.market) && r.cfg === cfg && r.pass).length;
     const globalPass = passedPrimary >= 4;
     const desc =
@@ -539,7 +542,9 @@ export async function runMultiValidation(): Promise<void> {
         ? 'maxPos 3, size 5%, cap 15%'
         : cfg === 'M3'
           ? 'maxPos 10, size 5%, cap 50%'
-          : 'maxPos 10, size 1.5%, cap 15%';
+          : cfg === 'M4'
+            ? 'maxPos 10, size 1.5%, cap 15%'
+            : 'maxPos 10, size 3%, cap 30%';
     mdLines.push(
       `| **${cfg}** | ${desc} | ${passedPrimary} / 6 | ${globalPass ? '**PASS**' : '**FAIL**'} |`
     );

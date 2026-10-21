@@ -1,28 +1,30 @@
 # Multi-Market Portfolio Simulation Report (D*)
-> Capital: $10,000 | 12 Markets (BTC, ETH, SOL, BNB, XRP, ADA on 1h & 4h) | D* (Size 5%, Trailing 3/3/1.5, Notional Cap 30%)
+> Capital: $10,000 | 12 Markets (BTC, ETH, SOL, BNB, XRP, ADA on 1h & 4h) | Trailing 5/3/1.5 (initial/step/raise) | Notional Cap 30%
 
-### 1. Performance Overview
-| Metric | P1 (No Brake) | P2 (Circuit Brake: Halt ≥10%, Resume ≤5%) | Acceptance Criterion |
-|---|:---:|:---:|:---:|
-| **Total Return** | +99.8% | +28.8% | - |
-| **Max Drawdown (Daily Close)** | 21.3% | 10.8% | ≤ 12.0% |
-| **Return Without Top 3 Trades** | +46.1% | +4.7% | > 0% |
-| **Executed Trades** | 481 | 54 | - |
-| **Rejected Trades (Cap / Symbol / Brake)** | 364 (132 / 232 / 0) | 791 (12 / 33 / 746) | - |
-| **Max Concurrent Notional** | $9930 (46.5%) | $4650 (36.6%) | ≤ 30.0% |
-| **Verdict** | **FAIL** | **FAIL** | All 3 criteria met |
+### 1. Performance Overview & Acceptance Criteria
+| Metric | P1 (No Brake, 5%) | P2 (Circuit Brake, 5%) | P3 (Circuit Brake, 2.5%) | Criterion |
+|---|:---:|:---:|:---:|:---:|
+| **Total Return** | +99.6% | +109.5% | +45.6% | > 0% |
+| **Max Drawdown (Daily Close)** | 23.3% | 22.0% | 12.1% | ≤ 12.0% |
+| **Return Without Top 3 Trades** | +45.0% | +53.3% | +21.7% | > 0% |
+| **Losing Years (≤ 0%)** | 2 / 6 | 1 / 6 | 2 / 6 | ≤ 2 of 6 |
+| **Max Entry Notional / Equity** | 30.0% | 30.0% | 15.0% | ≤ 30.0% |
+| **Max Daily MTM Notional / Equity** | 52.8% | 52.8% | 31.0% | (Info) |
+| **Executed Trades** | 564 | 506 | 544 | - |
+| **Rejected Trades (Cap / Symbol / Brake)** | 281 (2 / 279 / 0) | 339 (2 / 252 / 85) | 301 (0 / 270 / 31) | - |
+| **Verdict** | **FAIL** | **FAIL** | **FAIL** | All 5 met |
 
 ### 2. Yearly Returns Breakdown (2021–2026)
-| Year | P1 (No Brake) | P2 (Circuit Brake) |
-|:---:|:---:|:---:|
-| 2021 | +17.8% | +14.8% |
-| 2022 | -11.0% | 0.0% |
-| 2023 | +30.6% | 0.0% |
-| 2024 | +24.7% | 0.0% |
-| 2025 | +0.2% | 0.0% |
-| 2026 | +4.2% | 0.0% |
+| Year | P1 (No Brake, 5%) | P2 (Circuit Brake, 5%) | P3 (Circuit Brake, 2.5%) |
+|:---:|:---:|:---:|:---:|
+| 2021 | +21.5% | +23.2% | +10.4% |
+| 2022 | -11.8% | -10.2% | -4.8% |
+| 2023 | +31.7% | +31.2% | +15.8% |
+| 2024 | +22.8% | +24.2% | +11.3% |
+| 2025 | -0.2% | +0.4% | -0.1% |
+| 2026 | +2.9% | +3.3% | +1.5% |
 
 ### 3. Summary & Observations
 - **Cross-Asset Diversification**: Spreading capital across 6 major crypto assets dampens individual asset drawdowns while participating in major structural trends.
-- **Capital Protection**: Position sizing at 5% per trade with a 30% aggregate exposure ceiling strictly bounds portfolio leverage and risk.
-- **Circuit Brake Mechanics**: P2 halts subsequent entries whenever portfolio drawdown touches 10%, resuming only after recovery to ≤ 5%, providing a systematic governor against cascading losses.
+- **Notional Exposure Cap**: Aggregate entry notional across open positions is strictly bounded at ≤ 30% of current equity at every entry moment.
+- **Circuit Brake Mechanics**: Trips at portfolio drawdown ≥ 10% from peak. Automatically resumes when 30 calendar days elapse or when drawdown recovers to ≤ 5%, rebasing peak equity to current equity upon resumption.
