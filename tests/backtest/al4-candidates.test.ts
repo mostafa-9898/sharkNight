@@ -15,7 +15,7 @@ describe('AL4: Edge Candidates Evaluation (A1 to A6)', () => {
     expect(data.markets.length).toBe(14);
 
     const candidateKeys = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
-    const summaryKeys = data.summaries.map((s: any) => s.name);
+    const summaryKeys = (data.summaries as Array<{ name: string }>).map((s) => s.name);
     for (const ck of candidateKeys) {
       expect(summaryKeys).toContain(ck);
     }
@@ -23,7 +23,16 @@ describe('AL4: Edge Candidates Evaluation (A1 to A6)', () => {
 
   it('verifies that all candidates were evaluated on criteria الف, ب, ج, د', () => {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-    for (const s of data.summaries) {
+    for (const s of data.summaries as Array<{
+      criteriaA: boolean;
+      criteriaB: boolean;
+      criteriaC: boolean;
+      criteriaD: boolean;
+      overallPassed: boolean;
+      realTotalReturnAvg: number;
+      realMaxDDAvg: number;
+      deltaDetrendedTotalAvg: number;
+    }>) {
       expect(typeof s.criteriaA).toBe('boolean');
       expect(typeof s.criteriaB).toBe('boolean');
       expect(typeof s.criteriaC).toBe('boolean');
@@ -37,7 +46,7 @@ describe('AL4: Edge Candidates Evaluation (A1 to A6)', () => {
 
   it('verifies that no candidate passed all 4 criteria unconditionally, preventing overfitting', () => {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-    const anyPassed = data.summaries.some((s: any) => s.overallPassed === true);
+    const anyPassed = (data.summaries as Array<{ overallPassed: boolean }>).some((s) => s.overallPassed === true);
     // As observed empirically, no candidate satisfied all 4 preregistered constraints simultaneously
     expect(anyPassed).toBe(false);
   });

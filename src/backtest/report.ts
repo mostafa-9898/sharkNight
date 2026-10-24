@@ -1085,7 +1085,6 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
 
   // Section A: Run Header
   const strategyDisplayName = formatStrategyDisplayName(config);
-  const isMtf = config.strategy === 'mtf' || config.strategyName === 'MultiTimeframe';
 
   lines.push(`## Section A: Run Header`);
   lines.push(`| Property | Value |`);

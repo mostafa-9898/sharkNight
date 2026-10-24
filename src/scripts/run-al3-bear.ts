@@ -2,10 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle } from '../data/models';
-import type { Trade } from '../backtest/types';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
-import { createDailyRegimeCalculator, getDailyCandlesForSymbol, type DailyRegimeCalculator } from '../utils/market-regime';
+import { createDailyRegimeCalculator } from '../utils/market-regime';
 import { roundTo } from '../utils/math';
 
 function loadGzCandles(filePath: string): Candle[] {
@@ -131,7 +130,7 @@ export async function runAl3Bear() {
 
       const evalPeriod = (name: string, filterFn: (ts: number) => boolean): PeriodPerformance => {
         const periodPoints = points.filter((p) => filterFn(p.timestamp));
-        const periodTrades = res.trades.filter((t) => filterFn(t.exitTime));
+        const periodTrades = res.trades.filter((t) => t.exitTime !== undefined && filterFn(t.exitTime));
 
         if (periodPoints.length === 0) {
           return {

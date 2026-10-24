@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from '../strategies/types';
+import type { BacktestConfig } from '../backtest/types';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
@@ -10,7 +11,6 @@ import {
   DEFAULT_FISHER_MODE,
   DEFAULT_FISHER_KIND,
   DEFAULT_FISHER_GATE,
-  DEFAULT_ALLOW_OPPOSITE_POSITIONS,
 } from '../config/defaults';
 
 function mulberry32(seed: number): () => number {
@@ -94,7 +94,7 @@ function calibrateMultiplier(
   eligibleIndices: number[],
   action: 'BUY' | 'SELL',
   targetTrades: number,
-  simConfig: any
+  simConfig: Partial<BacktestConfig>
 ): number {
   if (targetTrades <= 0 || eligibleIndices.length === 0) return 1.0;
   const calibSeeds = [42, 43, 44, 45, 46];

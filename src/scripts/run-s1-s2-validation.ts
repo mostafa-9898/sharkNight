@@ -220,7 +220,7 @@ export async function runValidation() {
 
   for (const sym of [...primarySymbols, ...oosSymbols]) {
     candleStore[sym] = {};
-    const tfs = primarySymbols.includes(sym as any) ? ['15m', '1h', '4h'] : ['1h', '4h'];
+    const tfs = (primarySymbols as readonly string[]).includes(sym) ? ['15m', '1h', '4h'] : ['1h', '4h'];
     for (const tf of tfs) {
       const p = path.join(dataDir, `${sym}USDT_${tf}.csv.gz`);
       if (fs.existsSync(p)) {

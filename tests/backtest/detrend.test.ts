@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { detrendCandles, mirrorCandles } from '../../src/scripts/run-rc4-detrend';
+import { detrendCandles } from '../../src/scripts/run-rc4-detrend';
 import type { Candle } from '../../src/data/models';
 
 describe('Real Data Detrending & Mirror Symmetry (RC4 - H-F)', () => {

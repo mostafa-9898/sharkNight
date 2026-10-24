@@ -19,8 +19,19 @@ describe('AL3: Bear Market Capital Preservation Analysis', () => {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
     const periods = ['۲۰۲۲ کامل', '۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)', 'کل دوره ۶ ساله'];
 
+    interface BearPeriodRecord {
+      period: string;
+      mode: string;
+      compoundedReturn: number;
+      maxDD: number;
+      worstMonth: number;
+      worstDay: number;
+      trades: number;
+    }
+    const typedData = data as BearPeriodRecord[];
+
     for (const p of periods) {
-      const records = data.filter((d: any) => d.period === p);
+      const records = typedData.filter((d) => d.period === p);
       expect(records.length).toBe(12); // 6 markets * 2 modes
 
       for (const rec of records) {
@@ -34,16 +45,25 @@ describe('AL3: Bear Market Capital Preservation Analysis', () => {
   });
 
   it('verifies that Long-Only beats Long-Short on Full Period across 6 primary markets', () => {
-    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-    const fullRecords = data.filter((d: any) => d.period === 'کل دوره ۶ ساله');
+    interface BearPeriodRecord {
+      period: string;
+      mode: string;
+      compoundedReturn: number;
+      maxDD: number;
+      worstMonth: number;
+      worstDay: number;
+      trades: number;
+    }
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as BearPeriodRecord[];
+    const fullRecords = data.filter((d) => d.period === 'کل دوره ۶ ساله');
 
     const loTotalReturn = fullRecords
-      .filter((d: any) => d.mode === 'long-only')
-      .reduce((sum: number, d: any) => sum + d.compoundedReturn, 0);
+      .filter((d) => d.mode === 'long-only')
+      .reduce((sum: number, d) => sum + d.compoundedReturn, 0);
 
     const lsTotalReturn = fullRecords
-      .filter((d: any) => d.mode === 'long-short')
-      .reduce((sum: number, d: any) => sum + d.compoundedReturn, 0);
+      .filter((d) => d.mode === 'long-short')
+      .reduce((sum: number, d) => sum + d.compoundedReturn, 0);
 
     expect(loTotalReturn).toBeGreaterThan(lsTotalReturn);
   });

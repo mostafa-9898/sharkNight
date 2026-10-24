@@ -2,14 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle, TradeSignal } from '../data/models';
-import type { Trade } from '../backtest/types';
 import type { Strategy } from '../strategies/types';
 import {
   MultiTimeframeStrategy,
   aggregateCandles,
   calculateATR,
 } from '../strategies/multi-timeframe-strategy';
-import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
+import { confirmedSwings } from '../indicators/swing';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo, percentile } from '../utils/math';
 
@@ -100,7 +99,7 @@ export async function runRc5() {
   const candleStore: Record<string, Record<string, Candle[]>> = {};
   for (const sym of [...primarySymbols, ...oosSymbols]) {
     candleStore[sym] = {};
-    const tfs = primarySymbols.includes(sym as any) ? ['15m', '1h', '4h'] : ['1h', '4h'];
+    const tfs = (primarySymbols as readonly string[]).includes(sym) ? ['15m', '1h', '4h'] : ['1h', '4h'];
     for (const tf of tfs) {
       const p = path.join(dataDir, `${sym}USDT_${tf}.csv.gz`);
       if (fs.existsSync(p)) {

@@ -5,7 +5,6 @@ import type { Candle, CandleInterval } from '@/data/models/candle';
 import { performCandleSanityCheck, getIntervalMs } from '@/data/models/candle';
 import { BacktestEngine } from '@/backtest/engine';
 import type { TradeMode, StopCheckMode, TrailingStopConfig, ExitMode, BacktestResult } from '@/backtest/types';
-import { computeMfeMaeAnalysis } from '@/backtest/metrics';
 import { calculateIchimoku } from '@/indicators/ichimoku';
 import { calculateRSI } from '@/indicators/rsi';
 import { calculateStochastic } from '@/indicators/stochastic';
@@ -220,8 +219,6 @@ export async function executeBacktestCore(
       : body.trendRequirement === '4h_and_1h'
         ? '4h_and_1h'
         : 'either';
-  const lookbackBars = Math.max(1, Number(body.lookbackBars ?? 3));
-  const minConfirmations = Math.max(1, Math.min(3, Number(body.minConfirmations ?? 2)));
 
   // Position Sizing & Risk
   const positionSizePercent =
@@ -281,7 +278,9 @@ export async function executeBacktestCore(
           dataSource = 'binance';
           await storage.saveCandles(symbol, interval, candles);
         }
-      } catch {}
+      } catch {
+        // Fallback to secondary provider if Binance fails
+      }
 
       // 2. If Binance failed, fallback to KuCoin
       if (!candles || candles.length === 0) {
@@ -292,7 +291,9 @@ export async function executeBacktestCore(
             dataSource = 'kucoin';
             await storage.saveCandles(symbol, interval, candles);
           }
-        } catch {}
+        } catch {
+          // Secondary provider error; fallback handled below
+        }
       }
 
       // 3. Fallback to synthetic ONLY if explicit allowSynthetic=true
@@ -343,7 +344,9 @@ export async function executeBacktestCore(
     try {
       htf4hCandles = (await storage.loadCandles(symbol, '4h')) ?? undefined;
       htf1hCandles = (await storage.loadCandles(symbol, '1h')) ?? undefined;
-    } catch {}
+    } catch {
+      // Ignore if HTF candles not found
+    }
   }
 
   // Run Strategy Backtest using MultiTimeframeStrategy

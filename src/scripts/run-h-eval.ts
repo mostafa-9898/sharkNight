@@ -2,9 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle, TradeSignal } from '../data/models';
-import type { Trade, TradeMode } from '../backtest/types';
+import type { BacktestConfig, TradeMode } from '../backtest/types';
 import type { Strategy } from '../strategies/types';
-import { MultiTimeframeStrategy, type FisherMode, type FisherKind } from '../strategies/multi-timeframe-strategy';
+import { MultiTimeframeStrategy, type FisherMode } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
 
@@ -96,7 +96,7 @@ function calibrateMultiplier(
   candles: readonly Candle[],
   eligible: Array<{ idx: number; dir: 1 | -1 }>,
   targetTrades: number,
-  simConfig: any
+  simConfig: Partial<BacktestConfig>
 ): number {
   if (targetTrades <= 0 || eligible.length === 0) return 1.0;
   const calibSeeds = [42, 43, 44, 45, 46];

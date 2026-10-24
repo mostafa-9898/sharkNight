@@ -159,17 +159,24 @@ describe('Fisher RSI & IFT-RSI Indicators (Pine Matching)', () => {
       () => {
         if (!hasFixture) return;
         const fixtureContent = JSON.parse(fs.readFileSync(fixturePath, 'utf-8'));
-        const closes: number[] = fixtureContent.candles.map((c: any) => c.close);
-        const expected: Array<{ fisherScaled: number; signalScaled: number }> = fixtureContent.expected;
+        const closes: number[] = (fixtureContent.candles as Array<{ close: number }>).map((c) => c.close);
+        const expected: Array<{ fisherScaled?: number; signalScaled?: number }> = fixtureContent.expected;
+
+        // Stage 3 constraint: Fixture must have at least 60 candles and >= 20 finite expected values
+        expect(closes.length).toBeGreaterThanOrEqual(60);
+        const finiteCount = expected.filter(
+          (e) => e.fisherScaled !== undefined && Number.isFinite(e.fisherScaled)
+        ).length;
+        expect(finiteCount).toBeGreaterThanOrEqual(20);
 
         const res = calculateFisherRsi(closes, { rsiPeriod: 14, window: 10 });
 
         for (let i = 0; i < expected.length; i++) {
           if (expected[i].fisherScaled !== undefined && Number.isFinite(expected[i].fisherScaled)) {
-            expect(res.scaled[i]).toBeCloseTo(expected[i].fisherScaled, 1); // 0.05 tolerance
+            expect(res.scaled[i]).toBeCloseTo(expected[i].fisherScaled as number, 1); // 0.05 tolerance
           }
           if (expected[i].signalScaled !== undefined && Number.isFinite(expected[i].signalScaled)) {
-            expect(res.signalScaled[i]).toBeCloseTo(expected[i].signalScaled, 1);
+            expect(res.signalScaled[i]).toBeCloseTo(expected[i].signalScaled as number, 1);
           }
         }
       }

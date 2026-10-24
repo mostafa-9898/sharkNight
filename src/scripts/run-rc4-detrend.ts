@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
-import type { Candle, Trade } from '../data/models';
+import type { Candle } from '../data/models';
+import type { Trade } from '../backtest/types';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
@@ -356,7 +357,7 @@ export async function runRc4() {
 
 این آزمون فرضیه **H-F (رانش صعودی دوره‌ی داده‌ها)** را به صورت تجربی از طریق دو آزمایش مستقل روی تمام ۱۴ بازار (۶ بازار اصلی + ۸ بازار OOS) بررسی می‌کند:
 1. **حذف رانش میانگین (Detrending):** میانگین بازدهی لگاریتمی ($\bar{r}$) از سری‌های زمانی واقعی کسر شده و قیمت به گونه‌ای بازسازی شده که بازدهی ابتدا تا انتهای دوره خنثی شود ($C'_N = C'_0$).
-2. **سری آینه‌ای بازار ($p \mapsto P_0^2/p$):** معکوس کردن قیمت بازار. در بازار آینه‌ای، روند صعودی کریپتو به روند نزولی تبدیل می‌شود و پوزیشن Long روی بازار آینه‌ای رفتاری معادل Short روی بازار اصلی خواهد داشت.
+2. **سری آینه‌ای بازار ($p \\\\mapsto P_0^2/p$):** معکوس کردن قیمت بازار. در بازار آینه‌ای، روند صعودی کریپتو به روند نزولی تبدیل می‌شود و پوزیشن Long روی بازار آینه‌ای رفتاری معادل Short روی بازار اصلی خواهد داشت.
 
 ---
 

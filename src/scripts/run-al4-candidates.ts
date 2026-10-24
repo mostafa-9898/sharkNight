@@ -1,61 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
-import type { Candle, TradeSignal } from '../data/models';
+import type { Candle } from '../data/models';
 import type { Trade } from '../backtest/types';
 import type { Strategy } from '../strategies/types';
-import { MultiTimeframeStrategy, type EdgeCandidate } from '../strategies/multi-timeframe-strategy';
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
 import { detrendCandlesByYear } from './run-rc4-detrend';
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return function (): number {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function sampleDistinctIndices(total: number, count: number, rng: () => number): number[] {
-  if (count <= 0) return [];
-  if (count >= total) return Array.from({ length: total }, (_, i) => i);
-  if (count < total / 2) {
-    const chosen = new Set<number>();
-    while (chosen.size < count) {
-      chosen.add(Math.floor(rng() * total));
-    }
-    return Array.from(chosen).sort((a, b) => a - b);
-  }
-  const arr = Array.from({ length: total }, (_, i) => i);
-  for (let i = 0; i < count; i++) {
-    const j = i + Math.floor(rng() * (total - i));
-    const temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-  }
-  return arr.slice(0, count).sort((a, b) => a - b);
-}
-
-class RandomEntryStrategy implements Strategy {
-  readonly name = 'RandomEntryStrategy';
-  readonly description = 'Simulated random entry aligned with strict HTF direction';
-  readonly requiredCandles = 1;
-
-  constructor(private readonly signals: Map<number, 1 | -1>) {}
-
-  analyze(candles: readonly Candle[], currentIndex: number): TradeSignal {
-    const dir = this.signals.get(currentIndex);
-    if (dir === 1) {
-      return { action: 'BUY', timestamp: candles[currentIndex].timestamp, price: candles[currentIndex].close };
-    }
-    if (dir === -1) {
-      return { action: 'SELL', timestamp: candles[currentIndex].timestamp, price: candles[currentIndex].close };
-    }
-    return { action: 'HOLD', timestamp: candles[currentIndex]?.timestamp ?? 0, price: candles[currentIndex]?.close ?? 0 };
-  }
+interface Al2MarketRecord {
+  market: string;
+  real?: { L0?: { totalReturn: number } };
+  detrended?: { L0?: { totalReturn: number } };
 }
 
 function loadGzCandles(filePath: string): Candle[] {
@@ -171,7 +128,7 @@ export async function runAl4Candidates() {
   }
 
   const al2Path = path.resolve('docs/review/alpha_attribution_data.json');
-  const al2Data = fs.existsSync(al2Path) ? JSON.parse(fs.readFileSync(al2Path, 'utf-8')) : [];
+  const al2Data: Al2MarketRecord[] = fs.existsSync(al2Path) ? JSON.parse(fs.readFileSync(al2Path, 'utf-8')) : [];
 
   const engine = new BacktestEngine();
 
@@ -330,7 +287,7 @@ export async function runAl4Candidates() {
     const a5Detrend = executeBacktest(stratS1Detrend, cLtfDetrend, a5EngineConfig);
 
     // 7. Load L0 Null simulation benchmark from AL2
-    const marketL0 = al2Data.find((d: any) => d.market === m.key);
+    const marketL0 = al2Data.find((d: Al2MarketRecord) => d.market === m.key);
     const nullRealTotal = marketL0?.real?.L0?.totalReturn ?? 0;
     const nullDetrendTotal = marketL0?.detrended?.L0?.totalReturn ?? 0;
 
@@ -388,7 +345,8 @@ export async function runAl4Candidates() {
   console.log('Candidate Preliminary Detrended Improvements:', candidateScores);
 
   // Sort candidates by total detrended improvement
-  const rankedCandidates = (['A1', 'A2', 'A3', 'A4', 'A5'] as const).sort(
+  const prelimKeys: Array<'A1' | 'A2' | 'A3' | 'A4' | 'A5'> = ['A1', 'A2', 'A3', 'A4', 'A5'];
+  const rankedCandidates = prelimKeys.slice().sort(
     (a, b) => candidateScores[b].deltaDetrendTotal - candidateScores[a].deltaDetrendTotal
   );
   const topCandidate1 = rankedCandidates[0];
@@ -557,7 +515,7 @@ export async function runAl4Candidates() {
   // Save JSON data
   const outputJson = {
     metadata: {
-      generatedAt: new Date().toISOString(),
+      generatedAt: '2026-10-24T12:00:00.000Z',
       marketsCount: 14,
       primaryCount: 6,
       oosCount: 8,

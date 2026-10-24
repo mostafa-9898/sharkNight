@@ -42,7 +42,9 @@
   "include": [
     "src",
     "tests",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "jest.config.ts",
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules",

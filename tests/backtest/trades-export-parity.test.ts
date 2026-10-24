@@ -12,7 +12,6 @@ import {
   type TradeCsvRow,
 } from '../../src/utils/trade-export';
 import type { Candle } from '../../src/data/models';
-import { roundTo } from '../../src/utils/math';
 
 function loadGzCandles(filePath: string): Candle[] {
   const buf = fs.readFileSync(filePath);

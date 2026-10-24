@@ -12,7 +12,6 @@ import {
   DEFAULT_MAX_OPEN_POSITIONS,
   DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
   DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
-  DEFAULT_TRAILING_MODE,
 } from '../config/defaults';
 
 function mulberry32(a: number) {

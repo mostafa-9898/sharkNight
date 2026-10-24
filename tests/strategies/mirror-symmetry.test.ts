@@ -1,6 +1,5 @@
 import {
   MultiTimeframeStrategy,
-  aggregateCandles,
   computeStrictHtfTrend,
 } from '@/strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '@/indicators/ichimoku';

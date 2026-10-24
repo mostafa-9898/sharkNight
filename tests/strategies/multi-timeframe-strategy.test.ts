@@ -708,16 +708,6 @@ describe('MultiTimeframeStrategy', () => {
         structureFilter: false,
       });
 
-      const stratOff = new MultiTimeframeStrategy({
-        htfMode: 'strict',
-        entryMode: 'cross',
-        fisherMode: 'off',
-        htf1hCandles: htf1h,
-        htf4hCandles: htf4h,
-        kijunSlopeFilter: false,
-        structureFilter: false,
-      });
-
       // Craft candle sequence where stoch crosses but TK doesn't and Fisher doesn't
       // In replace-stoch, Stochastic trigger is completely bypassed
       ltf[77].close = 230;

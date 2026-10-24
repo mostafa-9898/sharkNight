@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle } from '../data/models';
-import type { Trade } from '../backtest/types';
 import { BacktestEngine } from '../backtest/engine';
 import { MultiTimeframeStrategy, type ShortEntryFilter } from '../strategies/multi-timeframe-strategy';
 import { createDailyRegimeCalculator, getDailyCandlesForSymbol, type DailyRegimeCalculator } from '../utils/market-regime';
@@ -155,7 +154,7 @@ export async function runSh4Variants() {
 
   for (const sym of [...primarySymbols, ...oosSymbols]) {
     candleStore[sym] = {};
-    const tfs = primarySymbols.includes(sym as any) ? ['15m', '1h', '4h'] : ['1h', '4h'];
+    const tfs = (primarySymbols as readonly string[]).includes(sym) ? ['15m', '1h', '4h'] : ['1h', '4h'];
     for (const tf of tfs) {
       const p = path.join(dataDir, `${sym}USDT_${tf}.csv.gz`);
       if (fs.existsSync(p)) {

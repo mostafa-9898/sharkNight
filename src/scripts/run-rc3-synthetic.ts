@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Candle, Trade } from '../data/models';
+import type { Candle } from '../data/models';
+import type { Trade } from '../backtest/types';
 import { MultiTimeframeStrategy, aggregateCandles } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
@@ -113,7 +114,6 @@ export interface AggregatedStats {
 }
 
 function computeStats(results: PathResult[]): AggregatedStats {
-  const n = results.length;
   const longRets = results.map((r) => r.longReturn);
   const shortRets = results.map((r) => r.shortReturn);
   const diffs = results.map((r) => r.longReturn - r.shortReturn);
@@ -307,7 +307,7 @@ export async function runRc3() {
 
   const mdContent = `# Zero-Drift Synthetic Data Simulation Report (RC3)
 
-این آزمون عملکرد استراتژی را روی ۲۰۰ مسیر تصادفی حاصل از حرکت براونی هندسی (GBM) با **رانش دقیقاً صفر ($\mu = 0$)** و نوسان تخمین‌زده‌شده از دیتای واقعی بیت‌کوین و اتریوم ($\sigma_{15m} = 0.00371$) ارزیابی می‌کند. کندل‌های ۱h و ۴h به صورت هم‌گام و علّی از همان مسیر ۱۵m تجمیع شده‌اند.
+این آزمون عملکرد استراتژی را روی ۲۰۰ مسیر تصادفی حاصل از حرکت براونی هندسی (GBM) با **رانش دقیقاً صفر ($\\\\mu = 0$)** و نوسان تخمین‌زده‌شده از دیتای واقعی بیت‌کوین و اتریوم ($\\\\sigma_{15m} = 0.00371$) ارزیابی می‌کند. کندل‌های ۱h و ۴h به صورت هم‌گام و علّی از همان مسیر ۱۵m تجمیع شده‌اند.
 
 ---
 
@@ -315,10 +315,10 @@ export async function runRc3() {
 
 | متریک آماری | نسخه ۱: S1 کامل (فیلترها روشن) | نسخه ۲: بدون فیلترها (Slope/Structure خاموش) | نسخه ۳: فقط TK (کراس استوکستیک و فیشر خاموش) |
 |---|:---:|:---:|:---:|
-| **میانگین بازدهی لانگ ($\pm \text{SE}$)** | \`${reportData.v1.meanLongRet}%\` ($\pm ${reportData.v1.seLongRet}\%$) | \`${reportData.v2.meanLongRet}%\` ($\pm ${reportData.v2.seLongRet}\%$) | \`${reportData.v3.meanLongRet}%\` ($\pm ${reportData.v3.seLongRet}\%$) |
-| **میانگین بازدهی شورت ($\pm \text{SE}$)** | \`${reportData.v1.meanShortRet}%\` ($\pm ${reportData.v1.seShortRet}\%$) | \`${reportData.v2.meanShortRet}%\` ($\pm ${reportData.v2.seShortRet}\%$) | \`${reportData.v3.meanShortRet}%\` ($\pm ${reportData.v3.seShortRet}\%$) |
-| **اختلاف جفتی $|\text{Long} - \text{Short}|$** | \`${reportData.v1.meanDiff}%\` | \`${reportData.v2.meanDiff}%\` | \`${reportData.v3.meanDiff}%\` |
-| **آستانه تقارن ($2 \times \text{SE}_{\text{diff}}$)** | \`${roundTo(2 * reportData.v1.seDiff, 2)}%\` | \`${roundTo(2 * reportData.v2.seDiff, 2)}%\` | \`${roundTo(2 * reportData.v3.seDiff, 2)}%\` |
+| **میانگین بازدهی لانگ ($\\\\pm \\\\text{SE}$)** | \`${reportData.v1.meanLongRet}%\` ($\\\\pm ${reportData.v1.seLongRet}%$) | \`${reportData.v2.meanLongRet}%\` ($\\\\pm ${reportData.v2.seLongRet}%$) | \`${reportData.v3.meanLongRet}%\` ($\\\\pm ${reportData.v3.seLongRet}%$) |
+| **میانگین بازدهی شورت ($\\\\pm \\\\text{SE}$)** | \`${reportData.v1.meanShortRet}%\` ($\\\\pm ${reportData.v1.seShortRet}%$) | \`${reportData.v2.meanShortRet}%\` ($\\\\pm ${reportData.v2.seShortRet}%$) | \`${reportData.v3.meanShortRet}%\` ($\\\\pm ${reportData.v3.seShortRet}%$) |
+| **اختلاف جفتی $|\\\\text{Long} - \\\\text{Short}|$** | \`${reportData.v1.meanDiff}%\` | \`${reportData.v2.meanDiff}%\` | \`${reportData.v3.meanDiff}%\` |
+| **آستانه تقارن ($2 \\\\times \\\\text{SE}_{\\\\text{diff}}$)** | \`${roundTo(2 * reportData.v1.seDiff, 2)}%\` | \`${roundTo(2 * reportData.v2.seDiff, 2)}%\` | \`${roundTo(2 * reportData.v3.seDiff, 2)}%\` |
 | **وضعیت تقارن طبق ضابطه RC0** | **${reportData.v1.isSymmetric ? 'متقارن (Symmetric)' : 'نامتقارن (Asymmetric)'}** | **${reportData.v2.isSymmetric ? 'متقارن (Symmetric)' : 'نامتقارن (Asymmetric)'}** | **${reportData.v3.isSymmetric ? 'متقارن (Symmetric)' : 'نامتقارن (Asymmetric)'}** |
 | **تعداد معاملات (Long / Short)** | \`${reportData.v1.meanLongTrades}\` / \`${reportData.v1.meanShortTrades}\` | \`${reportData.v2.meanLongTrades}\` / \`${reportData.v2.meanShortTrades}\` | \`${reportData.v3.meanLongTrades}\` / \`${reportData.v3.meanShortTrades}\` |
 | **نرخ برد % (Long / Short)** | \`${reportData.v1.meanLongWinRate}%\` / \`${reportData.v1.meanShortWinRate}%\` | \`${reportData.v2.meanLongWinRate}%\` / \`${reportData.v2.meanShortWinRate}%\` | \`${reportData.v3.meanLongWinRate}%\` / \`${reportData.v3.meanShortWinRate}%\` |
@@ -332,7 +332,7 @@ export async function runRc3() {
 
 ## ۲. تحلیل یافته‌ها و قضاوت فرضیه‌ها بر اساس داده‌های تجربی
 
-1. **تقارن بنیادی روی بازار بدون رانش:** در داده‌های مصنوعی بدون رانش ($\mu = 0$)، بازدهی لانگ و شورت هر دو نزدیک به صفر منفی (کارمزد خالص معاملات) هستند و تفاوت آن‌ها درون آستانه آماری دو خطای معیار قرار دارد ($|\text{diff}| \le 2 \times \text{SE}_{\text{diff}}$).
+1. **تقارن بنیادی روی بازار بدون رانش:** در داده‌های مصنوعی بدون رانش ($\\\\mu = 0$)، بازدهی لانگ و شورت هر دو نزدیک به صفر منفی (کارمزد خالص معاملات) هستند و تفاوت آن‌ها درون آستانه آماری دو خطای معیار قرار دارد ($|\\\\text{diff}| \\\\le 2 \\\\times \\\\text{SE}_{\\\\text{diff}}$).
 2. **بررسی لایه‌های استراتژی:**
    - فیلترهای شیب کیجون و ساختار سووینگ (نسخه ۲ در برابر نسخه ۱) عدم تقارن ساختاری معناداری میان لانگ و شورت در بازار بدون رانش ایجاد نمی‌کنند؛ نسبت تعداد معاملات و نرخ برد هر دو جهت متوازن باقی می‌ماند.
    - خاموش کردن نوسانگرها (نسخه ۳: فقط TK) نشان می‌دهد حتی ساده‌ترین نسخه استراتژی در یک بازار متقارن، بازدهی قرینه تولید می‌کند.

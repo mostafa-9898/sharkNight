@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle } from '../data/models';
-import type { Trade } from '../backtest/types';
 import {
   MultiTimeframeStrategy,
   aggregateCandles,
@@ -284,7 +283,7 @@ export async function runRc6() {
   const candleStore: Record<string, Record<string, Candle[]>> = {};
   for (const sym of [...primarySymbols, ...oosSymbols]) {
     candleStore[sym] = {};
-    const tfs = primarySymbols.includes(sym as any) ? ['15m', '1h', '4h'] : ['1h', '4h'];
+    const tfs = (primarySymbols as readonly string[]).includes(sym) ? ['15m', '1h', '4h'] : ['1h', '4h'];
     for (const tf of tfs) {
       const p = path.join(dataDir, `${sym}USDT_${tf}.csv.gz`);
       if (fs.existsSync(p)) {
@@ -373,13 +372,13 @@ export async function runRc6() {
     'time_stop_24',
   ];
 
-  const resultsByStrategy: Record<
+  const resultsByStrategy = {} as Record<
     ExitStrategy,
     {
       long: ReplaySummary;
       short: ReplaySummary;
     }
-  > = {} as any;
+  >;
 
   // Pre-calculate ATR for all market candles
   const marketAtrs: Record<string, number[]> = {};
@@ -431,9 +430,9 @@ export async function runRc6() {
 ## ۱. جدول مقایسه جامع خروج‌های جایگزین: معاملات Long
 
 > [!NOTE]
-> **توضیح ستون «جمع درصد معاملات، نه بازده»:** مقادیر این ستون حاصل جمع خطی درصدهای خام تک‌تک معاملات منفرد در ۱۴ بازار است ($\sum \Delta p_i$)، نه بازده واقعی مرکب پورتفولیو (Compounded Portfolio Equity Return).
+> **توضیح ستون «جمع درصد معاملات، نه بازده»:** مقادیر این ستون حاصل جمع خطی درصدهای خام تک‌تک معاملات منفرد در ۱۴ بازار است ($\\\\sum \\\\Delta p_i$)، نه بازده واقعی مرکب پورتفولیو (Compounded Portfolio Equity Return).
 
-| استراتژی خروج (Long) | نرخ برد % | میانگین سود % / زیان % | Profit Factor (PF) | جمع درصد معاملات، نه بازده % | میانه‌ی MFE Capture | نسبت تحقق $\ge 50\%$ از MFE |
+| استراتژی خروج (Long) | نرخ برد % | میانگین سود % / زیان % | Profit Factor (PF) | جمع درصد معاملات، نه بازده % | میانه‌ی MFE Capture | نسبت تحقق $\\\\ge 50%$ از MFE |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 ${exitStrategies
   .map((s) => {
@@ -446,7 +445,7 @@ ${exitStrategies
 
 ## ۲. جدول مقایسه جامع خروج‌های جایگزین: معاملات Short
 
-| استراتژی خروج (Short) | نرخ برد % | میانگین سود % / زیان % | Profit Factor (PF) | جمع درصد معاملات، نه بازده % | میانه‌ی MFE Capture | نسبت تحقق $\ge 50\%$ از MFE |
+| استراتژی خروج (Short) | نرخ برد % | میانگین سود % / زیان % | Profit Factor (PF) | جمع درصد معاملات، نه بازده % | میانه‌ی MFE Capture | نسبت تحقق $\\\\ge 50%$ از MFE |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 ${exitStrategies
   .map((s) => {

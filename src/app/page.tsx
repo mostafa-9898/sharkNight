@@ -184,7 +184,7 @@ export default function DashboardPage() {
   const [positionSizePercent, setPositionSizePercent] = useState<number>(DEFAULT_POSITION_SIZE_PERCENT);
   const [maxOpenPositions, setMaxOpenPositions] = useState<number>(DEFAULT_MAX_OPEN_POSITIONS);
   const [maxTotalExposurePercent, setMaxTotalExposurePercent] = useState<number>(DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT);
-  const [minBarsBetweenEntries, setMinBarsBetweenEntries] = useState<number>(DEFAULT_MIN_BARS_BETWEEN_ENTRIES);
+  const [minBarsBetweenEntries] = useState<number>(DEFAULT_MIN_BARS_BETWEEN_ENTRIES);
   const [riskPerTradePercent, setRiskPerTradePercent] = useState<number>(1);
   const [cloudFilter, setCloudFilter] = useState<'off' | 'trend' | 'strongCross'>('trend');
   const [kijunSlopeFilter, setKijunSlopeFilter] = useState(true);

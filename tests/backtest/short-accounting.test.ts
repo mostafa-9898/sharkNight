@@ -1,8 +1,6 @@
 import { BacktestEngine } from '@/backtest/engine';
-import { VirtualPortfolio } from '@/backtest/portfolio';
 import type { Strategy } from '@/strategies/types';
 import type { Candle, TradeSignal } from '@/data/models';
-import { roundTo } from '@/utils/math';
 
 describe('Engine Short Accounting & Symmetry Verification (RC1 - H-A)', () => {
   class MockSignalStrategy implements Strategy {

@@ -30,7 +30,7 @@ describe('AL2: Alpha Attribution Decomposition (L0 to L5)', () => {
       'ADA 4h',
     ];
 
-    const actualMarkets = data.map((d: any) => d.market);
+    const actualMarkets = (data as Array<{ market: string }>).map((d) => d.market);
     for (const em of expectedMarkets) {
       expect(actualMarkets).toContain(em);
     }
@@ -60,7 +60,9 @@ describe('AL2: Alpha Attribution Decomposition (L0 to L5)', () => {
 
   it('verifies that L3 matches S1 baseline return on BTC 15m real data', () => {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-    const btc15m = data.find((d: any) => d.market === 'BTC 15m');
+    const btc15m = (data as Array<{ market: string; real: { L3: { totalReturn: number; trades: number } } }>).find(
+      (d) => d.market === 'BTC 15m'
+    );
     expect(btc15m).toBeDefined();
 
     // S1 on BTC 15m produces +37.29% return

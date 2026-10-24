@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle, TradeSignal } from '../data/models';
-import type { Trade, TradeMode } from '../backtest/types';
+import type { Trade } from '../backtest/types';
 import type { Strategy } from '../strategies/types';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
@@ -172,7 +172,7 @@ export async function runAl2Attribution() {
 
     const runMarketOnDataset = (
       candlesMap: Record<string, Record<string, Candle[]>>,
-      datasetType: 'real' | 'detrended'
+      _datasetType: 'real' | 'detrended'
     ): Record<'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5', LayerMetrics> => {
       const cLtf = candlesMap[m.sym][m.tf];
       const c1h = candlesMap[m.sym]['1h'];
