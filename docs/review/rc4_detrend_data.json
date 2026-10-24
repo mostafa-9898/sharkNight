@@ -1,0 +1,212 @@
+{
+  "BTC 15m": {
+    "original": {
+      "longReturn": 44.74,
+      "shortReturn": -7.45,
+      "totalReturn": 37.29,
+      "longTrades": 285,
+      "shortTrades": 259,
+      "longWinRate": 29.1,
+      "shortWinRate": 24.7,
+      "longPf": 3.06,
+      "shortPf": 0.71
+    },
+    "detrended": {
+      "longReturn": 6.63,
+      "shortReturn": 8.11,
+      "totalReturn": 14.73,
+      "longTrades": 301,
+      "shortTrades": 273,
+      "longWinRate": 27.2,
+      "shortWinRate": 25.6,
+      "longPf": 1.27,
+      "shortPf": 1.4
+    },
+    "mirrorLong": {
+      "longReturn": -3.08,
+      "shortReturn": 23.3,
+      "totalReturn": 20.22,
+      "longTrades": 117,
+      "shortTrades": 151,
+      "longWinRate": 22.2,
+      "shortWinRate": 28.5,
+      "longPf": 0.73,
+      "shortPf": 3.15
+    }
+  },
+  "BTC 1h": {
+    "original": {
+      "longReturn": 20.72,
+      "shortReturn": -4.93,
+      "totalReturn": 15.79,
+      "longTrades": 215,
+      "shortTrades": 185,
+      "longWinRate": 25.1,
+      "shortWinRate": 23.2,
+      "longPf": 2.16,
+      "shortPf": 0.65
+    },
+    "detrended": {
+      "longReturn": 4.84,
+      "shortReturn": 11.43,
+      "totalReturn": 16.27,
+      "longTrades": 191,
+      "shortTrades": 178,
+      "longWinRate": 21.5,
+      "shortWinRate": 27,
+      "longPf": 1.3,
+      "shortPf": 1.94
+    },
+    "mirrorLong": {
+      "longReturn": 2.39,
+      "shortReturn": 9.4,
+      "totalReturn": 11.78,
+      "longTrades": 123,
+      "shortTrades": 168,
+      "longWinRate": 26.8,
+      "shortWinRate": 20.8,
+      "longPf": 1.28,
+      "shortPf": 1.6
+    }
+  },
+  "BTC 4h": {
+    "original": {
+      "longReturn": 13.7,
+      "shortReturn": -3.43,
+      "totalReturn": 10.27,
+      "longTrades": 122,
+      "shortTrades": 75,
+      "longWinRate": 30.3,
+      "shortWinRate": 25.3,
+      "longPf": 2.54,
+      "shortPf": 0.44
+    },
+    "detrended": {
+      "longReturn": 2.69,
+      "shortReturn": 2.08,
+      "totalReturn": 4.77,
+      "longTrades": 114,
+      "shortTrades": 77,
+      "longWinRate": 28.1,
+      "shortWinRate": 27.3,
+      "longPf": 1.31,
+      "shortPf": 1.34
+    },
+    "mirrorLong": {
+      "longReturn": -0.93,
+      "shortReturn": 10.1,
+      "totalReturn": 9.16,
+      "longTrades": 67,
+      "shortTrades": 120,
+      "longWinRate": 26.9,
+      "shortWinRate": 30,
+      "longPf": 0.82,
+      "shortPf": 2.11
+    }
+  },
+  "ETH 15m": {
+    "original": {
+      "longReturn": 22.84,
+      "shortReturn": -15.69,
+      "totalReturn": 7.15,
+      "longTrades": 467,
+      "shortTrades": 399,
+      "longWinRate": 26.3,
+      "shortWinRate": 20.3,
+      "longPf": 1.72,
+      "shortPf": 0.5
+    },
+    "detrended": {
+      "longReturn": 0.04,
+      "shortReturn": -11.97,
+      "totalReturn": -11.93,
+      "longTrades": 498,
+      "shortTrades": 464,
+      "longWinRate": 23.1,
+      "shortWinRate": 21.8,
+      "longPf": 1,
+      "shortPf": 0.63
+    },
+    "mirrorLong": {
+      "longReturn": 3.68,
+      "shortReturn": 11.36,
+      "totalReturn": 15.04,
+      "longTrades": 254,
+      "shortTrades": 320,
+      "longWinRate": 24.8,
+      "shortWinRate": 24.4,
+      "longPf": 1.19,
+      "shortPf": 1.46
+    }
+  },
+  "ETH 1h": {
+    "original": {
+      "longReturn": 7.63,
+      "shortReturn": -5.19,
+      "totalReturn": 2.44,
+      "longTrades": 293,
+      "shortTrades": 226,
+      "longWinRate": 23.5,
+      "shortWinRate": 22.1,
+      "longPf": 1.37,
+      "shortPf": 0.69
+    },
+    "detrended": {
+      "longReturn": -0.9,
+      "shortReturn": -3.22,
+      "totalReturn": -4.12,
+      "longTrades": 273,
+      "shortTrades": 246,
+      "longWinRate": 19.4,
+      "shortWinRate": 22.4,
+      "longPf": 0.96,
+      "shortPf": 0.81
+    },
+    "mirrorLong": {
+      "longReturn": 11.74,
+      "shortReturn": -3.19,
+      "totalReturn": 8.55,
+      "longTrades": 196,
+      "shortTrades": 310,
+      "longWinRate": 23.5,
+      "shortWinRate": 19.7,
+      "longPf": 1.8,
+      "shortPf": 0.87
+    }
+  },
+  "ETH 4h": {
+    "original": {
+      "longReturn": 5.35,
+      "shortReturn": -2.84,
+      "totalReturn": 2.51,
+      "longTrades": 122,
+      "shortTrades": 70,
+      "longWinRate": 24.6,
+      "shortWinRate": 21.4,
+      "longPf": 1.56,
+      "shortPf": 0.45
+    },
+    "detrended": {
+      "longReturn": -2.33,
+      "shortReturn": -2.48,
+      "totalReturn": -4.82,
+      "longTrades": 101,
+      "shortTrades": 72,
+      "longWinRate": 20.8,
+      "shortWinRate": 23.6,
+      "longPf": 0.73,
+      "shortPf": 0.52
+    },
+    "mirrorLong": {
+      "longReturn": 2,
+      "shortReturn": -2.53,
+      "totalReturn": -0.53,
+      "longTrades": 59,
+      "shortTrades": 122,
+      "longWinRate": 25.4,
+      "shortWinRate": 23,
+      "longPf": 1.51,
+      "shortPf": 0.75
+    }
+  }
+}
