@@ -1,0 +1,164 @@
+{
+  "dist50Long": {
+    "median": 7.88,
+    "p25": 4.49,
+    "p75": 14.21,
+    "p90": 24.08
+  },
+  "dist50Short": {
+    "median": 6.97,
+    "p25": 4.11,
+    "p75": 11.35,
+    "p90": 16.51
+  },
+  "htfMoveLong": {
+    "median": 8.93,
+    "p25": 7.23,
+    "p75": 10.78,
+    "p90": 12.57
+  },
+  "htfMoveShort": {
+    "median": 8.51,
+    "p25": 6.73,
+    "p75": 10.51,
+    "p90": 12.61
+  },
+  "mfe20Long": 1.95,
+  "mfe20Short": 2.12,
+  "mae20Long": 1.91,
+  "mae20Short": 2.04,
+  "mae3RateLong": 28.9,
+  "mae3RateShort": 30,
+  "filterMatrix": {
+    "Neither (None)": {
+      "BTC 15m": {
+        "shortReturn": -19,
+        "trades": 639,
+        "nullPercentile": 0
+      },
+      "BTC 1h": {
+        "shortReturn": -13.66,
+        "trades": 474,
+        "nullPercentile": 9.5
+      },
+      "BTC 4h": {
+        "shortReturn": -6.56,
+        "trades": 231,
+        "nullPercentile": 67.5
+      },
+      "ETH 15m": {
+        "shortReturn": -31.95,
+        "trades": 991,
+        "nullPercentile": 0
+      },
+      "ETH 1h": {
+        "shortReturn": -17.01,
+        "trades": 536,
+        "nullPercentile": 12
+      },
+      "ETH 4h": {
+        "shortReturn": -3.88,
+        "trades": 222,
+        "nullPercentile": 91.5
+      }
+    },
+    "KijunSlope Only": {
+      "BTC 15m": {
+        "shortReturn": -8.07,
+        "trades": 472,
+        "nullPercentile": 51.5
+      },
+      "BTC 1h": {
+        "shortReturn": -10.54,
+        "trades": 393,
+        "nullPercentile": 28.5
+      },
+      "BTC 4h": {
+        "shortReturn": -6.43,
+        "trades": 179,
+        "nullPercentile": 46.5
+      },
+      "ETH 15m": {
+        "shortReturn": -23.27,
+        "trades": 735,
+        "nullPercentile": 2.5
+      },
+      "ETH 1h": {
+        "shortReturn": -13.13,
+        "trades": 425,
+        "nullPercentile": 24.5
+      },
+      "ETH 4h": {
+        "shortReturn": -1.79,
+        "trades": 168,
+        "nullPercentile": 95.5
+      }
+    },
+    "Structure Only": {
+      "BTC 15m": {
+        "shortReturn": -9.23,
+        "trades": 423,
+        "nullPercentile": 39
+      },
+      "BTC 1h": {
+        "shortReturn": -6.55,
+        "trades": 274,
+        "nullPercentile": 66.5
+      },
+      "BTC 4h": {
+        "shortReturn": -2.05,
+        "trades": 87,
+        "nullPercentile": 78
+      },
+      "ETH 15m": {
+        "shortReturn": -16.36,
+        "trades": 553,
+        "nullPercentile": 22
+      },
+      "ETH 1h": {
+        "shortReturn": -7.83,
+        "trades": 293,
+        "nullPercentile": 53.5
+      },
+      "ETH 4h": {
+        "shortReturn": -3.84,
+        "trades": 90,
+        "nullPercentile": 23.5
+      }
+    },
+    "Both Filters (S1)": {
+      "BTC 15m": {
+        "shortReturn": -10.14,
+        "trades": 371,
+        "nullPercentile": 32
+      },
+      "BTC 1h": {
+        "shortReturn": -6.74,
+        "trades": 215,
+        "nullPercentile": 52.5
+      },
+      "BTC 4h": {
+        "shortReturn": -3.12,
+        "trades": 75,
+        "nullPercentile": 39.5
+      },
+      "ETH 15m": {
+        "shortReturn": -13.47,
+        "trades": 430,
+        "nullPercentile": 21.5
+      },
+      "ETH 1h": {
+        "shortReturn": -5.2,
+        "trades": 227,
+        "nullPercentile": 69.5
+      },
+      "ETH 4h": {
+        "shortReturn": -2.82,
+        "trades": 70,
+        "nullPercentile": 32
+      }
+    }
+  },
+  "avgHighLatency": 3,
+  "avgLowLatency": 3
+}
