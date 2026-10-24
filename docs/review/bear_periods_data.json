@@ -1,0 +1,362 @@
+[
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 15m",
+    "mode": "long-only",
+    "compoundedReturn": -6.05,
+    "maxDD": 8.25,
+    "worstMonth": -2.06,
+    "worstDay": -1.43,
+    "trades": 80
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 15m",
+    "mode": "long-only",
+    "compoundedReturn": 1.19,
+    "maxDD": 7.53,
+    "worstMonth": -2.01,
+    "worstDay": -2.01,
+    "trades": 58
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 15m",
+    "mode": "long-only",
+    "compoundedReturn": 55.09,
+    "maxDD": 16.78,
+    "worstMonth": -11.09,
+    "worstDay": -6.12,
+    "trades": 334
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 15m",
+    "mode": "long-short",
+    "compoundedReturn": 2.85,
+    "maxDD": 6.43,
+    "worstMonth": -3.04,
+    "worstDay": -1.76,
+    "trades": 136
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 15m",
+    "mode": "long-short",
+    "compoundedReturn": 5.29,
+    "maxDD": 6.89,
+    "worstMonth": -3.06,
+    "worstDay": -2.38,
+    "trades": 79
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 15m",
+    "mode": "long-short",
+    "compoundedReturn": 37.29,
+    "maxDD": 16.44,
+    "worstMonth": -10.31,
+    "worstDay": -5.65,
+    "trades": 544
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 1h",
+    "mode": "long-only",
+    "compoundedReturn": -4.32,
+    "maxDD": 4.85,
+    "worstMonth": -0.86,
+    "worstDay": -0.84,
+    "trades": 40
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 1h",
+    "mode": "long-only",
+    "compoundedReturn": 0.89,
+    "maxDD": 4.53,
+    "worstMonth": -1.85,
+    "worstDay": -1.76,
+    "trades": 31
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 1h",
+    "mode": "long-only",
+    "compoundedReturn": 20.54,
+    "maxDD": 12.99,
+    "worstMonth": -7.09,
+    "worstDay": -3.85,
+    "trades": 220
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 1h",
+    "mode": "long-short",
+    "compoundedReturn": 0.77,
+    "maxDD": 5.54,
+    "worstMonth": -2.2,
+    "worstDay": -1.69,
+    "trades": 94
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 1h",
+    "mode": "long-short",
+    "compoundedReturn": 0.46,
+    "maxDD": 4.37,
+    "worstMonth": -1.48,
+    "worstDay": -1.71,
+    "trades": 68
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 1h",
+    "mode": "long-short",
+    "compoundedReturn": 15.79,
+    "maxDD": 13.21,
+    "worstMonth": -7.14,
+    "worstDay": -3.89,
+    "trades": 400
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 4h",
+    "mode": "long-only",
+    "compoundedReturn": -0.95,
+    "maxDD": 1.91,
+    "worstMonth": -0.58,
+    "worstDay": -0.43,
+    "trades": 14
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 4h",
+    "mode": "long-only",
+    "compoundedReturn": -0.41,
+    "maxDD": 2.08,
+    "worstMonth": -0.66,
+    "worstDay": -0.48,
+    "trades": 14
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 4h",
+    "mode": "long-only",
+    "compoundedReturn": 13.81,
+    "maxDD": 6.67,
+    "worstMonth": -4.14,
+    "worstDay": -2.28,
+    "trades": 122
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "BTC 4h",
+    "mode": "long-short",
+    "compoundedReturn": -0.39,
+    "maxDD": 2.62,
+    "worstMonth": -1.69,
+    "worstDay": -0.56,
+    "trades": 31
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "BTC 4h",
+    "mode": "long-short",
+    "compoundedReturn": -1.2,
+    "maxDD": 1.96,
+    "worstMonth": -0.99,
+    "worstDay": -1.08,
+    "trades": 26
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "BTC 4h",
+    "mode": "long-short",
+    "compoundedReturn": 10.27,
+    "maxDD": 7.63,
+    "worstMonth": -4.46,
+    "worstDay": -2.29,
+    "trades": 197
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 15m",
+    "mode": "long-only",
+    "compoundedReturn": -2.69,
+    "maxDD": 7.94,
+    "worstMonth": -1.98,
+    "worstDay": -2.14,
+    "trades": 74
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 15m",
+    "mode": "long-only",
+    "compoundedReturn": 13.24,
+    "maxDD": 3.58,
+    "worstMonth": -0.81,
+    "worstDay": -0.75,
+    "trades": 39
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 15m",
+    "mode": "long-only",
+    "compoundedReturn": 33.63,
+    "maxDD": 14.87,
+    "worstMonth": -7.48,
+    "worstDay": -4.93,
+    "trades": 475
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 15m",
+    "mode": "long-short",
+    "compoundedReturn": -6.34,
+    "maxDD": 12.07,
+    "worstMonth": -2.98,
+    "worstDay": -2.14,
+    "trades": 177
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 15m",
+    "mode": "long-short",
+    "compoundedReturn": 7.13,
+    "maxDD": 6.61,
+    "worstMonth": -3.33,
+    "worstDay": -2.48,
+    "trades": 114
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 15m",
+    "mode": "long-short",
+    "compoundedReturn": 7.15,
+    "maxDD": 21.57,
+    "worstMonth": -5.95,
+    "worstDay": -4.93,
+    "trades": 866
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 1h",
+    "mode": "long-only",
+    "compoundedReturn": -3.93,
+    "maxDD": 4.27,
+    "worstMonth": -0.8,
+    "worstDay": -0.54,
+    "trades": 42
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 1h",
+    "mode": "long-only",
+    "compoundedReturn": 6.84,
+    "maxDD": 1.74,
+    "worstMonth": -0.28,
+    "worstDay": -0.47,
+    "trades": 21
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 1h",
+    "mode": "long-only",
+    "compoundedReturn": 7.46,
+    "maxDD": 10.55,
+    "worstMonth": -3.01,
+    "worstDay": -3.82,
+    "trades": 296
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 1h",
+    "mode": "long-short",
+    "compoundedReturn": 1.89,
+    "maxDD": 9.03,
+    "worstMonth": -4.69,
+    "worstDay": -1.7,
+    "trades": 88
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 1h",
+    "mode": "long-short",
+    "compoundedReturn": 4.87,
+    "maxDD": 4.41,
+    "worstMonth": -1.9,
+    "worstDay": -1.65,
+    "trades": 66
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 1h",
+    "mode": "long-short",
+    "compoundedReturn": 2.44,
+    "maxDD": 13.28,
+    "worstMonth": -4.69,
+    "worstDay": -3.84,
+    "trades": 519
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 4h",
+    "mode": "long-only",
+    "compoundedReturn": -0.11,
+    "maxDD": 2.89,
+    "worstMonth": -1,
+    "worstDay": -1.19,
+    "trades": 15
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 4h",
+    "mode": "long-only",
+    "compoundedReturn": 4.11,
+    "maxDD": 1.01,
+    "worstMonth": -0.27,
+    "worstDay": -0.42,
+    "trades": 10
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 4h",
+    "mode": "long-only",
+    "compoundedReturn": 5.47,
+    "maxDD": 7.06,
+    "worstMonth": -2.54,
+    "worstDay": -1.97,
+    "trades": 122
+  },
+  {
+    "period": "۲۰۲۲ کامل",
+    "market": "ETH 4h",
+    "mode": "long-short",
+    "compoundedReturn": 0.87,
+    "maxDD": 2.18,
+    "worstMonth": -0.72,
+    "worstDay": -1.19,
+    "trades": 31
+  },
+  {
+    "period": "۲۰۲۵-۲۰۲۶ (زیر SMA200 روزانه BTC)",
+    "market": "ETH 4h",
+    "mode": "long-short",
+    "compoundedReturn": 3.77,
+    "maxDD": 1.32,
+    "worstMonth": -0.34,
+    "worstDay": -0.45,
+    "trades": 19
+  },
+  {
+    "period": "کل دوره ۶ ساله",
+    "market": "ETH 4h",
+    "mode": "long-short",
+    "compoundedReturn": 2.51,
+    "maxDD": 8.57,
+    "worstMonth": -2.56,
+    "worstDay": -1.98,
+    "trades": 192
+  }
+]
