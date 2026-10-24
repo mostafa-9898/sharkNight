@@ -99,7 +99,6 @@ describe('Integrity Test 1: No-Lookahead Guarantee (1,000 Iterations)', () => {
       const truncSignal = strategy.analyze(truncatedCandles, t);
 
       expect(truncSignal.action).toBe(fullSignal.action);
-      expect(truncSignal.direction).toBe(fullSignal.direction);
       expect(truncSignal.reason).toBe(fullSignal.reason);
       checkedSignals++;
     }

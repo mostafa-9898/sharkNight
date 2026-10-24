@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import { BacktestEngine } from '@/backtest/engine';
-import { MultiTimeframeStrategy } from '@/strategies/multi-timeframe-strategy';
+import { MultiTimeframeStrategy, type FisherMode } from '@/strategies/multi-timeframe-strategy';
 import { createSeededRng, generateSyntheticCandles, loadRealFixtureSlice } from './helpers';
 import type { Candle } from '@/data/models';
 
@@ -31,7 +31,7 @@ describe('Integrity Test 2: Engine & Strategy Determinism (1,000 Iterations)', (
         candles = generateSyntheticCandles(len, rng, 100 + rng() * 500);
       }
 
-      const fisherMode = rng() > 0.5 ? 'confirm' : 'replace-stoch';
+      const fisherMode: FisherMode = rng() > 0.5 ? 'confirm' : 'replace-stoch';
       const kijunSlopeFilter = rng() > 0.5;
       const structureFilter = rng() > 0.5;
 
@@ -63,7 +63,7 @@ describe('Integrity Test 2: Engine & Strategy Determinism (1,000 Iterations)', (
       // Verify trades equality
       expect(res1.trades.length).toBe(res2.trades.length);
       expect(res1.metrics.totalPnl).toBe(res2.metrics.totalPnl);
-      expect(res1.metrics.tradeCount).toBe(res2.metrics.tradeCount);
+      expect(res1.metrics.totalTrades).toBe(res2.metrics.totalTrades);
       expect(res1.metrics.maxDrawdownPercent).toBe(res2.metrics.maxDrawdownPercent);
 
       // Verify full SHA256 parity of serialized trade records

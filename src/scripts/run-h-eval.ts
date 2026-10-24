@@ -113,6 +113,7 @@ function calibrateMultiplier(
       }
       const res = engine.run({
         ...simConfig,
+        initialBalance: simConfig.initialBalance ?? 10000,
         strategy: new RandomEntryStrategy(sigMap),
         candles,
       });

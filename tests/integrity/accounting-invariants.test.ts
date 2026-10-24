@@ -56,15 +56,12 @@ describe('Integrity Test 4: Portfolio Accounting Invariants (1,000 Iterations)',
 
       // Invariant 1: sum(pnlUsd) of closed trades equals final balance change
       const sumPnl = roundTo(result.trades.reduce((acc, t) => acc + t.pnl, 0), 2);
-      const finalRealizedEquity = roundTo(
-        initialBalance + sumPnl,
-        2
-      );
-      // If no active open position at end, final equity in equity curve equals finalRealizedEquity
-      if (!result.activePosition && (!result.multiPositionDiagnostics || result.multiPositionDiagnostics.peakConcurrentPositions === 0 || result.trades.length > 0)) {
+      const finalRealizedEquity = roundTo(initialBalance + sumPnl, 2);
+      expect(Number.isFinite(finalRealizedEquity)).toBe(true);
+
+      if (!result.activePosition && (!result.multiPositionDiagnostics || result.multiPositionDiagnostics.maxConcurrentPositions === 0)) {
         const lastEquity = roundTo(result.equity[result.equity.length - 1], 2);
-        // Note: active open position mark-to-market could differ, but sum of realized trades is exact
-        expect(Number.isFinite(sumPnl)).toBe(true);
+        expect(lastEquity).toBeCloseTo(finalRealizedEquity, 1);
       }
 
       // Invariant 2: Two-way commission deducted for every trade

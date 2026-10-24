@@ -66,7 +66,7 @@ describe('AL2: Alpha Attribution Decomposition (L0 to L5)', () => {
     expect(btc15m).toBeDefined();
 
     // S1 on BTC 15m produces +37.29% return
-    expect(btc15m.real.L3.totalReturn).toBe(37.29);
-    expect(btc15m.real.L3.trades).toBe(544);
+    expect(btc15m!.real.L3.totalReturn).toBe(37.29);
+    expect(btc15m!.real.L3.trades).toBe(544);
   });
 });

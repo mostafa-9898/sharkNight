@@ -1,13 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-interface FixtureRow {
-  time?: number | string;
-  close: number;
-  fisherScaled?: number;
-  signalScaled?: number;
-}
-
 interface GoldenFixture {
   description: string;
   source: string;
