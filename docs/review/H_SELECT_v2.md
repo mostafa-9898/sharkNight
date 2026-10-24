@@ -129,3 +129,4 @@
 | `allowOppositePositions` | `true` | ابقا بر اساس ضابطه پیش‌فرض به دلیل عدم حد نصاب ۴ بازار |
 | `positionSizePercent` | `3` | برتری Return/DD در ۴ از ۶ بازار |
 | `maxTotalExposurePercent` | `30` | برتری Return/DD در ۴ از ۶ بازار |
+

@@ -21,3 +21,4 @@ describe('Market Regime (SH0 / SH1)', () => {
     expect(['bull', 'bear']).toContain(regime);
   });
 });
+

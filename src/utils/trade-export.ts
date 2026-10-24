@@ -102,3 +102,4 @@ export function parseTradeRows(csvContent: string): TradeCsvRow[] {
     };
   });
 }
+
