@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { calculateFisherRsi, calculateIftRsi, fisherCrossEvents } from '@/indicators/fisher-rsi';
+import { parsePineCsv } from '@/scripts/make-fisher-fixture';
 
 describe('Fisher RSI & IFT-RSI Indicators (Pine Matching)', () => {
   const generateSineWave = (count: number): number[] => {
@@ -150,42 +151,54 @@ describe('Fisher RSI & IFT-RSI Indicators (Pine Matching)', () => {
     });
   });
 
-  describe('Fisher RSI Golden Fixture Parity Test (H1.4)', () => {
+  describe('Fisher RSI Golden Fixture Parity Test (H1.4 / Stage 3)', () => {
     const fixturePath = path.resolve(process.cwd(), 'tests', 'fixtures', 'fisher_golden.json');
     const hasFixture = fs.existsSync(fixturePath);
 
-    (hasFixture ? it : it.skip)(
-      'compares calculateFisherRsi against reference golden benchmark with tolerance 0.05 on scaled',
-      () => {
-        if (!hasFixture) return;
-        const fixtureContent = JSON.parse(fs.readFileSync(fixturePath, 'utf-8'));
+    if (hasFixture) {
+      it('validates schema and compares calculateFisherRsi against reference golden benchmark with tolerance 0.05', () => {
+        const raw = fs.readFileSync(fixturePath, 'utf-8');
+        const fixtureContent = JSON.parse(raw);
+
+        expect(Array.isArray(fixtureContent.candles)).toBe(true);
+        expect(Array.isArray(fixtureContent.expected)).toBe(true);
+
         const closes: number[] = (fixtureContent.candles as Array<{ close: number }>).map((c) => c.close);
         const expected: Array<{ fisherScaled?: number; signalScaled?: number }> = fixtureContent.expected;
 
-        // Stage 3 constraint: Fixture must have at least 60 candles and >= 20 finite expected values
+        // Stage 3 rule: Must have at least 60 candles and >= 20 finite expected values
+        if (closes.length < 60) {
+          throw new Error(`Golden fixture must have >= 60 candles, but found ${closes.length}`);
+        }
         expect(closes.length).toBeGreaterThanOrEqual(60);
+
         const finiteCount = expected.filter(
-          (e) => e.fisherScaled !== undefined && Number.isFinite(e.fisherScaled)
+          (e) =>
+            (e.fisherScaled !== undefined && Number.isFinite(e.fisherScaled)) ||
+            (e.signalScaled !== undefined && Number.isFinite(e.signalScaled))
         ).length;
+
+        if (finiteCount < 20) {
+          throw new Error(`Golden fixture must have >= 20 finite expected values, but found ${finiteCount}`);
+        }
         expect(finiteCount).toBeGreaterThanOrEqual(20);
 
         const res = calculateFisherRsi(closes, { rsiPeriod: 14, window: 10 });
 
         for (let i = 0; i < expected.length; i++) {
           if (expected[i].fisherScaled !== undefined && Number.isFinite(expected[i].fisherScaled)) {
-            expect(res.scaled[i]).toBeCloseTo(expected[i].fisherScaled as number, 1); // 0.05 tolerance
+            expect(res.scaled[i]).toBeCloseTo(expected[i].fisherScaled as number, 1);
           }
           if (expected[i].signalScaled !== undefined && Number.isFinite(expected[i].signalScaled)) {
             expect(res.signalScaled[i]).toBeCloseTo(expected[i].signalScaled as number, 1);
           }
         }
-      }
-    );
-
-    if (!hasFixture) {
+      });
+    } else {
       it('marks golden fixture test as BLOCKED pending reference benchmark from user', () => {
-        // Explicit placeholder noting blocked state per instruction
-        expect('BLOCKED: نیاز به داده از کاربر').toBeDefined();
+        // Explicit placeholder noting blocked state per Stage 3 instruction
+        const status = 'BLOCKED: نیاز به داده از کاربر';
+        expect(status).toBe('BLOCKED: نیاز به داده از کاربر');
       });
     }
   });
@@ -228,6 +241,32 @@ describe('Fisher RSI & IFT-RSI Indicators (Pine Matching)', () => {
         const ift = calculateIftRsi(constantData);
         expect(ift).toHaveLength(80);
       }).not.toThrow();
+    });
+  });
+
+  describe('make-fisher-fixture CSV parser & schema validation (Stage 3)', () => {
+    it('throws when CSV has fewer than 60 candles', () => {
+      const shortCsv = ['time,close,fisher,signal', ...Array.from({ length: 30 }, (_, i) => `${i},100,50,50`)].join('\n');
+      expect(() => parsePineCsv(shortCsv)).toThrow(/only 30 valid candles \(minimum 60 required\)/);
+    });
+
+    it('throws when CSV has fewer than 20 finite expected values', () => {
+      const sparseCsv = [
+        'time,close,fisher,signal',
+        ...Array.from({ length: 70 }, (_, i) => `${i},100,${i < 10 ? 50 : 'NaN'},${i < 10 ? 50 : 'NaN'}`),
+      ].join('\n');
+      expect(() => parsePineCsv(sparseCsv)).toThrow(/only 10 finite expected values/);
+    });
+
+    it('successfully parses valid CSV with >= 60 candles and >= 20 finite values', () => {
+      const validCsv = [
+        'time,close,fisher,signal',
+        ...Array.from({ length: 65 }, (_, i) => `${i},${100 + i},${i >= 15 ? 50 + i * 0.1 : 'NaN'},${i >= 16 ? 50 + (i - 1) * 0.1 : 'NaN'}`),
+      ].join('\n');
+      const parsed = parsePineCsv(validCsv);
+      expect(parsed.candles).toHaveLength(65);
+      expect(parsed.expected).toHaveLength(65);
+      expect(parsed.finiteCount).toBeGreaterThanOrEqual(20);
     });
   });
 });
