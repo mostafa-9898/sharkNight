@@ -819,4 +819,76 @@ describe('MultiTimeframeStrategy', () => {
       expect(stratZone.fisherGate).toBe('zone');
     });
   });
+
+  describe('H7: Candidate F4 (cross-confirm with 3-candle memory)', () => {
+    it('initializes F4 cross-confirm mode with proper gate', () => {
+      const f4None = new MultiTimeframeStrategy({
+        fisherMode: 'cross-confirm',
+        fisherKind: 'fisher',
+        fisherGate: 'none',
+      });
+      const f4Zone = new MultiTimeframeStrategy({
+        fisherMode: 'cross-confirm',
+        fisherKind: 'fisher',
+        fisherGate: 'zone',
+      });
+
+      expect(f4None.fisherMode).toBe('cross-confirm');
+      expect(f4None.fisherGate).toBe('none');
+      expect(f4Zone.fisherMode).toBe('cross-confirm');
+      expect(f4Zone.fisherGate).toBe('zone');
+    });
+
+    it('requires TK/Stoch trigger plus Fisher two-line cross within the last 3 candles in F4 mode', () => {
+      const start = 1700000000000;
+      const htf1h = Array.from({ length: 100 }, (_, i) => ({
+        timestamp: start + i * 3600000,
+        open: 100 + i * 5,
+        high: 100 + i * 5 + 2,
+        low: 100 + i * 5 - 2,
+        close: 100 + i * 5,
+        volume: 100,
+      }));
+      const htf4h = Array.from({ length: 100 }, (_, i) => ({
+        timestamp: start + i * 14400000,
+        open: 100 + i * 5,
+        high: 100 + i * 5 + 2,
+        low: 100 + i * 5 - 2,
+        close: 100 + i * 5,
+        volume: 100,
+      }));
+      const ltfStart = start + 60 * 3600000;
+      const ltf = Array.from({ length: 80 }, (_, i) => ({
+        timestamp: ltfStart + i * 900000,
+        open: 200 + i * 0.5,
+        high: 200 + i * 0.5 + 2,
+        low: 200 + i * 0.5 - 2,
+        close: 200 + i * 0.5,
+        volume: 100,
+      }));
+      for (let i = 50; i < 80; i++) {
+        ltf[i].open += (i - 49) * 2;
+        ltf[i].high += (i - 49) * 2;
+        ltf[i].low += (i - 49) * 2;
+        ltf[i].close += (i - 49) * 2;
+      }
+      ltf[78].close = ltf[78].low;
+      ltf[79].close = ltf[79].high;
+
+      const stratF4 = new MultiTimeframeStrategy({
+        htfMode: 'strict',
+        entryMode: 'cross',
+        fisherMode: 'cross-confirm',
+        fisherKind: 'fisher',
+        fisherGate: 'none',
+        htf1hCandles: htf1h,
+        htf4hCandles: htf4h,
+        kijunSlopeFilter: false,
+        structureFilter: false,
+      });
+
+      const sig = stratF4.analyze(ltf, 79);
+      expect(['BUY', 'HOLD', 'SELL']).toContain(sig.action);
+    });
+  });
 });

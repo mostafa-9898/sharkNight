@@ -7,7 +7,7 @@ import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../in
 import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
 import { roundTo } from '../utils/math';
 
-export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
 export type FisherKind = 'fisher' | 'ift';
 export type FisherGate = 'none' | 'zone';
 
@@ -675,6 +675,49 @@ export class MultiTimeframeStrategy implements Strategy {
             ? Number.isFinite(fCurr) && Number.isFinite(sCurr) && fCurr < sCurr
             : Number.isFinite(iftCurr) && Number.isFinite(iftPrev) && iftCurr < iftPrev;
       }
+
+      let hasRecentFisherBullCross = false;
+      let hasRecentFisherBearCross = false;
+      if (this.fisherMode === 'cross-confirm' || this.fisherMode === 'f4') {
+        if (this.fisherKind === 'fisher' && fisherArr && signalArr) {
+          for (let offset = 0; offset < 3; offset++) {
+            const idx = currentIndex - offset;
+            if (idx >= 1) {
+              const fc = fisherArr[idx];
+              const sc = signalArr[idx];
+              const fp = fisherArr[idx - 1];
+              const sp = signalArr[idx - 1];
+              const crossUp = Number.isFinite(fc) && Number.isFinite(sc) && Number.isFinite(fp) && Number.isFinite(sp) && fp <= sp && fc > sc;
+              const crossDown = Number.isFinite(fc) && Number.isFinite(sc) && Number.isFinite(fp) && Number.isFinite(sp) && fp >= sp && fc < sc;
+              if (this.fisherGate === 'zone') {
+                const rS = cached.ltfFisher?.rsiScore ? cached.ltfFisher.rsiScore[idx] : NaN;
+                const sV = cached.ltfFisher?.scaled ? cached.ltfFisher.scaled[idx] : NaN;
+                const bZ = (Number.isFinite(rS) && rS <= 30) || (Number.isFinite(sV) && sV <= 30);
+                const brZ = (Number.isFinite(rS) && rS >= 70) || (Number.isFinite(sV) && sV >= 70);
+                if (crossUp && bZ) hasRecentFisherBullCross = true;
+                if (crossDown && brZ) hasRecentFisherBearCross = true;
+              } else {
+                if (crossUp) hasRecentFisherBullCross = true;
+                if (crossDown) hasRecentFisherBearCross = true;
+              }
+            }
+          }
+        } else if (this.fisherKind === 'ift' && iftArr) {
+          for (let offset = 0; offset < 3; offset++) {
+            const idx = currentIndex - offset;
+            if (idx >= 1) {
+              const ic = iftArr[idx];
+              const ip = iftArr[idx - 1];
+              const iftUp = Number.isFinite(ic) && Number.isFinite(ip) && ip <= -0.5 && ic > -0.5;
+              const iftDown = Number.isFinite(ic) && Number.isFinite(ip) && ip >= 0.5 && ic < 0.5;
+              if (iftUp) hasRecentFisherBullCross = true;
+              if (iftDown) hasRecentFisherBearCross = true;
+            }
+          }
+        }
+        fisherEventBull = hasRecentFisherBullCross;
+        fisherEventBear = hasRecentFisherBearCross;
+      }
     }
 
     let bullTrigger = false;
@@ -701,6 +744,11 @@ export class MultiTimeframeStrategy implements Strategy {
       bullTrigger = (tkBullCross || stochBullCross) && fisherBullConfirmed;
       bullBlockedByOpposite = tkBearCross || stochBearCross;
       bearTrigger = (tkBearCross || stochBearCross) && fisherBearConfirmed;
+      bearBlockedByOpposite = tkBullCross || stochBullCross;
+    } else if (this.fisherMode === 'cross-confirm' || this.fisherMode === 'f4') {
+      bullTrigger = (tkBullCross || stochBullCross) && fisherEventBull;
+      bullBlockedByOpposite = tkBearCross || stochBearCross;
+      bearTrigger = (tkBearCross || stochBearCross) && fisherEventBear;
       bearBlockedByOpposite = tkBullCross || stochBullCross;
     }
 

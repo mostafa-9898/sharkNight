@@ -239,7 +239,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     allowOppositeArg !== undefined ? allowOppositeArg !== 'false' : DEFAULT_ALLOW_OPPOSITE_POSITIONS;
 
   const fisherMode = (parseArg('fisher-mode', undefined, argv) ??
-    parseArg('fisherMode', DEFAULT_FISHER_MODE, argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+    parseArg('fisherMode', DEFAULT_FISHER_MODE, argv)) as 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
   const fisherKind = (parseArg('fisher-kind', undefined, argv) ??
     parseArg('fisherKind', DEFAULT_FISHER_KIND, argv)) as 'fisher' | 'ift';
   const fisherGate = (parseArg('fisher-gate', undefined, argv) ??

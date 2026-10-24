@@ -191,6 +191,8 @@ export async function runHEvaluation() {
     { id: 'F1-zone', fisherMode: 'extra-trigger', fisherGate: 'zone' },
     { id: 'F3-none', fisherMode: 'confirm', fisherGate: 'none' },
     { id: 'F3-zone', fisherMode: 'confirm', fisherGate: 'zone' },
+    { id: 'F4-none', fisherMode: 'cross-confirm', fisherGate: 'none' },
+    { id: 'F4-zone', fisherMode: 'cross-confirm', fisherGate: 'zone' },
   ];
 
   interface MarketResult {
@@ -285,7 +287,47 @@ export async function runHEvaluation() {
     }
   }
 
-  console.log('\n--- Running H5 (allowOppositePositions true vs false) ---');
+  // Determine winning candidate from Step 2 under H7 criteria
+  const f3Results = allResults.filter((r) => r.candidate === 'F3-none');
+  const f3Map = new Map(f3Results.map((r) => [r.market, r]));
+
+  const candidateScores: Record<string, { wins: number; passMarkets: string[] }> = {};
+  for (const c of candidates) {
+    if (c.id === 'F3-none') continue;
+    let wins = 0;
+    const passMarkets: string[] = [];
+    for (const m of markets) {
+      const cRes = allResults.find((r) => r.candidate === c.id && r.market === m.key)!;
+      const baseRes = f3Map.get(m.key)!;
+      const retDdBetter = cRes.retDdRatio >= baseRes.retDdRatio;
+      const ddOk = cRes.maxDD <= roundTo(baseRes.maxDD * 1.2 + 0.001, 2);
+      const ddAbsOk = cRes.maxDD <= 20.0;
+      if (retDdBetter && ddOk && ddAbsOk) {
+        wins++;
+        passMarkets.push(m.key);
+      }
+    }
+    candidateScores[c.id] = { wins, passMarkets };
+  }
+
+  let winner = candidates.find((c) => c.id === 'F3-none')!;
+  let bestWins = 3; // Needs >= 4 to beat default
+  for (const c of candidates) {
+    if (candidateScores[c.id] && candidateScores[c.id].wins > bestWins) {
+      bestWins = candidateScores[c.id].wins;
+      winner = c;
+    }
+  }
+
+  console.log(`\n======================================================`);
+  console.log(`H7 Candidate Comparison vs Default F3-none:`);
+  for (const [id, score] of Object.entries(candidateScores)) {
+    console.log(`  ${id.padEnd(10)}: ${score.wins}/6 wins [${score.passMarkets.join(', ')}]`);
+  }
+  console.log(`Step 2 Winner: ${winner.id} (mode=${winner.fisherMode}, gate=${winner.fisherGate})`);
+  console.log(`======================================================\n`);
+
+  console.log(`\n--- Running H7 (allowOppositePositions true vs false with Winner ${winner.id}) ---`);
   interface OppComparison {
     market: string;
     trueRet: number;
@@ -303,9 +345,9 @@ export async function runHEvaluation() {
     const strat = new MultiTimeframeStrategy({
       htfMode: 'strict',
       entryMode: 'cross',
-      fisherMode: 'extra-trigger', // candidate F1
+      fisherMode: winner.fisherMode,
       fisherKind: 'fisher',
-      fisherGate: 'none',
+      fisherGate: winner.fisherGate,
       htf1hCandles: c1h,
       htf4hCandles: c4h,
       kijunSlopeFilter: true,
@@ -326,7 +368,7 @@ export async function runHEvaluation() {
     });
   }
 
-  console.log('\n--- Running H5 Risk/Cap comparison (3%/30% vs 2%/20%) ---');
+  console.log(`\n--- Running H7 Risk/Cap comparison (3%/30% vs 2%/20% with Winner ${winner.id}) ---`);
   interface RiskComparison {
     market: string;
     baseRet: number;
@@ -344,9 +386,9 @@ export async function runHEvaluation() {
     const strat = new MultiTimeframeStrategy({
       htfMode: 'strict',
       entryMode: 'cross',
-      fisherMode: 'extra-trigger',
+      fisherMode: winner.fisherMode,
       fisherKind: 'fisher',
-      fisherGate: 'none',
+      fisherGate: winner.fisherGate,
       htf1hCandles: c1h,
       htf4hCandles: c4h,
       kijunSlopeFilter: true,
@@ -373,14 +415,16 @@ export async function runHEvaluation() {
     });
   }
 
-  // Dump JSON result for easy inspection and document generation
+  // Dump JSON result
   const output = {
     allResults,
+    candidateScores,
+    winner: winner.id,
     oppResults,
     riskResults,
   };
-  fs.writeFileSync('docs/review/h_eval_data.json', JSON.stringify(output, null, 2));
-  console.log('\nWrote docs/review/h_eval_data.json successfully.');
+  fs.writeFileSync('docs/review/h_eval_data_v2.json', JSON.stringify(output, null, 2));
+  console.log('\nWrote docs/review/h_eval_data_v2.json successfully.');
 }
 
 runHEvaluation().catch((err) => {

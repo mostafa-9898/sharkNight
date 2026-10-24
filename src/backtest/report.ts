@@ -39,7 +39,7 @@ export interface BacktestReportConfig {
   strategyName?: string;
   htfMode?: 'strict' | 'legacy';
   entryMode?: 'cross' | 'legacy';
-  fisherMode?: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm';
+  fisherMode?: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
   fisherKind?: 'fisher' | 'ift';
   fisherGate?: 'none' | 'zone';
   structureFilter?: boolean;

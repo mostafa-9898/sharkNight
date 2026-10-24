@@ -118,8 +118,8 @@ export async function executeBacktestCore(
   const entryMode: 'cross' | 'legacy' = body.entryMode === 'legacy' ? 'legacy' : 'cross';
   const kijunSlopeFilter = body.kijunSlopeFilter !== undefined ? Boolean(body.kijunSlopeFilter) : DEFAULT_KIJUN_SLOPE_FILTER;
   const structureFilter = body.structureFilter !== undefined ? Boolean(body.structureFilter) : DEFAULT_STRUCTURE_FILTER;
-  const fisherMode: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' =
-    body.fisherMode === 'off' || body.fisherMode === 'extra-trigger' || body.fisherMode === 'replace-stoch' || body.fisherMode === 'confirm'
+  const fisherMode: 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4' =
+    body.fisherMode === 'off' || body.fisherMode === 'extra-trigger' || body.fisherMode === 'replace-stoch' || body.fisherMode === 'confirm' || body.fisherMode === 'cross-confirm' || body.fisherMode === 'f4'
       ? body.fisherMode
       : DEFAULT_FISHER_MODE;
   const fisherKind: 'fisher' | 'ift' = body.fisherKind === 'ift' ? 'ift' : DEFAULT_FISHER_KIND;

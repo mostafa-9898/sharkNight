@@ -1,0 +1,575 @@
+{
+  "allResults": [
+    {
+      "market": "BTC 15m",
+      "candidate": "F0 (off)",
+      "totalReturn": 80.16,
+      "maxDD": 25.03,
+      "retDdRatio": 3.2,
+      "trades": 488,
+      "winRate": 29.1,
+      "nullPercentile": 100
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F0 (off)",
+      "totalReturn": 20.59,
+      "maxDD": 13.46,
+      "retDdRatio": 1.53,
+      "trades": 539,
+      "winRate": 25.6,
+      "nullPercentile": 14
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F0 (off)",
+      "totalReturn": 8.34,
+      "maxDD": 10.02,
+      "retDdRatio": 0.83,
+      "trades": 268,
+      "winRate": 26.1,
+      "nullPercentile": 45
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F0 (off)",
+      "totalReturn": 4.07,
+      "maxDD": 21.77,
+      "retDdRatio": 0.19,
+      "trades": 1151,
+      "winRate": 23.2,
+      "nullPercentile": 56
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F0 (off)",
+      "totalReturn": 1.37,
+      "maxDD": 18.59,
+      "retDdRatio": 0.07,
+      "trades": 758,
+      "winRate": 21.2,
+      "nullPercentile": 26.5
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F0 (off)",
+      "totalReturn": 5.63,
+      "maxDD": 10.66,
+      "retDdRatio": 0.53,
+      "trades": 250,
+      "winRate": 24.8,
+      "nullPercentile": 81
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F1-none",
+      "totalReturn": 85.62,
+      "maxDD": 27.81,
+      "retDdRatio": 3.08,
+      "trades": 547,
+      "winRate": 28.2,
+      "nullPercentile": 100
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F1-none",
+      "totalReturn": 58.12,
+      "maxDD": 14.12,
+      "retDdRatio": 4.12,
+      "trades": 432,
+      "winRate": 30.1,
+      "nullPercentile": 99.5
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F1-none",
+      "totalReturn": 20.64,
+      "maxDD": 11.6,
+      "retDdRatio": 1.78,
+      "trades": 305,
+      "winRate": 27.2,
+      "nullPercentile": 71
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F1-none",
+      "totalReturn": 10.66,
+      "maxDD": 22.78,
+      "retDdRatio": 0.47,
+      "trades": 1274,
+      "winRate": 24.3,
+      "nullPercentile": 87
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F1-none",
+      "totalReturn": -6.03,
+      "maxDD": 23.74,
+      "retDdRatio": -0.25,
+      "trades": 940,
+      "winRate": 19.2,
+      "nullPercentile": 11.5
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F1-none",
+      "totalReturn": 2.54,
+      "maxDD": 15.35,
+      "retDdRatio": 0.17,
+      "trades": 356,
+      "winRate": 23.3,
+      "nullPercentile": 49.5
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F1-zone",
+      "totalReturn": 80.58,
+      "maxDD": 24.85,
+      "retDdRatio": 3.24,
+      "trades": 515,
+      "winRate": 28.5,
+      "nullPercentile": 100
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F1-zone",
+      "totalReturn": 25.51,
+      "maxDD": 12.78,
+      "retDdRatio": 2,
+      "trades": 522,
+      "winRate": 26.1,
+      "nullPercentile": 28.5
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F1-zone",
+      "totalReturn": 8.25,
+      "maxDD": 10.23,
+      "retDdRatio": 0.81,
+      "trades": 266,
+      "winRate": 25.9,
+      "nullPercentile": 45
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F1-zone",
+      "totalReturn": 2.83,
+      "maxDD": 22.3,
+      "retDdRatio": 0.13,
+      "trades": 1193,
+      "winRate": 23.5,
+      "nullPercentile": 55
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F1-zone",
+      "totalReturn": 0.88,
+      "maxDD": 18.61,
+      "retDdRatio": 0.05,
+      "trades": 775,
+      "winRate": 20.9,
+      "nullPercentile": 24
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F1-zone",
+      "totalReturn": 5.39,
+      "maxDD": 10.66,
+      "retDdRatio": 0.51,
+      "trades": 250,
+      "winRate": 24.4,
+      "nullPercentile": 80
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F3-none",
+      "totalReturn": 37.29,
+      "maxDD": 16.44,
+      "retDdRatio": 2.27,
+      "trades": 544,
+      "winRate": 27,
+      "nullPercentile": 40
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F3-none",
+      "totalReturn": 15.79,
+      "maxDD": 13.21,
+      "retDdRatio": 1.2,
+      "trades": 400,
+      "winRate": 24.3,
+      "nullPercentile": 30.5
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F3-none",
+      "totalReturn": 10.27,
+      "maxDD": 7.63,
+      "retDdRatio": 1.35,
+      "trades": 197,
+      "winRate": 28.4,
+      "nullPercentile": 70.5
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F3-none",
+      "totalReturn": 7.15,
+      "maxDD": 21.57,
+      "retDdRatio": 0.33,
+      "trades": 866,
+      "winRate": 23.6,
+      "nullPercentile": 65
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F3-none",
+      "totalReturn": 2.44,
+      "maxDD": 13.28,
+      "retDdRatio": 0.18,
+      "trades": 519,
+      "winRate": 22.9,
+      "nullPercentile": 36.5
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F3-none",
+      "totalReturn": 2.51,
+      "maxDD": 8.57,
+      "retDdRatio": 0.29,
+      "trades": 192,
+      "winRate": 23.4,
+      "nullPercentile": 62.5
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F3-zone",
+      "totalReturn": 37.29,
+      "maxDD": 16.44,
+      "retDdRatio": 2.27,
+      "trades": 544,
+      "winRate": 27,
+      "nullPercentile": 40
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F3-zone",
+      "totalReturn": 15.79,
+      "maxDD": 13.21,
+      "retDdRatio": 1.2,
+      "trades": 400,
+      "winRate": 24.3,
+      "nullPercentile": 30.5
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F3-zone",
+      "totalReturn": 10.27,
+      "maxDD": 7.63,
+      "retDdRatio": 1.35,
+      "trades": 197,
+      "winRate": 28.4,
+      "nullPercentile": 70.5
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F3-zone",
+      "totalReturn": 7.15,
+      "maxDD": 21.57,
+      "retDdRatio": 0.33,
+      "trades": 866,
+      "winRate": 23.6,
+      "nullPercentile": 65
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F3-zone",
+      "totalReturn": 2.44,
+      "maxDD": 13.28,
+      "retDdRatio": 0.18,
+      "trades": 519,
+      "winRate": 22.9,
+      "nullPercentile": 36.5
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F3-zone",
+      "totalReturn": 2.51,
+      "maxDD": 8.57,
+      "retDdRatio": 0.29,
+      "trades": 192,
+      "winRate": 23.4,
+      "nullPercentile": 62.5
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F4-none",
+      "totalReturn": 22.5,
+      "maxDD": 17.09,
+      "retDdRatio": 1.32,
+      "trades": 542,
+      "winRate": 25.8,
+      "nullPercentile": 9
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F4-none",
+      "totalReturn": 11.36,
+      "maxDD": 12.13,
+      "retDdRatio": 0.94,
+      "trades": 368,
+      "winRate": 22.8,
+      "nullPercentile": 22
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F4-none",
+      "totalReturn": 5.15,
+      "maxDD": 6.08,
+      "retDdRatio": 0.85,
+      "trades": 151,
+      "winRate": 27.2,
+      "nullPercentile": 54
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F4-none",
+      "totalReturn": 6.11,
+      "maxDD": 19.71,
+      "retDdRatio": 0.31,
+      "trades": 766,
+      "winRate": 24.4,
+      "nullPercentile": 53.5
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F4-none",
+      "totalReturn": -0.51,
+      "maxDD": 11.24,
+      "retDdRatio": -0.05,
+      "trades": 437,
+      "winRate": 22.7,
+      "nullPercentile": 17
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F4-none",
+      "totalReturn": 1.45,
+      "maxDD": 8.21,
+      "retDdRatio": 0.18,
+      "trades": 130,
+      "winRate": 24.6,
+      "nullPercentile": 62
+    },
+    {
+      "market": "BTC 15m",
+      "candidate": "F4-zone",
+      "totalReturn": 2.27,
+      "maxDD": 8.19,
+      "retDdRatio": 0.28,
+      "trades": 159,
+      "winRate": 22.6,
+      "nullPercentile": 29.5
+    },
+    {
+      "market": "BTC 1h",
+      "candidate": "F4-zone",
+      "totalReturn": -0.3,
+      "maxDD": 1.77,
+      "retDdRatio": -0.17,
+      "trades": 48,
+      "winRate": 20.8,
+      "nullPercentile": 24
+    },
+    {
+      "market": "BTC 4h",
+      "candidate": "F4-zone",
+      "totalReturn": 1.9,
+      "maxDD": 2.15,
+      "retDdRatio": 0.88,
+      "trades": 3,
+      "winRate": 33.3,
+      "nullPercentile": 96.5
+    },
+    {
+      "market": "ETH 15m",
+      "candidate": "F4-zone",
+      "totalReturn": 2.27,
+      "maxDD": 7.1,
+      "retDdRatio": 0.32,
+      "trades": 156,
+      "winRate": 26.3,
+      "nullPercentile": 55.5
+    },
+    {
+      "market": "ETH 1h",
+      "candidate": "F4-zone",
+      "totalReturn": -1.09,
+      "maxDD": 3.48,
+      "retDdRatio": -0.31,
+      "trades": 43,
+      "winRate": 16.3,
+      "nullPercentile": 21.5
+    },
+    {
+      "market": "ETH 4h",
+      "candidate": "F4-zone",
+      "totalReturn": -0.38,
+      "maxDD": 0.38,
+      "retDdRatio": -1,
+      "trades": 3,
+      "winRate": 0,
+      "nullPercentile": 12.5
+    }
+  ],
+  "candidateScores": {
+    "F0 (off)": {
+      "wins": 1,
+      "passMarkets": [
+        "BTC 1h"
+      ]
+    },
+    "F1-none": {
+      "wins": 1,
+      "passMarkets": [
+        "BTC 1h"
+      ]
+    },
+    "F1-zone": {
+      "wins": 1,
+      "passMarkets": [
+        "BTC 1h"
+      ]
+    },
+    "F3-zone": {
+      "wins": 5,
+      "passMarkets": [
+        "BTC 15m",
+        "BTC 1h",
+        "BTC 4h",
+        "ETH 1h",
+        "ETH 4h"
+      ]
+    },
+    "F4-none": {
+      "wins": 0,
+      "passMarkets": []
+    },
+    "F4-zone": {
+      "wins": 0,
+      "passMarkets": []
+    }
+  },
+  "winner": "F3-zone",
+  "oppResults": [
+    {
+      "market": "BTC 15m",
+      "trueRet": 37.29,
+      "trueDD": 16.44,
+      "trueRetDd": 2.27,
+      "falseRet": 42.52,
+      "falseDD": 16.93,
+      "falseRetDd": 2.51
+    },
+    {
+      "market": "BTC 1h",
+      "trueRet": 15.79,
+      "trueDD": 13.21,
+      "trueRetDd": 1.2,
+      "falseRet": 18.71,
+      "falseDD": 11.87,
+      "falseRetDd": 1.58
+    },
+    {
+      "market": "BTC 4h",
+      "trueRet": 10.27,
+      "trueDD": 7.63,
+      "trueRetDd": 1.35,
+      "falseRet": 8.96,
+      "falseDD": 6.94,
+      "falseRetDd": 1.29
+    },
+    {
+      "market": "ETH 15m",
+      "trueRet": 7.15,
+      "trueDD": 21.57,
+      "trueRetDd": 0.33,
+      "falseRet": -3.26,
+      "falseDD": 20.51,
+      "falseRetDd": -0.16
+    },
+    {
+      "market": "ETH 1h",
+      "trueRet": 2.44,
+      "trueDD": 13.28,
+      "trueRetDd": 0.18,
+      "falseRet": 3.08,
+      "falseDD": 11.26,
+      "falseRetDd": 0.27
+    },
+    {
+      "market": "ETH 4h",
+      "trueRet": 2.51,
+      "trueDD": 8.57,
+      "trueRetDd": 0.29,
+      "falseRet": -0.81,
+      "falseDD": 8.45,
+      "falseRetDd": -0.1
+    }
+  ],
+  "riskResults": [
+    {
+      "market": "BTC 15m",
+      "baseRet": 37.29,
+      "baseDD": 16.44,
+      "baseRetDd": 2.27,
+      "lowRet": 24.47,
+      "lowDD": 11.96,
+      "lowRetDd": 2.05
+    },
+    {
+      "market": "BTC 1h",
+      "baseRet": 15.79,
+      "baseDD": 13.21,
+      "baseRetDd": 1.2,
+      "lowRet": 10.52,
+      "lowDD": 9.47,
+      "lowRetDd": 1.11
+    },
+    {
+      "market": "BTC 4h",
+      "baseRet": 10.27,
+      "baseDD": 7.63,
+      "baseRetDd": 1.35,
+      "lowRet": 6.86,
+      "lowDD": 5.17,
+      "lowRetDd": 1.33
+    },
+    {
+      "market": "ETH 15m",
+      "baseRet": 7.15,
+      "baseDD": 21.57,
+      "baseRetDd": 0.33,
+      "lowRet": 5.23,
+      "lowDD": 15.01,
+      "lowRetDd": 0.35
+    },
+    {
+      "market": "ETH 1h",
+      "baseRet": 2.44,
+      "baseDD": 13.28,
+      "baseRetDd": 0.18,
+      "lowRet": 1.77,
+      "lowDD": 9.14,
+      "lowRetDd": 0.19
+    },
+    {
+      "market": "ETH 4h",
+      "baseRet": 2.51,
+      "baseDD": 8.57,
+      "baseRetDd": 0.29,
+      "lowRet": 1.72,
+      "lowDD": 5.87,
+      "lowRetDd": 0.29
+    }
+  ]
+}
