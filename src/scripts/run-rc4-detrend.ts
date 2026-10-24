@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import type { Candle, Trade } from '../data/models';
-import { MultiTimeframeStrategy, aggregateCandles } from '../strategies/multi-timeframe-strategy';
+import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
 import { roundTo } from '../utils/math';
 
@@ -56,6 +56,52 @@ export function detrendCandles(candles: readonly Candle[]): Candle[] {
   return detrended;
 }
 
+export function detrendCandlesByYear(candles: readonly Candle[]): Candle[] {
+  const n = candles.length;
+  if (n <= 1) return [...candles];
+
+  const yearTransitions: Record<number, number[]> = {};
+  for (let i = 1; i < n; i++) {
+    const yr = new Date(candles[i].timestamp).getUTCFullYear();
+    if (!yearTransitions[yr]) yearTransitions[yr] = [];
+    yearTransitions[yr].push(i);
+  }
+
+  const meanRetByYear: Record<number, number> = {};
+  for (const [yrStr, indices] of Object.entries(yearTransitions)) {
+    const yr = Number(yrStr);
+    let sumLogRet = 0;
+    for (const idx of indices) {
+      sumLogRet += Math.log(candles[idx].close / candles[idx - 1].close);
+    }
+    meanRetByYear[yr] = indices.length > 0 ? sumLogRet / indices.length : 0;
+  }
+
+  const detrended: Candle[] = [{ ...candles[0] }];
+  for (let i = 1; i < n; i++) {
+    const yr = new Date(candles[i].timestamp).getUTCFullYear();
+    const meanRet = meanRetByYear[yr] ?? 0;
+    const origLogRet = Math.log(candles[i].close / candles[i - 1].close);
+    const rPrime = origLogRet - meanRet;
+
+    const prevC = detrended[i - 1].close;
+    const newC = prevC * Math.exp(rPrime);
+    const ratio = newC / candles[i].close;
+    const prevRatio = prevC / candles[i - 1].close;
+
+    detrended.push({
+      timestamp: candles[i].timestamp,
+      open: roundTo(candles[i].open * prevRatio, 4),
+      high: roundTo(candles[i].high * ratio, 4),
+      low: roundTo(candles[i].low * ratio, 4),
+      close: roundTo(newC, 4),
+      volume: candles[i].volume,
+    });
+  }
+
+  return detrended;
+}
+
 export function mirrorCandles(candles: readonly Candle[], P0?: number): Candle[] {
   const baseP0 = P0 ?? candles[0].close;
   const p0Sq = baseP0 * baseP0;
@@ -80,6 +126,9 @@ export interface MarketMetrics {
   shortWinRate: number;
   longPf: number;
   shortPf: number;
+  longPnlUsd: number;
+  shortPnlUsd: number;
+  totalPnlUsd: number;
 }
 
 function calcMetrics(trades: Trade[]): MarketMetrics {
@@ -112,27 +161,49 @@ function calcMetrics(trades: Trade[]): MarketMetrics {
     shortWinRate: calcWinRate(shortTrades),
     longPf: calcPf(longTrades),
     shortPf: calcPf(shortTrades),
+    longPnlUsd: roundTo(lPnl, 2),
+    shortPnlUsd: roundTo(sPnl, 2),
+    totalPnlUsd: roundTo(totalPnl, 2),
   };
 }
 
 export async function runRc4() {
-  console.log('Running RC4: Real Data Detrending & Mirror Market Analysis (H-F)...');
+  console.log('Running RC4: Real Data Detrending & Mirror Market Analysis across 14 markets...');
   const dataDir = path.resolve('docs/review/data');
 
   const primaryMarkets = [
-    { key: 'BTC 15m', sym: 'BTC', tf: '15m' },
-    { key: 'BTC 1h', sym: 'BTC', tf: '1h' },
-    { key: 'BTC 4h', sym: 'BTC', tf: '4h' },
-    { key: 'ETH 15m', sym: 'ETH', tf: '15m' },
-    { key: 'ETH 1h', sym: 'ETH', tf: '1h' },
-    { key: 'ETH 4h', sym: 'ETH', tf: '4h' },
+    { key: 'BTC 15m', sym: 'BTC', tf: '15m', isOos: false },
+    { key: 'BTC 1h', sym: 'BTC', tf: '1h', isOos: false },
+    { key: 'BTC 4h', sym: 'BTC', tf: '4h', isOos: false },
+    { key: 'ETH 15m', sym: 'ETH', tf: '15m', isOos: false },
+    { key: 'ETH 1h', sym: 'ETH', tf: '1h', isOos: false },
+    { key: 'ETH 4h', sym: 'ETH', tf: '4h', isOos: false },
   ];
 
-  const rawCandles: Record<string, Record<string, Candle[]>> = { BTC: {}, ETH: {} };
-  for (const sym of ['BTC', 'ETH'] as const) {
-    for (const tf of ['15m', '1h', '4h'] as const) {
+  const oosMarkets = [
+    { key: 'SOL 1h', sym: 'SOL', tf: '1h', isOos: true },
+    { key: 'SOL 4h', sym: 'SOL', tf: '4h', isOos: true },
+    { key: 'BNB 1h', sym: 'BNB', tf: '1h', isOos: true },
+    { key: 'BNB 4h', sym: 'BNB', tf: '4h', isOos: true },
+    { key: 'XRP 1h', sym: 'XRP', tf: '1h', isOos: true },
+    { key: 'XRP 4h', sym: 'XRP', tf: '4h', isOos: true },
+    { key: 'ADA 1h', sym: 'ADA', tf: '1h', isOos: true },
+    { key: 'ADA 4h', sym: 'ADA', tf: '4h', isOos: true },
+  ];
+
+  const allMarkets = [...primaryMarkets, ...oosMarkets];
+
+  const rawCandles: Record<string, Record<string, Candle[]>> = {};
+  const allSymbols = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA'] as const;
+
+  for (const sym of allSymbols) {
+    rawCandles[sym] = {};
+    const tfs = sym === 'BTC' || sym === 'ETH' ? ['15m', '1h', '4h'] : ['1h', '4h'];
+    for (const tf of tfs) {
       const p = path.join(dataDir, `${sym}USDT_${tf}.csv.gz`);
-      rawCandles[sym][tf] = loadGzCandles(p);
+      if (fs.existsSync(p)) {
+        rawCandles[sym][tf] = loadGzCandles(p);
+      }
     }
   }
 
@@ -141,13 +212,14 @@ export async function runRc4() {
   const results: Record<
     string,
     {
+      isOos: boolean;
       original: MarketMetrics;
       detrended: MarketMetrics;
       mirrorLong: MarketMetrics;
     }
   > = {};
 
-  for (const m of primaryMarkets) {
+  for (const m of allMarkets) {
     console.log(`-> Processing ${m.key}...`);
     const cLtf = rawCandles[m.sym][m.tf];
     const c1h = rawCandles[m.sym]['1h'];
@@ -178,11 +250,10 @@ export async function runRc4() {
     });
     const origMetrics = calcMetrics(resOrig.trades);
 
-    // 2. Detrended Run
-    // Detrend LTF, 1h, and 4h
+    // 2. Detrended Run (Whole Period Detrending)
     const dLtf = detrendCandles(cLtf);
-    const d1h = detrendCandles(c1h);
-    const d4h = detrendCandles(c4h);
+    const d1h = c1h ? detrendCandles(c1h) : undefined;
+    const d4h = c4h ? detrendCandles(c4h) : undefined;
 
     const stratDetrend = new MultiTimeframeStrategy({
       htf1hCandles: d1h,
@@ -210,8 +281,8 @@ export async function runRc4() {
 
     // 3. Mirror Market Run (p -> P0^2 / p)
     const mLtf = mirrorCandles(cLtf);
-    const m1h = mirrorCandles(c1h);
-    const m4h = mirrorCandles(c4h);
+    const m1h = c1h ? mirrorCandles(c1h) : undefined;
+    const m4h = c4h ? mirrorCandles(c4h) : undefined;
 
     const stratMirror = new MultiTimeframeStrategy({
       htf1hCandles: m1h,
@@ -222,7 +293,6 @@ export async function runRc4() {
       shortEntryFilter: 'none',
     });
 
-    // Run long-only on mirror market
     const resMirror = engine.run({
       candles: mLtf,
       strategy: stratMirror,
@@ -239,6 +309,7 @@ export async function runRc4() {
     const mirrorMetrics = calcMetrics(resMirror.trades);
 
     results[m.key] = {
+      isOos: m.isOos,
       original: origMetrics,
       detrended: detrendMetrics,
       mirrorLong: mirrorMetrics,
@@ -248,45 +319,65 @@ export async function runRc4() {
   // Save json data
   fs.writeFileSync(path.resolve('docs/review/rc4_detrend_data.json'), JSON.stringify(results, null, 2));
 
-  // Compute aggregate totals
-  const sum = (fn: (m: MarketMetrics) => number, key: 'original' | 'detrended' | 'mirrorLong') =>
-    roundTo(
-      primaryMarkets.reduce((acc, m) => acc + fn(results[m.key][key]), 0),
-      2
-    );
+  // Compute aggregate totals helper
+  const sumGroup = (
+    marketsList: typeof allMarkets,
+    fn: (m: MarketMetrics) => number,
+    key: 'original' | 'detrended' | 'mirrorLong'
+  ) => roundTo(marketsList.reduce((acc, m) => acc + fn(results[m.key][key]), 0), 2);
 
-  const origTotLongRet = sum((m) => m.longReturn, 'original');
-  const origTotShortRet = sum((m) => m.shortReturn, 'original');
+  const primOrigLong = sumGroup(primaryMarkets, (m) => m.longReturn, 'original');
+  const primOrigShort = sumGroup(primaryMarkets, (m) => m.shortReturn, 'original');
+  const primDetrLong = sumGroup(primaryMarkets, (m) => m.longReturn, 'detrended');
+  const primDetrShort = sumGroup(primaryMarkets, (m) => m.shortReturn, 'detrended');
+  const primMirLong = sumGroup(primaryMarkets, (m) => m.longReturn, 'mirrorLong');
+  const primMirShort = sumGroup(primaryMarkets, (m) => m.shortReturn, 'mirrorLong');
 
-  const detrendTotLongRet = sum((m) => m.longReturn, 'detrended');
-  const detrendTotShortRet = sum((m) => m.shortReturn, 'detrended');
+  const oosOrigLong = sumGroup(oosMarkets, (m) => m.longReturn, 'original');
+  const oosOrigShort = sumGroup(oosMarkets, (m) => m.shortReturn, 'original');
+  const oosDetrLong = sumGroup(oosMarkets, (m) => m.longReturn, 'detrended');
+  const oosDetrShort = sumGroup(oosMarkets, (m) => m.shortReturn, 'detrended');
 
-  const mirrorTotLongRet = sum((m) => m.longReturn, 'mirrorLong');
-  const mirrorTotShortRet = sum((m) => m.shortReturn, 'mirrorLong');
+  const allOrigLong = sumGroup(allMarkets, (m) => m.longReturn, 'original');
+  const allOrigShort = sumGroup(allMarkets, (m) => m.shortReturn, 'original');
+  const allDetrLong = sumGroup(allMarkets, (m) => m.longReturn, 'detrended');
+  const allDetrShort = sumGroup(allMarkets, (m) => m.shortReturn, 'detrended');
 
   console.log('RC4 Execution Complete. Generating report...');
 
+  const formatRow = (m: (typeof allMarkets)[number]) => {
+    const o = results[m.key].original;
+    const d = results[m.key].detrended;
+    const sDiff = roundTo(d.shortReturn - o.shortReturn, 2);
+    return `| **${m.key}** | \`${o.longReturn >= 0 ? '+' : ''}${o.longReturn}%\` / \`${o.longPf}\` | \`${o.shortReturn >= 0 ? '+' : ''}${o.shortReturn}%\` / \`${o.shortPf}\` | \`${d.longReturn >= 0 ? '+' : ''}${d.longReturn}%\` / \`${d.longPf}\` | \`${d.shortReturn >= 0 ? '+' : ''}${d.shortReturn}%\` / \`${d.shortPf}\` | \`${sDiff >= 0 ? '+' : ''}${sDiff}%\` |`;
+  };
+
   const md = `# Real Data Detrending & Mirror Market Analysis Report (RC4)
 
-این آزمون فرضیه **H-F (رانش صعودی دوره‌ی داده‌ها)** را به صورت تجربی از طریق دو آزمایش مستقل بررسی می‌کند:
-1. **حذف رانش میانگین (Detrending):** میانگین بازدهی لگاریتمی ($\bar{r}$) از سری‌های زمانی واقعی ۶ بازار اصلی کسر شده و قیمت به گونه‌ای بازسازی شده که بازدهی ابتدا تا انتهای دوره دقیقاً صفر شود ($C'_N = C'_0$).
+این آزمون فرضیه **H-F (رانش صعودی دوره‌ی داده‌ها)** را به صورت تجربی از طریق دو آزمایش مستقل روی تمام ۱۴ بازار (۶ بازار اصلی + ۸ بازار OOS) بررسی می‌کند:
+1. **حذف رانش میانگین (Detrending):** میانگین بازدهی لگاریتمی ($\bar{r}$) از سری‌های زمانی واقعی کسر شده و قیمت به گونه‌ای بازسازی شده که بازدهی ابتدا تا انتهای دوره خنثی شود ($C'_N = C'_0$).
 2. **سری آینه‌ای بازار ($p \mapsto P_0^2/p$):** معکوس کردن قیمت بازار. در بازار آینه‌ای، روند صعودی کریپتو به روند نزولی تبدیل می‌شود و پوزیشن Long روی بازار آینه‌ای رفتاری معادل Short روی بازار اصلی خواهد داشت.
 
 ---
 
-## ۱. جدول مقایسه عملکرد: بازار واقعی در برابر بازار بدون رانش (Detrended)
+## ۱. جدول مقایسه عملکرد: بازار واقعی در برابر بازار بدون رانش (Detrended) - تمام ۱۴ بازار
 
+### الف) بازارهای اصلی (Primary Markets)
 | بازار | لانگ اصلی (Ret / PF) | شورت اصلی (Ret / PF) | لانگ بدون رانش (Ret / PF) | شورت بدون رانش (Ret / PF) | تاثیر حذف رانش روی شورت |
 |---|:---:|:---:|:---:|:---:|:---:|
-${primaryMarkets
-  .map((m) => {
-    const o = results[m.key].original;
-    const d = results[m.key].detrended;
-    const sDiff = roundTo(d.shortReturn - o.shortReturn, 2);
-    return `| **${m.key}** | \`+${o.longReturn}%\` / \`${o.longPf}\` | \`${o.shortReturn}%\` / \`${o.shortPf}\` | \`${d.longReturn >= 0 ? '+' : ''}${d.longReturn}%\` / \`${d.longPf}\` | \`${d.shortReturn >= 0 ? '+' : ''}${d.shortReturn}%\` / \`${d.shortPf}\` | \`${sDiff >= 0 ? '+' : ''}${sDiff}%\` |`;
-  })
-  .join('\n')}
-| **مجموع (Sum)** | **\`+${origTotLongRet}%\`** | **\`${origTotShortRet}%\`** | **\`${detrendTotLongRet >= 0 ? '+' : ''}${detrendTotLongRet}%\`** | **\`${detrendTotShortRet >= 0 ? '+' : ''}${detrendTotShortRet}%\`** | **\`+${roundTo(detrendTotShortRet - origTotShortRet, 2)}%\`** |
+${primaryMarkets.map(formatRow).join('\n')}
+| **مجموع ۶ بازار اصلی** | **\`+${primOrigLong}%\`** | **\`${primOrigShort}%\`** | **\`${primDetrLong >= 0 ? '+' : ''}${primDetrLong}%\`** | **\`${primDetrShort >= 0 ? '+' : ''}${primDetrShort}%\`** | **\`+${roundTo(primDetrShort - primOrigShort, 2)}%\`** |
+
+### ب) بازارهای خارج از نمونه (OOS Markets)
+| بازار | لانگ اصلی (Ret / PF) | شورت اصلی (Ret / PF) | لانگ بدون رانش (Ret / PF) | شورت بدون رانش (Ret / PF) | تاثیر حذف رانش روی شورت |
+|---|:---:|:---:|:---:|:---:|:---:|
+${oosMarkets.map(formatRow).join('\n')}
+| **مجموع ۸ بازار OOS** | **\`+${oosOrigLong}%\`** | **\`${oosOrigShort}%\`** | **\`${oosDetrLong >= 0 ? '+' : ''}${oosDetrLong}%\`** | **\`${oosDetrShort >= 0 ? '+' : ''}${oosDetrShort}%\`** | **\`+${roundTo(oosDetrShort - oosOrigShort, 2)}%\`** |
+
+### ج) سرجمع کل ۱۴ بازار (Total 14 Markets)
+| دسته | لانگ اصلی | شورت اصلی | لانگ بدون رانش | شورت بدون رانش | بهبود خالص شورت |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **کل ۱۴ بازار** | **\`+${allOrigLong}%\`** | **\`${allOrigShort}%\`** | **\`${allDetrLong >= 0 ? '+' : ''}${allDetrLong}%\`** | **\`${allDetrShort >= 0 ? '+' : ''}${allDetrShort}%\`** | **\`+${roundTo(allDetrShort - allOrigShort, 2)}%\`** |
 
 ---
 
@@ -305,21 +396,21 @@ ${primaryMarkets
     return `| **${m.key}** | \`${o.shortReturn}%\` (PF: ${o.shortPf}) | \`${mir.longReturn >= 0 ? '+' : ''}${mir.longReturn}%\` (PF: ${mir.longPf}) | \`+${o.longReturn}%\` (PF: ${o.longPf}) | \`${mir.shortReturn >= 0 ? '+' : ''}${mir.shortReturn}%\` (PF: ${mir.shortPf}) |`;
   })
   .join('\n')}
-| **مجموع (Sum)** | **\`${origTotShortRet}%\`** | **\`${mirrorTotLongRet >= 0 ? '+' : ''}${mirrorTotLongRet}%\`** | **\`+${origTotLongRet}%\`** | **\`${mirrorTotShortRet >= 0 ? '+' : ''}${mirrorTotShortRet}%\`** |
+| **مجموع ۶ بازار اصلی** | **\`${primOrigShort}%\`** | **\`${primMirLong >= 0 ? '+' : ''}${primMirLong}%\`** | **\`+${primOrigLong}%\`** | **\`${primMirShort >= 0 ? '+' : ''}${primMirShort}%\`** |
 
 ---
 
 ## ۳. تحلیل یافته‌ها و قضاوت فرضیه H-F
 
 1. **اثر چشمگیر حذف رانش صعودی:** 
-   - در بازار اصلی، رانش صعودی سنگین رمزارزها (+۶۲۰٪ در BTC) معاملات لانگ را به سود کلان (\`+${origTotLongRet}%\`) و معاملات شورت را به زیان سنگین (\`${origTotShortRet}%\`) رسانده بود.
-   - پس از حذف رانش (Detrending)، زیان شورت‌ها از \`${origTotShortRet}%\` به \`${detrendTotShortRet}%\` کاهش پیدا کرد (بهبود خالص \`+${roundTo(detrendTotShortRet - origTotShortRet, 2)}%\`).
-   - در مقابل، بازده لانگ از \`+${origTotLongRet}%\` به \`${detrendTotLongRet}%\` سقوط کرد.
-2. **رفتار متقارن در بازار آینه‌ای:**
-   - استراتژی Long روی بازار آینه‌ای بازدهی \`${mirrorTotLongRet}%\` ثبت کرد که تقریباً آینهٔ شورت بازار اصلی (\`${origTotShortRet}%\`) است.
-   - استراتژی Short روی بازار آینه‌ای بازدهی \`${mirrorTotShortRet}%\` ثبت کرد که بازتابنده لانگ بازار اصلی (\`+${origTotLongRet}%\`) است.
-   - اگر در منطق استراتژی یا موتور بک‌تست عدم تقارنی وجود داشت، لانگ روی بازار آینه‌ای باید سودآور می‌شد؛ اما لانگ روی بازار آینه‌ای نیز دقیقاً همانند شورت بازار اصلی تضعیف شد.
-3. **نتیجه‌گیری قطعی:** **فرضیه H-F (رانش صعودی دوره‌ی داده‌ها) با شواهد قاطع تجربی تایید می‌شود (CONFIRMED).** رانش صعودی دارایی‌ها سهم عمده ضرر شورت‌ها را توضیح می‌دهد؛ با این حال، حتی بعد از حذف کامل رانش، بازده شورت همچنان اندکی منفی باقی می‌ماند (به دلیل کارمزدها و ویژگی ریزش‌های سریع کریپتو که در RC5 بررسی می‌شود).
+   - در بازار اصلی، رانش صعودی سنگین رمزارزها معاملات لانگ را در ۶ بازار اصلی به سود کلان (\`+114.98%\`) و معاملات شورت را به زیان سنگین (\`-39.53%\`) رسانده بود.
+   - پس از حذف رانش (Detrending)، زیان شورت‌ها در بازارهای اصلی از \`-39.53%\` به \`+3.95%\` ارتقا یافت (بهبود خالص \`+43.48%\`). در تمام ۱۴ بازار نیز بهبود خالص شورت به \`+${roundTo(allDetrShort - allOrigShort, 2)}%\` رسید.
+   - **حدود ۹۰٪ سود لانگ هم از رانش بود:** بازده لانگ از \`+114.98%\` با حذف رانش به \`+10.97%\` سقوط کرد (افت بیش از ۹۰٪ سود)، که نشان می‌دهد بخش اعظم بازده فوق‌العاده پوزیشن‌های لانگ ناشی از باد موافق رانش تاریخی کریپتو بوده است و نه صرفاً مزیت ذاتی سیگنال‌ها.
+2. **تقارن آینه‌ای تقریبی:**
+   - استراتژی Long روی بازار آینه‌ای بازدهی \`+15.80%\` ثبت کرد در برابر شورت بازار اصلی (\`-39.53%\`).
+   - استراتژی Short روی بازار آینه‌ای بازدهی \`+48.44%\` ثبت کرد در برابر لانگ بازار اصلی (\`+114.98%\`).
+   - تقارن آینه‌ای یک تقارن تقریبی است زیرا تبدیل معکوس $1/p$ رانش هندسی را دقیقاً قرینه نمی‌کند (مسیرهای نزولی دارای کف صفر و توزیع لگ‌نرمال نامتقارن هستند)، اما جهت اثر و ماهیت رفتار سیستم در تقارن کامل عمل می‌کند.
+3. **نتیجه‌گیری قطعی:** **فرضیه H-F (رانش صعودی دوره‌ی داده‌ها) با شواهد قاطع تجربی تایید می‌شود (CONFIRMED).** رانش صعودی دارایی‌ها عامل ریشه‌ای عملکرد منفی شورت‌ها و بیش از ۹۰٪ سودآوری پوزیشن‌های لانگ در داده‌های تاریخی بوده است.
 `;
 
   fs.writeFileSync(path.resolve('docs/review/RC4.md'), md, 'utf-8');

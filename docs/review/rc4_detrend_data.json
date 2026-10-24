@@ -1,5 +1,6 @@
 {
   "BTC 15m": {
+    "isOos": false,
     "original": {
       "longReturn": 44.74,
       "shortReturn": -7.45,
@@ -9,7 +10,10 @@
       "longWinRate": 29.1,
       "shortWinRate": 24.7,
       "longPf": 3.06,
-      "shortPf": 0.71
+      "shortPf": 0.71,
+      "longPnlUsd": 4474.16,
+      "shortPnlUsd": -744.69,
+      "totalPnlUsd": 3729.47
     },
     "detrended": {
       "longReturn": 6.63,
@@ -20,7 +24,10 @@
       "longWinRate": 27.2,
       "shortWinRate": 25.6,
       "longPf": 1.27,
-      "shortPf": 1.4
+      "shortPf": 1.4,
+      "longPnlUsd": 662.66,
+      "shortPnlUsd": 810.51,
+      "totalPnlUsd": 1473.17
     },
     "mirrorLong": {
       "longReturn": -3.08,
@@ -31,10 +38,14 @@
       "longWinRate": 22.2,
       "shortWinRate": 28.5,
       "longPf": 0.73,
-      "shortPf": 3.15
+      "shortPf": 3.15,
+      "longPnlUsd": -307.6,
+      "shortPnlUsd": 2329.98,
+      "totalPnlUsd": 2022.38
     }
   },
   "BTC 1h": {
+    "isOos": false,
     "original": {
       "longReturn": 20.72,
       "shortReturn": -4.93,
@@ -44,7 +55,10 @@
       "longWinRate": 25.1,
       "shortWinRate": 23.2,
       "longPf": 2.16,
-      "shortPf": 0.65
+      "shortPf": 0.65,
+      "longPnlUsd": 2071.88,
+      "shortPnlUsd": -492.69,
+      "totalPnlUsd": 1579.19
     },
     "detrended": {
       "longReturn": 4.84,
@@ -55,7 +69,10 @@
       "longWinRate": 21.5,
       "shortWinRate": 27,
       "longPf": 1.3,
-      "shortPf": 1.94
+      "shortPf": 1.94,
+      "longPnlUsd": 483.78,
+      "shortPnlUsd": 1143.45,
+      "totalPnlUsd": 1627.22
     },
     "mirrorLong": {
       "longReturn": 2.39,
@@ -66,10 +83,14 @@
       "longWinRate": 26.8,
       "shortWinRate": 20.8,
       "longPf": 1.28,
-      "shortPf": 1.6
+      "shortPf": 1.6,
+      "longPnlUsd": 238.63,
+      "shortPnlUsd": 939.69,
+      "totalPnlUsd": 1178.32
     }
   },
   "BTC 4h": {
+    "isOos": false,
     "original": {
       "longReturn": 13.7,
       "shortReturn": -3.43,
@@ -79,7 +100,10 @@
       "longWinRate": 30.3,
       "shortWinRate": 25.3,
       "longPf": 2.54,
-      "shortPf": 0.44
+      "shortPf": 0.44,
+      "longPnlUsd": 1369.57,
+      "shortPnlUsd": -342.73,
+      "totalPnlUsd": 1026.83
     },
     "detrended": {
       "longReturn": 2.69,
@@ -90,7 +114,10 @@
       "longWinRate": 28.1,
       "shortWinRate": 27.3,
       "longPf": 1.31,
-      "shortPf": 1.34
+      "shortPf": 1.34,
+      "longPnlUsd": 269.13,
+      "shortPnlUsd": 207.64,
+      "totalPnlUsd": 476.77
     },
     "mirrorLong": {
       "longReturn": -0.93,
@@ -101,10 +128,14 @@
       "longWinRate": 26.9,
       "shortWinRate": 30,
       "longPf": 0.82,
-      "shortPf": 2.11
+      "shortPf": 2.11,
+      "longPnlUsd": -93.45,
+      "shortPnlUsd": 1009.89,
+      "totalPnlUsd": 916.44
     }
   },
   "ETH 15m": {
+    "isOos": false,
     "original": {
       "longReturn": 22.84,
       "shortReturn": -15.69,
@@ -114,7 +145,10 @@
       "longWinRate": 26.3,
       "shortWinRate": 20.3,
       "longPf": 1.72,
-      "shortPf": 0.5
+      "shortPf": 0.5,
+      "longPnlUsd": 2284.17,
+      "shortPnlUsd": -1569.45,
+      "totalPnlUsd": 714.72
     },
     "detrended": {
       "longReturn": 0.04,
@@ -125,7 +159,10 @@
       "longWinRate": 23.1,
       "shortWinRate": 21.8,
       "longPf": 1,
-      "shortPf": 0.63
+      "shortPf": 0.63,
+      "longPnlUsd": 3.8,
+      "shortPnlUsd": -1197.21,
+      "totalPnlUsd": -1193.41
     },
     "mirrorLong": {
       "longReturn": 3.68,
@@ -136,10 +173,14 @@
       "longWinRate": 24.8,
       "shortWinRate": 24.4,
       "longPf": 1.19,
-      "shortPf": 1.46
+      "shortPf": 1.46,
+      "longPnlUsd": 368.06,
+      "shortPnlUsd": 1135.69,
+      "totalPnlUsd": 1503.75
     }
   },
   "ETH 1h": {
+    "isOos": false,
     "original": {
       "longReturn": 7.63,
       "shortReturn": -5.19,
@@ -149,7 +190,10 @@
       "longWinRate": 23.5,
       "shortWinRate": 22.1,
       "longPf": 1.37,
-      "shortPf": 0.69
+      "shortPf": 0.69,
+      "longPnlUsd": 763.13,
+      "shortPnlUsd": -518.79,
+      "totalPnlUsd": 244.34
     },
     "detrended": {
       "longReturn": -0.9,
@@ -160,7 +204,10 @@
       "longWinRate": 19.4,
       "shortWinRate": 22.4,
       "longPf": 0.96,
-      "shortPf": 0.81
+      "shortPf": 0.81,
+      "longPnlUsd": -90,
+      "shortPnlUsd": -322.3,
+      "totalPnlUsd": -412.3
     },
     "mirrorLong": {
       "longReturn": 11.74,
@@ -171,10 +218,14 @@
       "longWinRate": 23.5,
       "shortWinRate": 19.7,
       "longPf": 1.8,
-      "shortPf": 0.87
+      "shortPf": 0.87,
+      "longPnlUsd": 1173.67,
+      "shortPnlUsd": -318.72,
+      "totalPnlUsd": 854.95
     }
   },
   "ETH 4h": {
+    "isOos": false,
     "original": {
       "longReturn": 5.35,
       "shortReturn": -2.84,
@@ -184,7 +235,10 @@
       "longWinRate": 24.6,
       "shortWinRate": 21.4,
       "longPf": 1.56,
-      "shortPf": 0.45
+      "shortPf": 0.45,
+      "longPnlUsd": 535.37,
+      "shortPnlUsd": -284.11,
+      "totalPnlUsd": 251.26
     },
     "detrended": {
       "longReturn": -2.33,
@@ -195,7 +249,10 @@
       "longWinRate": 20.8,
       "shortWinRate": 23.6,
       "longPf": 0.73,
-      "shortPf": 0.52
+      "shortPf": 0.52,
+      "longPnlUsd": -233.35,
+      "shortPnlUsd": -248.27,
+      "totalPnlUsd": -481.61
     },
     "mirrorLong": {
       "longReturn": 2,
@@ -206,7 +263,370 @@
       "longWinRate": 25.4,
       "shortWinRate": 23,
       "longPf": 1.51,
-      "shortPf": 0.75
+      "shortPf": 0.75,
+      "longPnlUsd": 200.25,
+      "shortPnlUsd": -252.93,
+      "totalPnlUsd": -52.68
+    }
+  },
+  "SOL 1h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 43.12,
+      "shortReturn": -6.73,
+      "totalReturn": 36.39,
+      "longTrades": 212,
+      "shortTrades": 243,
+      "longWinRate": 23.6,
+      "shortWinRate": 21.4,
+      "longPf": 3.53,
+      "shortPf": 0.67,
+      "longPnlUsd": 4312.35,
+      "shortPnlUsd": -673.13,
+      "totalPnlUsd": 3639.22
+    },
+    "detrended": {
+      "longReturn": 46.54,
+      "shortReturn": -4.09,
+      "totalReturn": 42.45,
+      "longTrades": 202,
+      "shortTrades": 258,
+      "longWinRate": 22.3,
+      "shortWinRate": 22.1,
+      "longPf": 3.71,
+      "shortPf": 0.82,
+      "longPnlUsd": 4653.78,
+      "shortPnlUsd": -408.92,
+      "totalPnlUsd": 4244.86
+    },
+    "mirrorLong": {
+      "longReturn": 2.08,
+      "shortReturn": 3.03,
+      "totalReturn": 5.11,
+      "longTrades": 206,
+      "shortTrades": 250,
+      "longWinRate": 26.7,
+      "shortWinRate": 19.2,
+      "longPf": 1.15,
+      "shortPf": 1.16,
+      "longPnlUsd": 207.62,
+      "shortPnlUsd": 303.38,
+      "totalPnlUsd": 511
+    }
+  },
+  "SOL 4h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 8.75,
+      "shortReturn": -2.63,
+      "totalReturn": 6.12,
+      "longTrades": 95,
+      "shortTrades": 81,
+      "longWinRate": 13.7,
+      "shortWinRate": 21,
+      "longPf": 1.97,
+      "shortPf": 0.58,
+      "longPnlUsd": 874.78,
+      "shortPnlUsd": -262.65,
+      "totalPnlUsd": 612.13
+    },
+    "detrended": {
+      "longReturn": 8.22,
+      "shortReturn": -3.3,
+      "totalReturn": 4.92,
+      "longTrades": 98,
+      "shortTrades": 93,
+      "longWinRate": 16.3,
+      "shortWinRate": 19.4,
+      "longPf": 1.92,
+      "shortPf": 0.54,
+      "longPnlUsd": 822,
+      "shortPnlUsd": -330.16,
+      "totalPnlUsd": 491.84
+    },
+    "mirrorLong": {
+      "longReturn": -1.19,
+      "shortReturn": -1.76,
+      "totalReturn": -2.95,
+      "longTrades": 75,
+      "shortTrades": 98,
+      "longWinRate": 21.3,
+      "shortWinRate": 13.3,
+      "longPf": 0.77,
+      "shortPf": 0.82,
+      "longPnlUsd": -118.8,
+      "shortPnlUsd": -176.24,
+      "totalPnlUsd": -295.04
+    }
+  },
+  "BNB 1h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 10.3,
+      "shortReturn": -3.55,
+      "totalReturn": 6.76,
+      "longTrades": 298,
+      "shortTrades": 199,
+      "longWinRate": 24.2,
+      "shortWinRate": 27.6,
+      "longPf": 1.48,
+      "shortPf": 0.75,
+      "longPnlUsd": 1030.32,
+      "shortPnlUsd": -354.62,
+      "totalPnlUsd": 675.7
+    },
+    "detrended": {
+      "longReturn": -1.93,
+      "shortReturn": 14.12,
+      "totalReturn": 12.19,
+      "longTrades": 224,
+      "shortTrades": 219,
+      "longWinRate": 24.1,
+      "shortWinRate": 32.9,
+      "longPf": 0.89,
+      "shortPf": 1.95,
+      "longPnlUsd": -193.19,
+      "shortPnlUsd": 1412.04,
+      "totalPnlUsd": 1218.86
+    },
+    "mirrorLong": {
+      "longReturn": 4.3,
+      "shortReturn": 0.36,
+      "totalReturn": 4.67,
+      "longTrades": 164,
+      "shortTrades": 298,
+      "longWinRate": 29.3,
+      "shortWinRate": 23.2,
+      "longPf": 1.43,
+      "shortPf": 1.02,
+      "longPnlUsd": 430.16,
+      "shortPnlUsd": 36.4,
+      "totalPnlUsd": 466.56
+    }
+  },
+  "BNB 4h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 1.74,
+      "shortReturn": -3.46,
+      "totalReturn": -1.71,
+      "longTrades": 109,
+      "shortTrades": 63,
+      "longWinRate": 26.6,
+      "shortWinRate": 23.8,
+      "longPf": 1.24,
+      "shortPf": 0.44,
+      "longPnlUsd": 174.34,
+      "shortPnlUsd": -345.69,
+      "totalPnlUsd": -171.35
+    },
+    "detrended": {
+      "longReturn": -2.38,
+      "shortReturn": 0.59,
+      "totalReturn": -1.78,
+      "longTrades": 98,
+      "shortTrades": 84,
+      "longWinRate": 25.5,
+      "shortWinRate": 26.2,
+      "longPf": 0.68,
+      "shortPf": 1.08,
+      "longPnlUsd": -237.61,
+      "shortPnlUsd": 59.23,
+      "totalPnlUsd": -178.38
+    },
+    "mirrorLong": {
+      "longReturn": -1.72,
+      "shortReturn": 5.13,
+      "totalReturn": 3.41,
+      "longTrades": 59,
+      "shortTrades": 111,
+      "longWinRate": 25.4,
+      "shortWinRate": 27,
+      "longPf": 0.69,
+      "shortPf": 1.62,
+      "longPnlUsd": -171.85,
+      "shortPnlUsd": 512.73,
+      "totalPnlUsd": 340.87
+    }
+  },
+  "XRP 1h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 21.19,
+      "shortReturn": -8.18,
+      "totalReturn": 13.01,
+      "longTrades": 262,
+      "shortTrades": 263,
+      "longWinRate": 25.6,
+      "shortWinRate": 20.2,
+      "longPf": 2.15,
+      "shortPf": 0.62,
+      "longPnlUsd": 2118.95,
+      "shortPnlUsd": -818.35,
+      "totalPnlUsd": 1300.6
+    },
+    "detrended": {
+      "longReturn": 13.77,
+      "shortReturn": -3.79,
+      "totalReturn": 9.98,
+      "longTrades": 218,
+      "shortTrades": 267,
+      "longWinRate": 22.9,
+      "shortWinRate": 22.5,
+      "longPf": 1.91,
+      "shortPf": 0.81,
+      "longPnlUsd": 1376.91,
+      "shortPnlUsd": -378.64,
+      "totalPnlUsd": 998.26
+    },
+    "mirrorLong": {
+      "longReturn": 2.38,
+      "shortReturn": 0.07,
+      "totalReturn": 2.45,
+      "longTrades": 140,
+      "shortTrades": 210,
+      "longWinRate": 22.1,
+      "shortWinRate": 24.8,
+      "longPf": 1.24,
+      "shortPf": 1.01,
+      "longPnlUsd": 237.59,
+      "shortPnlUsd": 7.24,
+      "totalPnlUsd": 244.83
+    }
+  },
+  "XRP 4h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 6.73,
+      "shortReturn": -4.77,
+      "totalReturn": 1.96,
+      "longTrades": 72,
+      "shortTrades": 87,
+      "longWinRate": 23.6,
+      "shortWinRate": 17.2,
+      "longPf": 2.37,
+      "shortPf": 0.37,
+      "longPnlUsd": 672.98,
+      "shortPnlUsd": -476.8,
+      "totalPnlUsd": 196.19
+    },
+    "detrended": {
+      "longReturn": 6.84,
+      "shortReturn": -4.42,
+      "totalReturn": 2.43,
+      "longTrades": 67,
+      "shortTrades": 94,
+      "longWinRate": 22.4,
+      "shortWinRate": 17,
+      "longPf": 2.48,
+      "shortPf": 0.42,
+      "longPnlUsd": 684.39,
+      "shortPnlUsd": -441.84,
+      "totalPnlUsd": 242.55
+    },
+    "mirrorLong": {
+      "longReturn": -1.52,
+      "shortReturn": 0.59,
+      "totalReturn": -0.93,
+      "longTrades": 49,
+      "shortTrades": 66,
+      "longWinRate": 22.4,
+      "shortWinRate": 21.2,
+      "longPf": 0.53,
+      "shortPf": 1.12,
+      "longPnlUsd": -151.92,
+      "shortPnlUsd": 58.96,
+      "totalPnlUsd": -92.95
+    }
+  },
+  "ADA 1h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 2.6,
+      "shortReturn": -1.13,
+      "totalReturn": 1.47,
+      "longTrades": 262,
+      "shortTrades": 275,
+      "longWinRate": 22.9,
+      "shortWinRate": 26.5,
+      "longPf": 1.14,
+      "shortPf": 0.94,
+      "longPnlUsd": 260.49,
+      "shortPnlUsd": -113.31,
+      "totalPnlUsd": 147.19
+    },
+    "detrended": {
+      "longReturn": 4.34,
+      "shortReturn": -0.44,
+      "totalReturn": 3.9,
+      "longTrades": 255,
+      "shortTrades": 271,
+      "longWinRate": 23.5,
+      "shortWinRate": 26.6,
+      "longPf": 1.23,
+      "shortPf": 0.98,
+      "longPnlUsd": 434.39,
+      "shortPnlUsd": -44.41,
+      "totalPnlUsd": 389.97
+    },
+    "mirrorLong": {
+      "longReturn": 3.22,
+      "shortReturn": -1.79,
+      "totalReturn": 1.43,
+      "longTrades": 85,
+      "shortTrades": 125,
+      "longWinRate": 27.1,
+      "shortWinRate": 24.8,
+      "longPf": 1.63,
+      "shortPf": 0.81,
+      "longPnlUsd": 321.99,
+      "shortPnlUsd": -178.91,
+      "totalPnlUsd": 143.08
+    }
+  },
+  "ADA 4h": {
+    "isOos": true,
+    "original": {
+      "longReturn": 15.54,
+      "shortReturn": -4.86,
+      "totalReturn": 10.68,
+      "longTrades": 95,
+      "shortTrades": 101,
+      "longWinRate": 28.4,
+      "shortWinRate": 21.8,
+      "longPf": 3.24,
+      "shortPf": 0.39,
+      "longPnlUsd": 1553.67,
+      "shortPnlUsd": -485.59,
+      "totalPnlUsd": 1068.07
+    },
+    "detrended": {
+      "longReturn": 12.19,
+      "shortReturn": -4.03,
+      "totalReturn": 8.16,
+      "longTrades": 86,
+      "shortTrades": 100,
+      "longWinRate": 23.3,
+      "shortWinRate": 23,
+      "longPf": 2.89,
+      "shortPf": 0.47,
+      "longPnlUsd": 1218.93,
+      "shortPnlUsd": -403.15,
+      "totalPnlUsd": 815.79
+    },
+    "mirrorLong": {
+      "longReturn": -1.39,
+      "shortReturn": -2.02,
+      "totalReturn": -3.41,
+      "longTrades": 49,
+      "shortTrades": 54,
+      "longWinRate": 24.5,
+      "shortWinRate": 14.8,
+      "longPf": 0.61,
+      "shortPf": 0.62,
+      "longPnlUsd": -138.94,
+      "shortPnlUsd": -202.48,
+      "totalPnlUsd": -341.42
     }
   }
 }
