@@ -77,23 +77,27 @@ function aggregateToUtcDaily(candles: readonly Candle[]): Candle[] {
   return aggregated;
 }
 
+export function getDailyCandlesForSymbol(
+  symbol: string,
+  dataDir: string = path.resolve('docs/review/data')
+): Candle[] {
+  const p1d = path.join(dataDir, `${symbol}USDT_1d.csv.gz`);
+  if (fs.existsSync(p1d)) {
+    return loadGzCandles(p1d);
+  }
+  const p1h = path.join(dataDir, `${symbol}USDT_1h.csv.gz`);
+  if (!fs.existsSync(p1h)) {
+    throw new Error(`Cannot find candle data for ${symbol} to compute daily regime`);
+  }
+  const h1Candles = loadGzCandles(p1h);
+  return aggregateToUtcDaily(h1Candles);
+}
+
 export function createDailyRegimeCalculator(
   symbol: string,
   dataDir: string = path.resolve('docs/review/data')
 ): DailyRegimeCalculator {
-  const p1d = path.join(dataDir, `${symbol}USDT_1d.csv.gz`);
-  let dailyCandles: Candle[] = [];
-
-  if (fs.existsSync(p1d)) {
-    dailyCandles = loadGzCandles(p1d);
-  } else {
-    const p1h = path.join(dataDir, `${symbol}USDT_1h.csv.gz`);
-    if (!fs.existsSync(p1h)) {
-      throw new Error(`Cannot find candle data for ${symbol} to compute daily regime`);
-    }
-    const h1Candles = loadGzCandles(p1h);
-    dailyCandles = aggregateToUtcDaily(h1Candles);
-  }
+  const dailyCandles = getDailyCandlesForSymbol(symbol, dataDir);
 
   const closes = dailyCandles.map((c) => c.close);
   const sma200Values = calculateSMA(closes, 200);

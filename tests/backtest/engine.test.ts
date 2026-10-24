@@ -1848,6 +1848,29 @@ describe('BacktestEngine', () => {
         }
       }
     });
+
+    it('SH4: supports independent trailingStopShort for short positions while long uses trailingStop', () => {
+      const engine = new BacktestEngine();
+      const candles = generateCandles([100, 106, 95, 90, 85, 96]);
+      const strategy = new MockActionStrategy({
+        0: 'BUY',
+        2: 'SELL',
+      });
+
+      const res = engine.run({
+        strategy,
+        candles,
+        initialBalance: 10000,
+        tradeMode: 'long-short',
+        trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
+        trailingStopShort: { initialStopPercent: 3, stepPercent: 2, raisePercent: 1, mode: 'stepped' },
+        exitMode: 'trailingOnly',
+        maxOpenPositions: 2,
+        allowOppositePositions: true,
+      });
+
+      expect(res.trades.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });
 

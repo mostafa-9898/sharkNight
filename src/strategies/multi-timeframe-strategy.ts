@@ -10,14 +10,18 @@ import { roundTo } from '../utils/math';
 export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
 export type FisherKind = 'fisher' | 'ift';
 export type FisherGate = 'none' | 'zone';
+export type ShortEntryFilter = 'none' | 'v1_1dBearish' | 'v2_ltfBelowCloud' | 'v3_bearRegime' | 'v4_consecutiveHtf';
 
 export interface MultiTimeframeConfig {
   htfMode?: 'strict';
   entryMode?: 'cross';
   kijunSlopeFilter?: boolean;
   structureFilter?: boolean;
+  shortEntryFilter?: ShortEntryFilter;
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
+  daily1dCandles?: readonly Candle[];
+  dailyRegimeCalculator?: { getRegimeAt(timestamp: number): 'bull' | 'bear' };
   ltfIntervalMs?: number;
 
   fisherMode?: FisherMode;
@@ -218,6 +222,7 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly fisherMode: FisherMode;
   readonly fisherKind: FisherKind;
   readonly fisherGate: FisherGate;
+  readonly shortEntryFilter: ShortEntryFilter;
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -225,6 +230,9 @@ export class MultiTimeframeStrategy implements Strategy {
 
   private explicitHtf4h?: readonly Candle[];
   private explicitHtf1h?: readonly Candle[];
+  private explicitDaily1d?: readonly Candle[];
+  private dailyRegimeCalculator?: { getRegimeAt(timestamp: number): 'bull' | 'bear' };
+  private cached1dIchimoku?: IchimokuResult;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
   private traceCollector?: { onTkCross?: (event: TkCrossTraceEvent) => void };
@@ -236,6 +244,7 @@ export class MultiTimeframeStrategy implements Strategy {
   constructor(config?: MultiTimeframeConfig) {
     this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
     this.structureFilter = config?.structureFilter ?? false;
+    this.shortEntryFilter = config?.shortEntryFilter ?? 'none';
     this.ltfIntervalMs = config?.ltfIntervalMs;
     this.fisherMode = config?.fisherMode ?? 'replace-stoch';
     this.fisherKind = config?.fisherKind ?? 'fisher';
@@ -243,6 +252,17 @@ export class MultiTimeframeStrategy implements Strategy {
 
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;
+    this.explicitDaily1d = config?.daily1dCandles;
+    this.dailyRegimeCalculator = config?.dailyRegimeCalculator;
+
+    if (this.explicitDaily1d && this.explicitDaily1d.length > 0) {
+      this.cached1dIchimoku = calculateIchimoku(this.explicitDaily1d, {
+        tenkan: config?.tenkan ?? 9,
+        kijun: config?.kijun ?? 26,
+        senkouB: config?.senkouB ?? 52,
+        displacement: config?.displacement ?? 26,
+      });
+    }
 
     this.tenkan = config?.tenkan ?? 9;
     this.kijun = config?.kijun ?? 26;
@@ -474,6 +494,57 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
+    return true;
+  }
+
+  private is1dBearish(timestamp: number): boolean {
+    if (!this.explicitDaily1d || !this.cached1dIchimoku || this.explicitDaily1d.length === 0) {
+      return false;
+    }
+    const dayMs = 86400000;
+    let low = 0;
+    let high = this.explicitDaily1d.length - 1;
+    let foundIdx = -1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (this.explicitDaily1d[mid].timestamp + dayMs <= timestamp) {
+        foundIdx = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    if (foundIdx < 0) return false;
+    const trend = computeStrictHtfTrend(this.explicitDaily1d[foundIdx], this.cached1dIchimoku, foundIdx);
+    return trend === -1;
+  }
+
+  private has3ConsecutiveHtfBearish(timestamp: number, cached: CachedIndicators, ltfMs: number): boolean {
+    const ltfEndTime = timestamp + ltfMs;
+    const isSub1h = ltfMs < 60 * 60 * 1000;
+    const targetCandles = isSub1h ? cached.htf1hCandles : cached.htf4hCandles;
+    const targetIchimoku = isSub1h ? cached.htf1hIchimoku : cached.htf4hIchimoku;
+    const candleDurationMs = isSub1h ? 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
+
+    let targetIdx = -1;
+    let low = 0;
+    let high = targetCandles.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (targetCandles[mid].timestamp + candleDurationMs <= ltfEndTime) {
+        targetIdx = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    if (targetIdx < 2) return false;
+
+    for (let offset = 0; offset < 3; offset++) {
+      const idx = targetIdx - offset;
+      const trend = computeStrictHtfTrend(targetCandles[idx], targetIchimoku, idx);
+      if (trend !== -1) return false;
+    }
     return true;
   }
 
@@ -852,6 +923,28 @@ export class MultiTimeframeStrategy implements Strategy {
       // Aligned cross & opposite check
       if (bearBlockedByOpposite || !bearTrigger) {
         return defaultSignal;
+      }
+
+      // Check short entry filter (SH4)
+      if (this.shortEntryFilter === 'v1_1dBearish') {
+        if (!this.is1dBearish(candle.timestamp)) {
+          return defaultSignal;
+        }
+      } else if (this.shortEntryFilter === 'v2_ltfBelowCloud') {
+        const spanA = ltfIchimoku.senkouA[currentIndex];
+        const spanB = ltfIchimoku.senkouB[currentIndex];
+        const cloudBottom = Math.min(spanA, spanB);
+        if (!Number.isFinite(cloudBottom) || !(candle.close < cloudBottom)) {
+          return defaultSignal;
+        }
+      } else if (this.shortEntryFilter === 'v3_bearRegime') {
+        if (this.dailyRegimeCalculator && this.dailyRegimeCalculator.getRegimeAt(candle.timestamp) !== 'bear') {
+          return defaultSignal;
+        }
+      } else if (this.shortEntryFilter === 'v4_consecutiveHtf') {
+        if (!this.has3ConsecutiveHtfBearish(candle.timestamp, cached, ltfMs)) {
+          return defaultSignal;
+        }
       }
 
       if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {

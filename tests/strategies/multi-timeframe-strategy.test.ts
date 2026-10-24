@@ -891,4 +891,42 @@ describe('MultiTimeframeStrategy', () => {
       expect(['BUY', 'HOLD', 'SELL']).toContain(sig.action);
     });
   });
+
+  describe('SH4: Short Entry Filters (V1, V2, V3, V4)', () => {
+    it('initializes MultiTimeframeStrategy with shortEntryFilter options', () => {
+      const sNone = new MultiTimeframeStrategy({ shortEntryFilter: 'none' });
+      const sV1 = new MultiTimeframeStrategy({ shortEntryFilter: 'v1_1dBearish' });
+      const sV2 = new MultiTimeframeStrategy({ shortEntryFilter: 'v2_ltfBelowCloud' });
+      const sV3 = new MultiTimeframeStrategy({ shortEntryFilter: 'v3_bearRegime' });
+      const sV4 = new MultiTimeframeStrategy({ shortEntryFilter: 'v4_consecutiveHtf' });
+
+      expect(sNone.shortEntryFilter).toBe('none');
+      expect(sV1.shortEntryFilter).toBe('v1_1dBearish');
+      expect(sV2.shortEntryFilter).toBe('v2_ltfBelowCloud');
+      expect(sV3.shortEntryFilter).toBe('v3_bearRegime');
+      expect(sV4.shortEntryFilter).toBe('v4_consecutiveHtf');
+    });
+
+    it('v3_bearRegime blocks SELL when regime is bull', () => {
+      const mockRegimeCalc = {
+        getRegimeAt: jest.fn().mockReturnValue('bull'),
+      };
+      const strat = new MultiTimeframeStrategy({
+        shortEntryFilter: 'v3_bearRegime',
+        dailyRegimeCalculator: mockRegimeCalc,
+      });
+
+      const candles = Array.from({ length: 100 }, (_, i) => ({
+        timestamp: 1700000000000 + i * 900000,
+        open: 100,
+        high: 105,
+        low: 95,
+        close: 98,
+        volume: 100,
+      }));
+
+      const sig = strat.analyze(candles, 90);
+      expect(sig.action).not.toBe('SELL');
+    });
+  });
 });

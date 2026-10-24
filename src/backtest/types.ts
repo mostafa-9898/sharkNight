@@ -88,6 +88,7 @@ export interface BacktestConfig {
   takeProfitPercent?: number;     // e.g., 5 for 5% TP
   stopLossPercent?: number;       // e.g., 3 for 3% SL
   trailingStop?: TrailingStopConfig;
+  trailingStopShort?: TrailingStopConfig;
   maxOpenPositions?: number;       // DEFAULT: 1
   maxTotalExposurePercent?: number;// DEFAULT: 100
   minBarsBetweenEntries?: number;  // DEFAULT: 0

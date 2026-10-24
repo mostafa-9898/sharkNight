@@ -53,6 +53,7 @@ export class BacktestEngine {
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      trailingStopShort,
       maxOpenPositions = 1,
       maxTotalExposurePercent = 100,
       minBarsBetweenEntries = 0,
@@ -1000,6 +1001,7 @@ export class BacktestEngine {
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      trailingStopShort,
       maxOpenPositions,
       maxTotalExposurePercent,
       minBarsBetweenEntries,
@@ -1034,6 +1036,7 @@ export class BacktestEngine {
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      trailingStopShort,
       maxOpenPositions = 1,
       maxTotalExposurePercent = 100,
       minBarsBetweenEntries = 0,
@@ -1096,6 +1099,10 @@ export class BacktestEngine {
     let rejectedCapExposure = 0;
     let rejectedMinBars = 0;
     let rejectedOppositeWhileOpen = 0;
+
+    const getTrailingStopForSide = (side: TradeSide) => {
+      return side === 'short' && trailingStopShort ? trailingStopShort : trailingStop;
+    };
 
     const feeRate = tradeFeePercent / 100;
 
@@ -1188,8 +1195,9 @@ export class BacktestEngine {
         if (stopTriggered) {
           const isProfitableOrBe =
             pos.side === 'long' ? baseStopExitPrice >= pos.entryPrice : baseStopExitPrice <= pos.entryPrice;
+          const posTrailingStop = getTrailingStopForSide(pos.side);
           const exitReason: ExitReason =
-            trailingStop && (pos.ratchetSteps >= 1 || isProfitableOrBe) ? 'trailingStop' : 'stopLoss';
+            posTrailingStop && (pos.ratchetSteps >= 1 || isProfitableOrBe) ? 'trailingStop' : 'stopLoss';
 
           const finalExitPrice = roundTo(
             pos.side === 'long'
@@ -1357,9 +1365,10 @@ export class BacktestEngine {
         pos.highestHigh = Math.max(pos.highestHigh, candle.high);
         pos.lowestLow = Math.min(pos.lowestLow, candle.low);
 
-        if (trailingStop) {
-          const tradeInitialStop = pos.initialStopPercent ?? trailingStop.initialStopPercent;
-          const trailingMode = trailingStop.mode ?? 'stepped';
+        const posTrailingStop = getTrailingStopForSide(pos.side);
+        if (posTrailingStop) {
+          const tradeInitialStop = pos.initialStopPercent ?? posTrailingStop.initialStopPercent;
+          const trailingMode = posTrailingStop.mode ?? 'stepped';
 
           if (pos.side === 'long') {
             const mfePercent = ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
@@ -1385,7 +1394,7 @@ export class BacktestEngine {
               }
             }
 
-            const n = Math.floor(mfePercent / trailingStop.stepPercent);
+            const n = Math.floor(mfePercent / posTrailingStop.stepPercent);
             if (n > 0) {
               if (n > pos.ratchetSteps) {
                 pos.ratchetSteps = n;
@@ -1395,14 +1404,14 @@ export class BacktestEngine {
               let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
-                const minLockedProfitPercent = n * trailingStop.raisePercent;
-                const trailDistance = trailingStop.raisePercent;
+                const minLockedProfitPercent = n * posTrailingStop.raisePercent;
+                const trailDistance = posTrailingStop.raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 + minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.highestHigh * (1 - trailDistance / 100), 8);
                 candidateStop = Math.max(minLockedPrice, peakTrailPrice);
                 reason = 'trendTrail';
               } else {
-                const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPercent = -tradeInitialStop + n * posTrailingStop.raisePercent;
                 candidateStop = roundTo(pos.entryPrice * (1 + candidateStopPercent / 100), 8);
                 reason = 'steppedRatchet';
               }
@@ -1467,7 +1476,7 @@ export class BacktestEngine {
               }
             }
 
-            const n = Math.floor(mfePercent / trailingStop.stepPercent);
+            const n = Math.floor(mfePercent / posTrailingStop.stepPercent);
             if (n > 0) {
               if (n > pos.ratchetSteps) {
                 pos.ratchetSteps = n;
@@ -1477,14 +1486,14 @@ export class BacktestEngine {
               let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
-                const minLockedProfitPercent = n * trailingStop.raisePercent;
-                const trailDistance = trailingStop.raisePercent;
+                const minLockedProfitPercent = n * posTrailingStop.raisePercent;
+                const trailDistance = posTrailingStop.raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 - minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.lowestLow * (1 + trailDistance / 100), 8);
                 candidateStop = Math.min(minLockedPrice, peakTrailPrice);
                 reason = 'trendTrail';
               } else {
-                const candidateStopPercent = -tradeInitialStop + n * trailingStop.raisePercent;
+                const candidateStopPercent = -tradeInitialStop + n * posTrailingStop.raisePercent;
                 candidateStop = roundTo(pos.entryPrice * (1 - candidateStopPercent / 100), 8);
                 reason = 'steppedRatchet';
               }
@@ -1721,7 +1730,8 @@ export class BacktestEngine {
             const quantity = netInvest / candle.close;
             cash -= allocatedAmount;
 
-            let effectiveStopPercent = trailingStop ? trailingStop.initialStopPercent : stopLossPercent;
+            const entryTrailingStop = getTrailingStopForSide(canOpenDirection);
+            let effectiveStopPercent = entryTrailingStop ? entryTrailingStop.initialStopPercent : stopLossPercent;
             const signalMeta = signal.metadata as Record<string, unknown> | undefined;
             const isDynamic = signalMeta?.useTdrStop === true;
 
@@ -1751,7 +1761,7 @@ export class BacktestEngine {
 
             const posId = nextPositionId++;
             const posStopHistory: StopUpdateEvent[] = [];
-            const trailingMode = trailingStop?.mode ?? 'stepped';
+            const trailingMode = entryTrailingStop?.mode ?? 'stepped';
 
             if (initialStop !== null) {
               const initEvt: StopUpdateEvent = {
@@ -1763,7 +1773,7 @@ export class BacktestEngine {
                 candidateStopPrice: initialStop,
                 acceptedStopPrice: initialStop,
                 reason: isDynamic ? 'dynamicStop' : 'initialStop',
-                trailingMode: trailingStop ? trailingMode : undefined,
+                trailingMode: entryTrailingStop ? trailingMode : undefined,
                 ratchetSteps: 0,
                 accepted: true,
               };
@@ -1928,6 +1938,7 @@ export class BacktestEngine {
       takeProfitPercent,
       stopLossPercent,
       trailingStop,
+      trailingStopShort,
       maxOpenPositions,
       maxTotalExposurePercent,
       minBarsBetweenEntries,
