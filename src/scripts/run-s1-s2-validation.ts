@@ -13,6 +13,8 @@ import {
   DEFAULT_FISHER_GATE,
   DEFAULT_ALLOW_OPPOSITE_POSITIONS,
 } from '../config/defaults';
+import { createDailyRegimeCalculator, type DailyRegimeCalculator } from '../utils/market-regime';
+import { formatTradeRow, serializeTradeRows } from '../utils/trade-export';
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -277,6 +279,14 @@ export async function runValidation() {
     }
   }
 
+  const regimeCalcs: Record<string, DailyRegimeCalculator> = {};
+  const getRegimeCalc = (sym: string): DailyRegimeCalculator => {
+    if (!regimeCalcs[sym]) {
+      regimeCalcs[sym] = createDailyRegimeCalculator(sym, dataDir);
+    }
+    return regimeCalcs[sym];
+  };
+
   for (const cfgDef of configs) {
     console.log(`\n================ Running ${cfgDef.id} (${cfgDef.tradeMode}) ================`);
 
@@ -308,15 +318,12 @@ export async function runValidation() {
         candles,
       });
 
-      // Export trade-level compressed CSV: side,entryTime,exitTime,exitReason,mfe,mae,bars
+      // Export trade-level compressed CSV with 15 required columns (SH1)
       const tfMinutes = m.tf === '15m' ? 15 : m.tf === '1h' ? 60 : 240;
       const intervalMs = tfMinutes * 60 * 1000;
-      const tradeCsvHeader = 'side,entryTime,exitTime,exitReason,mfe,mae,bars';
-      const tradeCsvRows = res.trades.map((t) => {
-        const bars = Math.max(1, Math.round(((t.exitTime ?? 0) - (t.entryTime ?? 0)) / intervalMs));
-        return `${t.side},${t.entryTime ?? 0},${t.exitTime ?? 0},${t.exitReason},${t.maxFavorablePercent},${t.maxAdversePercent},${bars}`;
-      });
-      const tradeCsvContent = [tradeCsvHeader, ...tradeCsvRows].join('\n') + '\n';
+      const regimeCalc = getRegimeCalc(m.sym);
+      const tradeRows = res.trades.map((t) => formatTradeRow(t, intervalMs, regimeCalc));
+      const tradeCsvContent = serializeTradeRows(tradeRows);
       const gzTradeBuf = zlib.gzipSync(Buffer.from(tradeCsvContent, 'utf-8'));
       const tradeGzPath1 = path.join(csvDir, `trades_${m.sym}_${m.tf}_${cfgDef.id}.csv.gz`);
       fs.writeFileSync(tradeGzPath1, gzTradeBuf);
