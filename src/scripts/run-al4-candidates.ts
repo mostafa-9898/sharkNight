@@ -76,6 +76,7 @@ export interface CandidateSummary {
   oosPassCount: number;
   realTotalReturnAvg: number;
   realMaxDDAvg: number;
+  violatingMarketCount: number;
   baselineRealReturnAvg: number;
   baselineRealMaxDDAvg: number;
   baselineDetrendedLongAvg: number;
@@ -438,7 +439,7 @@ export async function runAl4Candidates() {
     let totalRealReturn = 0;
     let totalRealMaxDD = 0;
 
-    let allRealMaxDdOk = true;
+    let violatingMarketCount = 0;
 
     for (const m of marketResults) {
       const cDetrend = m.candidates[cKey].detrended;
@@ -461,7 +462,7 @@ export async function runAl4Candidates() {
 
       // Check maxDD individual market constraint: <= 1.2 * baseline AND <= 20%
       if (cReal.maxDD > 20.0 || (bReal.maxDD > 0 && cReal.maxDD > bReal.maxDD * 1.2)) {
-        allRealMaxDdOk = false;
+        violatingMarketCount++;
       }
     }
 
@@ -481,7 +482,8 @@ export async function runAl4Candidates() {
     // شرط (ب): استواری بین‌بازاری (حداقل ۴ از ۶ بازار اصلی و ۵ از ۸ بازار OOS)
     const criteriaB = primaryPassCount >= 4 && oosPassCount >= 5;
 
-    // شرط (ج): کنترل افت سرمایه در بازار واقعی (Real MaxDD <= 1.2 * Baseline AND Real MaxDD <= 20%)
+    // شرط (ج): کنترل افت سرمایه در بازار واقعی (Real MaxDD <= 1.2 * Baseline AND Real MaxDD <= 20% on avg AND in all 14 markets)
+    const allRealMaxDdOk = violatingMarketCount === 0;
     const criteriaC = realMaxDDAvg <= 1.2 * baselineRealMaxDDAvg && realMaxDDAvg <= 20.0 && allRealMaxDdOk;
 
     // شرط (د): حفظ توان سودآوری در بازار واقعی (Real Total Return >= 0.80 * Baseline)
@@ -504,6 +506,7 @@ export async function runAl4Candidates() {
       oosPassCount,
       realTotalReturnAvg: realReturnAvg,
       realMaxDDAvg,
+      violatingMarketCount,
       baselineRealReturnAvg,
       baselineRealMaxDDAvg,
       baselineDetrendedLongAvg,
@@ -545,9 +548,12 @@ export async function runAl4Candidates() {
   for (const s of candidateSummaries) {
     const markA = s.criteriaA ? '✅ PASS' : '❌ FAIL';
     const markB = s.criteriaB ? `✅ PASS (${s.primaryPassCount}/6, ${s.oosPassCount}/8)` : `❌ FAIL (${s.primaryPassCount}/6, ${s.oosPassCount}/8)`;
-    const markC = s.criteriaC ? `✅ PASS (${s.realMaxDDAvg}%)` : `❌ FAIL (${s.realMaxDDAvg}%)`;
+    const markC = s.criteriaC ? `✅ PASS (${s.realMaxDDAvg}%, 0/14 نقض)` : `❌ FAIL (${s.realMaxDDAvg}%, ${s.violatingMarketCount}/14 نقض)`;
     const markD = s.criteriaD ? `✅ PASS (${s.realTotalReturnAvg}%)` : `❌ FAIL (${s.realTotalReturnAvg}%)`;
-    const finalVerdict = s.overallPassed ? '**✅ PASSED**' : '**❌ REJECTED**';
+    let finalVerdict = s.overallPassed ? '**✅ PASSED**' : '**❌ REJECTED**';
+    if (s.name === 'A6') {
+      finalVerdict = '**N/A (طبق پیش‌ثبت تعریف‌نشده)**';
+    }
     md += `| **${s.name}** | ${s.label} | ${markA} (L:${s.deltaDetrendedLongAvg>0?'+':''}${s.deltaDetrendedLongAvg}%, S:${s.deltaDetrendedShortAvg>0?'+':''}${s.deltaDetrendedShortAvg}%) | ${markB} | ${markC} | ${markD} | ${finalVerdict} |\n`;
   }
 
@@ -574,7 +580,9 @@ export async function runAl4Candidates() {
     md += `- **استواری بین بازاری:** موفقیت در ${s.primaryPassCount} از ۶ بازار اصلی و ${s.oosPassCount} از ۸ بازار خارج از نمونه (OOS).\n`;
     md += `- **عملکرد در بازار واقعی:** بازده کل: ${s.realTotalReturnAvg}% (نسبت به پایه ${roundTo((s.realTotalReturnAvg / baselineRealReturnAvg) * 100, 1)}%) | بیشینه افت سرمایه: ${s.realMaxDDAvg}% (نسبت به پایه ${roundTo(s.realMaxDDAvg / baselineRealMaxDDAvg, 2)} برابر).\n`;
     md += `- **علت و نتیجه‌گیری:** `;
-    if (s.overallPassed) {
+    if (s.name === 'A6') {
+      md += `طبق بند ۵ سند PREREGISTERED_AL.md، کاندیدای ترکیبی A6 فقط زمانی مجاز به تعریف و ارزیابی است که حداقل دو کاندیدا از میان A1 تا A5 هر چهار شرط AL1 را به صورت انفرادی احراز کرده باشند. از آنجا که هیچ کاندیدای انفرادی موفق به احراز هر ۴ شرط نشد، کاندیدای ترکیبی A6 طبق پیش‌ثبت **تعریف‌نشده (N/A)** است و مقادیر آزمون آن صرفاً به عنوان شواهد تشخیصی و اطلاعاتی حفظ شده‌اند.\n\n`;
+    } else if (s.overallPassed) {
       md += `این کاندیدا توانسته هر ۴ معیار را احراز کند.\n\n`;
     } else {
       const fails: string[] = [];

@@ -1,0 +1,986 @@
+{
+  "A1": {
+    "candidateKey": "A1",
+    "label": "A1: حد ضرر متحرک پویا بر پایه‌ی ATR",
+    "avgRealMaxDD": 16.63,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": true,
+    "passOnIndividualMarkets": false,
+    "officialVerdict": false,
+    "violatingMarketCount": 6,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "SOL 1h",
+      "candidateMaxDD": 30.14,
+      "baselineMaxDD": 31.69
+    },
+    "worstMarketByRatio": {
+      "market": "XRP 4h",
+      "ratio": 4.03,
+      "candidateMaxDD": 20.41,
+      "baselineMaxDD": 5.06
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 9.25,
+        "ratio": 0.48,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 8.44,
+        "ratio": 0.64,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 8.6,
+        "ratio": 1,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 10.58,
+        "ratio": 0.53,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 16.03,
+        "ratio": 1.05,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 13.83,
+        "ratio": 1.02,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 30.14,
+        "ratio": 0.95,
+        "violatedRatio": false,
+        "violatedCap20": true,
+        "violationType": "cap_20"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 13.29,
+        "ratio": 1.39,
+        "violatedRatio": true,
+        "violatedCap20": false,
+        "violationType": "ratio_1_2"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 23.5,
+        "ratio": 1.25,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 23.38,
+        "ratio": 1.72,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 18.25,
+        "ratio": 1.09,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 20.41,
+        "ratio": 4.03,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 22.7,
+        "ratio": 1.81,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 14.47,
+        "ratio": 1.13,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      }
+    ]
+  },
+  "A2": {
+    "candidateKey": "A2",
+    "label": "A2: پول‌بک به کیجون + کراس استوک",
+    "avgRealMaxDD": 7.67,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": true,
+    "passOnIndividualMarkets": false,
+    "officialVerdict": false,
+    "violatingMarketCount": 1,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "SOL 1h",
+      "candidateMaxDD": 18.6,
+      "baselineMaxDD": 31.69
+    },
+    "worstMarketByRatio": {
+      "market": "XRP 4h",
+      "ratio": 1.49,
+      "candidateMaxDD": 7.53,
+      "baselineMaxDD": 5.06
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 13.9,
+        "ratio": 0.72,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 8.01,
+        "ratio": 0.61,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 3.43,
+        "ratio": 0.4,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 14.66,
+        "ratio": 0.74,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 7.53,
+        "ratio": 0.49,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 2.53,
+        "ratio": 0.19,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 18.6,
+        "ratio": 0.59,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 1.15,
+        "ratio": 0.12,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 7.3,
+        "ratio": 0.39,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 1.97,
+        "ratio": 0.15,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 7.51,
+        "ratio": 0.45,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 7.53,
+        "ratio": 1.49,
+        "violatedRatio": true,
+        "violatedCap20": false,
+        "violationType": "ratio_1_2"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 10.91,
+        "ratio": 0.87,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 2.33,
+        "ratio": 0.18,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      }
+    ]
+  },
+  "A3": {
+    "candidateKey": "A3",
+    "label": "A3: فیلتر رژیم نوسان (ATR/Close > میانه ۱۰۰)",
+    "avgRealMaxDD": 10.95,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": true,
+    "passOnIndividualMarkets": false,
+    "officialVerdict": false,
+    "violatingMarketCount": 1,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "SOL 1h",
+      "candidateMaxDD": 23.22,
+      "baselineMaxDD": 31.69
+    },
+    "worstMarketByRatio": {
+      "market": "BTC 1h",
+      "ratio": 0.96,
+      "candidateMaxDD": 12.67,
+      "baselineMaxDD": 13.23
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 15.04,
+        "ratio": 0.78,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 12.67,
+        "ratio": 0.96,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 7.44,
+        "ratio": 0.86,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 17.82,
+        "ratio": 0.9,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 10.13,
+        "ratio": 0.66,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 5.66,
+        "ratio": 0.42,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 23.22,
+        "ratio": 0.73,
+        "violatedRatio": false,
+        "violatedCap20": true,
+        "violationType": "cap_20"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 6.29,
+        "ratio": 0.66,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 12.47,
+        "ratio": 0.66,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 4.06,
+        "ratio": 0.3,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 14.32,
+        "ratio": 0.86,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 4.38,
+        "ratio": 0.87,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 9.61,
+        "ratio": 0.77,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 10.24,
+        "ratio": 0.8,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      }
+    ]
+  },
+  "A4": {
+    "candidateKey": "A4",
+    "label": "A4: انطباق روند روزانه (1d Strict)",
+    "avgRealMaxDD": 10.91,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": true,
+    "passOnIndividualMarkets": false,
+    "officialVerdict": false,
+    "violatingMarketCount": 1,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "SOL 1h",
+      "candidateMaxDD": 28.85,
+      "baselineMaxDD": 31.69
+    },
+    "worstMarketByRatio": {
+      "market": "BTC 1h",
+      "ratio": 1.02,
+      "candidateMaxDD": 13.52,
+      "baselineMaxDD": 13.23
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 17.72,
+        "ratio": 0.92,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 13.52,
+        "ratio": 1.02,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 6.47,
+        "ratio": 0.75,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 15.29,
+        "ratio": 0.77,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 11.96,
+        "ratio": 0.78,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 5.7,
+        "ratio": 0.42,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 28.85,
+        "ratio": 0.91,
+        "violatedRatio": false,
+        "violatedCap20": true,
+        "violationType": "cap_20"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 4.07,
+        "ratio": 0.42,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 13.01,
+        "ratio": 0.69,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 9.5,
+        "ratio": 0.7,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 11.45,
+        "ratio": 0.68,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 2.23,
+        "ratio": 0.44,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 9.43,
+        "ratio": 0.75,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 3.58,
+        "ratio": 0.28,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      }
+    ]
+  },
+  "A5": {
+    "candidateKey": "A5",
+    "label": "A5: تعیین حجم بر پایه‌ی نوسان (Risk 0.5% / Stop)",
+    "avgRealMaxDD": 27.8,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": false,
+    "passOnIndividualMarkets": false,
+    "officialVerdict": false,
+    "violatingMarketCount": 14,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "BNB 1h",
+      "candidateMaxDD": 41.55,
+      "baselineMaxDD": 18.83
+    },
+    "worstMarketByRatio": {
+      "market": "SOL 4h",
+      "ratio": 2.93,
+      "candidateMaxDD": 28.07,
+      "baselineMaxDD": 9.59
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 28.33,
+        "ratio": 1.47,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 27,
+        "ratio": 2.04,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 16.48,
+        "ratio": 1.91,
+        "violatedRatio": true,
+        "violatedCap20": false,
+        "violationType": "ratio_1_2"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 31.44,
+        "ratio": 1.59,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 24.51,
+        "ratio": 1.6,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 23.06,
+        "ratio": 1.69,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 37.51,
+        "ratio": 1.18,
+        "violatedRatio": false,
+        "violatedCap20": true,
+        "violationType": "cap_20"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 28.07,
+        "ratio": 2.93,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 41.55,
+        "ratio": 2.21,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 28.73,
+        "ratio": 2.12,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 34.13,
+        "ratio": 2.04,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 14.42,
+        "ratio": 2.85,
+        "violatedRatio": true,
+        "violatedCap20": false,
+        "violationType": "ratio_1_2"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 27.77,
+        "ratio": 2.22,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 26.13,
+        "ratio": 2.04,
+        "violatedRatio": true,
+        "violatedCap20": true,
+        "violationType": "both"
+      }
+    ]
+  },
+  "A6": {
+    "candidateKey": "A6",
+    "label": "A6: ترکیب دو کاندیدای برتر",
+    "avgRealMaxDD": 5.1,
+    "baselineAvgRealMaxDD": 15.05,
+    "passOnAverage": true,
+    "passOnIndividualMarkets": true,
+    "officialVerdict": true,
+    "violatingMarketCount": 0,
+    "totalMarkets": 14,
+    "worstMarketByMaxDD": {
+      "market": "SOL 1h",
+      "candidateMaxDD": 18.1,
+      "baselineMaxDD": 31.69
+    },
+    "worstMarketByRatio": {
+      "market": "BTC 15m",
+      "ratio": 0.68,
+      "candidateMaxDD": 13.12,
+      "baselineMaxDD": 19.27
+    },
+    "markets": [
+      {
+        "market": "BTC 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.27,
+        "candidateMaxDD": 13.12,
+        "ratio": 0.68,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 1h",
+        "isOos": false,
+        "baselineMaxDD": 13.23,
+        "candidateMaxDD": 5.52,
+        "ratio": 0.42,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BTC 4h",
+        "isOos": false,
+        "baselineMaxDD": 8.62,
+        "candidateMaxDD": 2.54,
+        "ratio": 0.29,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 15m",
+        "isOos": false,
+        "baselineMaxDD": 19.81,
+        "candidateMaxDD": 8.65,
+        "ratio": 0.44,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 1h",
+        "isOos": false,
+        "baselineMaxDD": 15.32,
+        "candidateMaxDD": 5.22,
+        "ratio": 0.34,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ETH 4h",
+        "isOos": false,
+        "baselineMaxDD": 13.61,
+        "candidateMaxDD": 0.67,
+        "ratio": 0.05,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 1h",
+        "isOos": true,
+        "baselineMaxDD": 31.69,
+        "candidateMaxDD": 18.1,
+        "ratio": 0.57,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "SOL 4h",
+        "isOos": true,
+        "baselineMaxDD": 9.59,
+        "candidateMaxDD": 0.71,
+        "ratio": 0.07,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 1h",
+        "isOos": true,
+        "baselineMaxDD": 18.83,
+        "candidateMaxDD": 3.7,
+        "ratio": 0.2,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "BNB 4h",
+        "isOos": true,
+        "baselineMaxDD": 13.58,
+        "candidateMaxDD": 1.63,
+        "ratio": 0.12,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 1h",
+        "isOos": true,
+        "baselineMaxDD": 16.72,
+        "candidateMaxDD": 3.05,
+        "ratio": 0.18,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "XRP 4h",
+        "isOos": true,
+        "baselineMaxDD": 5.06,
+        "candidateMaxDD": 0.75,
+        "ratio": 0.15,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 1h",
+        "isOos": true,
+        "baselineMaxDD": 12.51,
+        "candidateMaxDD": 6.38,
+        "ratio": 0.51,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      },
+      {
+        "market": "ADA 4h",
+        "isOos": true,
+        "baselineMaxDD": 12.82,
+        "candidateMaxDD": 1.3,
+        "ratio": 0.1,
+        "violatedRatio": false,
+        "violatedCap20": false,
+        "violationType": "none"
+      }
+    ]
+  }
+}
