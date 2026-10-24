@@ -16,6 +16,14 @@ export const DEFAULT_TRAILING_STOP: TrailingStopConfig = {
   mode: DEFAULT_TRAILING_MODE,
 };
 
+// SH5 winning short trailing stop configuration: TR1 (3, 2, 1)
+export const DEFAULT_TRAILING_STOP_SHORT: TrailingStopConfig = {
+  initialStopPercent: 3.0,
+  stepPercent: 2.0,
+  raisePercent: 1.0,
+  mode: DEFAULT_TRAILING_MODE,
+};
+
 export const DEFAULT_MAX_OPEN_POSITIONS = 10;
 export const DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT = 30;
 export const DEFAULT_POSITION_SIZE_PERCENT = 3;
