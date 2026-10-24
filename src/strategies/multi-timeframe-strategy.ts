@@ -11,6 +11,7 @@ export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' |
 export type FisherKind = 'fisher' | 'ift';
 export type FisherGate = 'none' | 'zone';
 export type ShortEntryFilter = 'none' | 'v1_1dBearish' | 'v2_ltfBelowCloud' | 'v3_bearRegime' | 'v4_consecutiveHtf';
+export type EdgeCandidate = 'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'A6';
 
 export interface MultiTimeframeConfig {
   htfMode?: 'strict';
@@ -19,6 +20,8 @@ export interface MultiTimeframeConfig {
   structureFilter?: boolean;
   shortEntryFilter?: ShortEntryFilter;
   attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+  edgeCandidate?: EdgeCandidate;
+  a6Components?: EdgeCandidate[];
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
   daily1dCandles?: readonly Candle[];
@@ -67,6 +70,10 @@ interface CachedIndicators {
   // HTF 1h indicators
   htf1hCandles: readonly Candle[];
   htf1hIchimoku: IchimokuResult;
+
+  // HTF 1d indicators
+  daily1dCandles: readonly Candle[];
+  daily1dIchimoku: IchimokuResult;
 }
 
 /**
@@ -225,6 +232,8 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly fisherGate: FisherGate;
   readonly shortEntryFilter: ShortEntryFilter;
   readonly attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+  readonly edgeCandidate?: EdgeCandidate;
+  readonly a6Components?: EdgeCandidate[];
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -248,6 +257,8 @@ export class MultiTimeframeStrategy implements Strategy {
     this.structureFilter = config?.structureFilter ?? false;
     this.shortEntryFilter = config?.shortEntryFilter ?? 'none';
     this.attributionLayer = config?.attributionLayer;
+    this.edgeCandidate = config?.edgeCandidate;
+    this.a6Components = config?.a6Components;
     this.ltfIntervalMs = config?.ltfIntervalMs;
     this.fisherMode = config?.fisherMode ?? 'replace-stoch';
     this.fisherKind = config?.fisherKind ?? 'fisher';
@@ -321,6 +332,16 @@ export class MultiTimeframeStrategy implements Strategy {
           : aggregateCandles(candles, 60 * 60 * 1000);
       const htf1hIchimoku = calculateIchimoku(htf1hCandles, ichiConfig);
 
+      // 4. Daily 1d Candles & Indicators
+      const daily1dCandles =
+        this.explicitDaily1d && this.explicitDaily1d.length > 0
+          ? this.explicitDaily1d
+          : aggregateCandles(candles, 24 * 60 * 60 * 1000);
+      const daily1dIchimoku =
+        this.cached1dIchimoku && this.explicitDaily1d && this.explicitDaily1d.length > 0
+          ? this.cached1dIchimoku
+          : calculateIchimoku(daily1dCandles, ichiConfig);
+
       const ltfSwings = this.structureFilter ? confirmedSwings(candles, 3) : undefined;
 
       const ltfCloses = candles.map((c) => c.close);
@@ -344,6 +365,8 @@ export class MultiTimeframeStrategy implements Strategy {
         htf4hIchimoku,
         htf1hCandles,
         htf1hIchimoku,
+        daily1dCandles,
+        daily1dIchimoku,
       };
 
       this.indicatorCache.set(candles, cached);
@@ -500,17 +523,65 @@ export class MultiTimeframeStrategy implements Strategy {
     return true;
   }
 
-  private is1dBearish(timestamp: number): boolean {
-    if (!this.explicitDaily1d || !this.cached1dIchimoku || this.explicitDaily1d.length === 0) {
+  private hadKijunTouchRecent(
+    candles: readonly Candle[],
+    kijunArr: number[],
+    currentIndex: number,
+    lookback = 3
+  ): boolean {
+    for (let offset = 0; offset < lookback; offset++) {
+      const idx = currentIndex - offset;
+      if (idx >= 0) {
+        const c = candles[idx];
+        const k = kijunArr[idx];
+        if (Number.isFinite(k) && c.low <= k && c.high >= k) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private isAtrAboveMedian(
+    candles: readonly Candle[],
+    atrArr: number[],
+    currentIndex: number,
+    window = 100
+  ): boolean {
+    if (currentIndex < window - 1) return true;
+    const currentAtr = atrArr[currentIndex];
+    const currentClose = candles[currentIndex].close;
+    if (!Number.isFinite(currentAtr) || currentClose <= 0) return true;
+    const currentRatio = currentAtr / currentClose;
+
+    const ratios: number[] = [];
+    for (let i = currentIndex - window + 1; i <= currentIndex; i++) {
+      const a = atrArr[i];
+      const c = candles[i].close;
+      if (Number.isFinite(a) && c > 0) {
+        ratios.push(a / c);
+      }
+    }
+    if (ratios.length < 20) return true;
+    ratios.sort((a, b) => a - b);
+    const mid = Math.floor(ratios.length / 2);
+    const median = ratios.length % 2 === 0 ? (ratios[mid - 1] + ratios[mid]) / 2 : ratios[mid];
+    return currentRatio > median;
+  }
+
+  private is1dBearish(timestamp: number, cached?: CachedIndicators): boolean {
+    const dailyCandles = cached?.daily1dCandles ?? this.explicitDaily1d;
+    const dailyIchimoku = cached?.daily1dIchimoku ?? this.cached1dIchimoku;
+    if (!dailyCandles || !dailyIchimoku || dailyCandles.length === 0) {
       return false;
     }
     const dayMs = 86400000;
     let low = 0;
-    let high = this.explicitDaily1d.length - 1;
+    let high = dailyCandles.length - 1;
     let foundIdx = -1;
     while (low <= high) {
       const mid = (low + high) >> 1;
-      if (this.explicitDaily1d[mid].timestamp + dayMs <= timestamp) {
+      if (dailyCandles[mid].timestamp + dayMs <= timestamp) {
         foundIdx = mid;
         low = mid + 1;
       } else {
@@ -518,8 +589,32 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
     if (foundIdx < 0) return false;
-    const trend = computeStrictHtfTrend(this.explicitDaily1d[foundIdx], this.cached1dIchimoku, foundIdx);
+    const trend = computeStrictHtfTrend(dailyCandles[foundIdx], dailyIchimoku, foundIdx);
     return trend === -1;
+  }
+
+  private is1dBullish(timestamp: number, cached?: CachedIndicators): boolean {
+    const dailyCandles = cached?.daily1dCandles ?? this.explicitDaily1d;
+    const dailyIchimoku = cached?.daily1dIchimoku ?? this.cached1dIchimoku;
+    if (!dailyCandles || !dailyIchimoku || dailyCandles.length === 0) {
+      return false;
+    }
+    const dayMs = 86400000;
+    let low = 0;
+    let high = dailyCandles.length - 1;
+    let foundIdx = -1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (dailyCandles[mid].timestamp + dayMs <= timestamp) {
+        foundIdx = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    if (foundIdx < 0) return false;
+    const trend = computeStrictHtfTrend(dailyCandles[foundIdx], dailyIchimoku, foundIdx);
+    return trend === 1;
   }
 
   private has3ConsecutiveHtfBearish(timestamp: number, cached: CachedIndicators, ltfMs: number): boolean {
@@ -825,7 +920,18 @@ export class MultiTimeframeStrategy implements Strategy {
     let bullBlockedByOpposite = false;
     let bearBlockedByOpposite = false;
 
-    if (this.attributionLayer === 'L1') {
+    const isA1Active = this.edgeCandidate === 'A1' || (this.edgeCandidate === 'A6' && this.a6Components?.includes('A1'));
+    const isA2Active = this.edgeCandidate === 'A2' || (this.edgeCandidate === 'A6' && this.a6Components?.includes('A2'));
+    const isA3Active = this.edgeCandidate === 'A3' || (this.edgeCandidate === 'A6' && this.a6Components?.includes('A3'));
+    const isA4Active = this.edgeCandidate === 'A4' || (this.edgeCandidate === 'A6' && this.a6Components?.includes('A4'));
+
+    if (isA2Active) {
+      const kijunTouch = this.hadKijunTouchRecent(candles, ltfIchimoku.kijun, currentIndex, 3);
+      bullTrigger = kijunTouch && stochBullCross;
+      bullBlockedByOpposite = stochBearCross;
+      bearTrigger = kijunTouch && stochBearCross;
+      bearBlockedByOpposite = stochBullCross;
+    } else if (this.attributionLayer === 'L1') {
       bullTrigger = tkBullCross;
       bullBlockedByOpposite = tkBearCross;
       bearTrigger = tkBearCross;
@@ -912,6 +1018,14 @@ export class MultiTimeframeStrategy implements Strategy {
         return defaultSignal;
       }
 
+      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
+        return defaultSignal;
+      }
+
+      if (isA4Active && !this.is1dBullish(candle.timestamp, cached)) {
+        return defaultSignal;
+      }
+
       if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
         return defaultSignal;
       }
@@ -922,6 +1036,20 @@ export class MultiTimeframeStrategy implements Strategy {
 
       if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
         return defaultSignal;
+      }
+
+      let atrTrailingMeta: Record<string, unknown> = {};
+      if (isA1Active) {
+        const initialStopPercent = roundTo(((2.5 * atr) / candle.close) * 100, 2);
+        const trailingStepPercent = roundTo(((2.0 * atr) / candle.close) * 100, 2);
+        const trailingRaisePercent = roundTo(((1.0 * atr) / candle.close) * 100, 2);
+        atrTrailingMeta = {
+          useAtrTrailing: true,
+          initialStopPercent,
+          trailingStepPercent,
+          trailingRaisePercent,
+          stopPrice: roundTo(candle.close * (1 - initialStopPercent / 100), 8),
+        };
       }
 
       const stopMetadata: Record<string, unknown> = this.useTdrStop
@@ -954,6 +1082,7 @@ export class MultiTimeframeStrategy implements Strategy {
           fisherKind: this.fisherKind,
           fisherGate: this.fisherGate,
           ...stopMetadata,
+          ...atrTrailingMeta,
         },
       };
     }
@@ -964,9 +1093,17 @@ export class MultiTimeframeStrategy implements Strategy {
         return defaultSignal;
       }
 
+      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
+        return defaultSignal;
+      }
+
+      if (isA4Active && !this.is1dBearish(candle.timestamp, cached)) {
+        return defaultSignal;
+      }
+
       // Check short entry filter (SH4)
       if (this.shortEntryFilter === 'v1_1dBearish') {
-        if (!this.is1dBearish(candle.timestamp)) {
+        if (!this.is1dBearish(candle.timestamp, cached)) {
           return defaultSignal;
         }
       } else if (this.shortEntryFilter === 'v2_ltfBelowCloud') {
@@ -996,6 +1133,20 @@ export class MultiTimeframeStrategy implements Strategy {
 
       if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
         return defaultSignal;
+      }
+
+      let atrTrailingMeta: Record<string, unknown> = {};
+      if (isA1Active) {
+        const initialStopPercent = roundTo(((2.5 * atr) / candle.close) * 100, 2);
+        const trailingStepPercent = roundTo(((2.0 * atr) / candle.close) * 100, 2);
+        const trailingRaisePercent = roundTo(((1.0 * atr) / candle.close) * 100, 2);
+        atrTrailingMeta = {
+          useAtrTrailing: true,
+          initialStopPercent,
+          trailingStepPercent,
+          trailingRaisePercent,
+          stopPrice: roundTo(candle.close * (1 + initialStopPercent / 100), 8),
+        };
       }
 
       const stopMetadata: Record<string, unknown> = this.useTdrStop
@@ -1028,6 +1179,7 @@ export class MultiTimeframeStrategy implements Strategy {
           fisherKind: this.fisherKind,
           fisherGate: this.fisherGate,
           ...stopMetadata,
+          ...atrTrailingMeta,
         },
       };
     }

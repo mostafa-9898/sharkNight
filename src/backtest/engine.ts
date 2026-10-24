@@ -1077,6 +1077,8 @@ export class BacktestEngine {
       highestHigh: number;
       lowestLow: number;
       ratchetSteps: number;
+      trailingStepPercent?: number;
+      trailingRaisePercent?: number;
       entryDiagnostics?: EntryDiagnostics;
       stopHistory: StopUpdateEvent[];
     }
@@ -1394,7 +1396,9 @@ export class BacktestEngine {
               }
             }
 
-            const n = Math.floor(mfePercent / posTrailingStop.stepPercent);
+            const stepPercent = pos.trailingStepPercent ?? posTrailingStop.stepPercent;
+            const raisePercent = pos.trailingRaisePercent ?? posTrailingStop.raisePercent;
+            const n = Math.floor(mfePercent / stepPercent);
             if (n > 0) {
               if (n > pos.ratchetSteps) {
                 pos.ratchetSteps = n;
@@ -1404,14 +1408,14 @@ export class BacktestEngine {
               let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
-                const minLockedProfitPercent = n * posTrailingStop.raisePercent;
-                const trailDistance = posTrailingStop.raisePercent;
+                const minLockedProfitPercent = n * raisePercent;
+                const trailDistance = raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 + minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.highestHigh * (1 - trailDistance / 100), 8);
                 candidateStop = Math.max(minLockedPrice, peakTrailPrice);
                 reason = 'trendTrail';
               } else {
-                const candidateStopPercent = -tradeInitialStop + n * posTrailingStop.raisePercent;
+                const candidateStopPercent = -tradeInitialStop + n * raisePercent;
                 candidateStop = roundTo(pos.entryPrice * (1 + candidateStopPercent / 100), 8);
                 reason = 'steppedRatchet';
               }
@@ -1476,7 +1480,9 @@ export class BacktestEngine {
               }
             }
 
-            const n = Math.floor(mfePercent / posTrailingStop.stepPercent);
+            const stepPercent = pos.trailingStepPercent ?? posTrailingStop.stepPercent;
+            const raisePercent = pos.trailingRaisePercent ?? posTrailingStop.raisePercent;
+            const n = Math.floor(mfePercent / stepPercent);
             if (n > 0) {
               if (n > pos.ratchetSteps) {
                 pos.ratchetSteps = n;
@@ -1486,14 +1492,14 @@ export class BacktestEngine {
               let reason: StopUpdateReason;
 
               if (trailingMode === 'trend') {
-                const minLockedProfitPercent = n * posTrailingStop.raisePercent;
-                const trailDistance = posTrailingStop.raisePercent;
+                const minLockedProfitPercent = n * raisePercent;
+                const trailDistance = raisePercent;
                 const minLockedPrice = roundTo(pos.entryPrice * (1 - minLockedProfitPercent / 100), 8);
                 const peakTrailPrice = roundTo(pos.lowestLow * (1 + trailDistance / 100), 8);
                 candidateStop = Math.min(minLockedPrice, peakTrailPrice);
                 reason = 'trendTrail';
               } else {
-                const candidateStopPercent = -tradeInitialStop + n * posTrailingStop.raisePercent;
+                const candidateStopPercent = -tradeInitialStop + n * raisePercent;
                 candidateStop = roundTo(pos.entryPrice * (1 - candidateStopPercent / 100), 8);
                 reason = 'steppedRatchet';
               }
@@ -1733,7 +1739,7 @@ export class BacktestEngine {
             const entryTrailingStop = getTrailingStopForSide(canOpenDirection);
             let effectiveStopPercent = entryTrailingStop ? entryTrailingStop.initialStopPercent : stopLossPercent;
             const signalMeta = signal.metadata as Record<string, unknown> | undefined;
-            const isDynamic = signalMeta?.useTdrStop === true;
+            const isDynamic = signalMeta?.useTdrStop === true || signalMeta?.useAtrTrailing === true;
 
             if (
               isDynamic &&
@@ -1781,6 +1787,15 @@ export class BacktestEngine {
               allStopUpdates.push(initEvt);
             }
 
+            const trailingStepPercent =
+              typeof signalMeta?.trailingStepPercent === 'number'
+                ? signalMeta.trailingStepPercent
+                : undefined;
+            const trailingRaisePercent =
+              typeof signalMeta?.trailingRaisePercent === 'number'
+                ? signalMeta.trailingRaisePercent
+                : undefined;
+
             const newPos: ActivePositionState = {
               positionId: posId,
               side: canOpenDirection,
@@ -1798,6 +1813,8 @@ export class BacktestEngine {
               highestHigh: candle.close,
               lowestLow: candle.close,
               ratchetSteps: 0,
+              trailingStepPercent,
+              trailingRaisePercent,
               entryDiagnostics: entryDiag,
               stopHistory: posStopHistory,
             };
