@@ -18,6 +18,7 @@ export interface MultiTimeframeConfig {
   kijunSlopeFilter?: boolean;
   structureFilter?: boolean;
   shortEntryFilter?: ShortEntryFilter;
+  attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
   daily1dCandles?: readonly Candle[];
@@ -223,6 +224,7 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly fisherKind: FisherKind;
   readonly fisherGate: FisherGate;
   readonly shortEntryFilter: ShortEntryFilter;
+  readonly attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -245,6 +247,7 @@ export class MultiTimeframeStrategy implements Strategy {
     this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
     this.structureFilter = config?.structureFilter ?? false;
     this.shortEntryFilter = config?.shortEntryFilter ?? 'none';
+    this.attributionLayer = config?.attributionLayer;
     this.ltfIntervalMs = config?.ltfIntervalMs;
     this.fisherMode = config?.fisherMode ?? 'replace-stoch';
     this.fisherKind = config?.fisherKind ?? 'fisher';
@@ -619,11 +622,37 @@ export class MultiTimeframeStrategy implements Strategy {
     }
 
     const candle = candles[currentIndex];
+
+    if (this.attributionLayer === 'L5') {
+      const prevDir = this.getStrictHtfDirection(candles, currentIndex - 1);
+      const currDir = this.getStrictHtfDirection(candles, currentIndex);
+      if (prevDir !== 1 && currDir === 1) {
+        return {
+          action: 'BUY',
+          timestamp: candle.timestamp,
+          price: candle.close,
+          reason: 'L5: HTF Strict Bullish Start',
+        };
+      }
+      if (prevDir !== -1 && currDir === -1) {
+        return {
+          action: 'SELL',
+          timestamp: candle.timestamp,
+          price: candle.close,
+          reason: 'L5: HTF Strict Bearish Start',
+        };
+      }
+      return defaultSignal;
+    }
+
     const cached = this.getIndicators(candles);
     const ltfMs = this.getLtfMs(candles, currentIndex);
     const { bullish: htfBullish, bearish: htfBearish } = this.getHtfBias(candle.timestamp, cached, ltfMs);
 
-    if (!htfBullish && !htfBearish) {
+    const effectiveHtfBullish = this.attributionLayer === 'L4' ? true : htfBullish;
+    const effectiveHtfBearish = this.attributionLayer === 'L4' ? true : htfBearish;
+
+    if (!effectiveHtfBullish && !effectiveHtfBearish) {
       return defaultSignal;
     }
 
@@ -796,7 +825,17 @@ export class MultiTimeframeStrategy implements Strategy {
     let bullBlockedByOpposite = false;
     let bearBlockedByOpposite = false;
 
-    if (this.fisherMode === 'off') {
+    if (this.attributionLayer === 'L1') {
+      bullTrigger = tkBullCross;
+      bullBlockedByOpposite = tkBearCross;
+      bearTrigger = tkBearCross;
+      bearBlockedByOpposite = tkBullCross;
+    } else if (this.attributionLayer === 'L2') {
+      bullTrigger = tkBullCross || stochBullCross;
+      bullBlockedByOpposite = tkBearCross || stochBearCross;
+      bearTrigger = tkBearCross || stochBearCross;
+      bearBlockedByOpposite = tkBullCross || stochBullCross;
+    } else if (this.fisherMode === 'off') {
       bullTrigger = tkBullCross || stochBullCross;
       bullBlockedByOpposite = tkBearCross || stochBearCross;
       bearTrigger = tkBearCross || stochBearCross;
@@ -867,7 +906,7 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
-    if (htfBullish) {
+    if (effectiveHtfBullish) {
       // Aligned cross & opposite check
       if (bullBlockedByOpposite || !bullTrigger) {
         return defaultSignal;
@@ -919,7 +958,7 @@ export class MultiTimeframeStrategy implements Strategy {
       };
     }
 
-    if (htfBearish) {
+    if (effectiveHtfBearish) {
       // Aligned cross & opposite check
       if (bearBlockedByOpposite || !bearTrigger) {
         return defaultSignal;
