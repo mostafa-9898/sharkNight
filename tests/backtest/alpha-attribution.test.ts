@@ -69,4 +69,24 @@ describe('AL2: Alpha Attribution Decomposition (L0 to L5)', () => {
     expect(btc15m!.real.L3.totalReturn).toBe(37.29);
     expect(btc15m!.real.L3.trades).toBe(544);
   });
+
+  it('verifies that L4 produces trades in both directions (long and short) across all 14 markets', () => {
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    interface MarketAttributionItem {
+      market: string;
+      real: Record<string, { longTrades: number; shortTrades: number; trades: number }>;
+      detrended: Record<string, { longTrades: number; shortTrades: number; trades: number }>;
+    }
+    const items = data as MarketAttributionItem[];
+
+    for (const item of items) {
+      expect(item.real.L4.longTrades).toBeGreaterThan(0);
+      expect(item.real.L4.shortTrades).toBeGreaterThan(0);
+      expect(item.real.L4.trades).toBe(item.real.L4.longTrades + item.real.L4.shortTrades);
+
+      expect(item.detrended.L4.longTrades).toBeGreaterThan(0);
+      expect(item.detrended.L4.shortTrades).toBeGreaterThan(0);
+      expect(item.detrended.L4.trades).toBe(item.detrended.L4.longTrades + item.detrended.L4.shortTrades);
+    }
+  });
 });

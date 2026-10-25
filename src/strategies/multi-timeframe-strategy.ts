@@ -1012,11 +1012,7 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
-    if (effectiveHtfBullish) {
-      // Aligned cross & opposite check
-      if (bullBlockedByOpposite || !bullTrigger) {
-        return defaultSignal;
-      }
+    if (effectiveHtfBullish && !bullBlockedByOpposite && bullTrigger) {
 
       if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
         return defaultSignal;
@@ -1087,11 +1083,7 @@ export class MultiTimeframeStrategy implements Strategy {
       };
     }
 
-    if (effectiveHtfBearish) {
-      // Aligned cross & opposite check
-      if (bearBlockedByOpposite || !bearTrigger) {
-        return defaultSignal;
-      }
+    if (effectiveHtfBearish && !bearBlockedByOpposite && bearTrigger) {
 
       if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
         return defaultSignal;
