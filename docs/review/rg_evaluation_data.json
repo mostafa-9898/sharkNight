@@ -1,0 +1,3026 @@
+[
+  {
+    "market": "BTC 15m",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 69.58,
+        "maxDD": 16.33,
+        "returnDdRatio": 4.26,
+        "trades": 354,
+        "longReturn": 69.58,
+        "longTrades": 354,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -6.26
+      },
+      "detrended": {
+        "totalReturn": 3.69,
+        "maxDD": 14.06,
+        "returnDdRatio": 0.26,
+        "trades": 481,
+        "longReturn": 3.69,
+        "longTrades": 481,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.16
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 45.07,
+        "maxDD": 19.27,
+        "returnDdRatio": 2.34,
+        "trades": 609,
+        "longReturn": 57.68,
+        "longTrades": 293,
+        "shortReturn": -12.62,
+        "shortTrades": 316,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 2.67
+      },
+      "detrended": {
+        "totalReturn": -18.82,
+        "maxDD": 25.55,
+        "returnDdRatio": -0.74,
+        "trades": 922,
+        "longReturn": -6.33,
+        "longTrades": 456,
+        "shortReturn": -12.5,
+        "shortTrades": 466,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -5.2
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 16.54,
+          "maxDD": 16.27,
+          "returnDdRatio": 1.02,
+          "trades": 343,
+          "longReturn": 15.74,
+          "longTrades": 152,
+          "shortReturn": 0.79,
+          "shortTrades": 191,
+          "nullPctTotal": 94,
+          "nullPctLong": 98.5,
+          "nullPctShort": 65,
+          "return2022": 13.8
+        },
+        "detrended": {
+          "totalReturn": -2.87,
+          "maxDD": 12.35,
+          "returnDdRatio": -0.23,
+          "trades": 497,
+          "longReturn": 0.12,
+          "longTrades": 200,
+          "shortReturn": -2.99,
+          "shortTrades": 297,
+          "nullPctTotal": 84,
+          "nullPctLong": 64.5,
+          "nullPctShort": 84,
+          "return2022": -1.52
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 17.77,
+          "maxDD": 18.3,
+          "returnDdRatio": 0.97,
+          "trades": 482,
+          "longReturn": 19.38,
+          "longTrades": 172,
+          "shortReturn": -1.62,
+          "shortTrades": 310,
+          "nullPctTotal": 95.5,
+          "nullPctLong": 99.5,
+          "nullPctShort": 56.5,
+          "return2022": 3.63
+        },
+        "detrended": {
+          "totalReturn": 0.78,
+          "maxDD": 10.83,
+          "returnDdRatio": 0.07,
+          "trades": 586,
+          "longReturn": 1.06,
+          "longTrades": 199,
+          "shortReturn": -0.28,
+          "shortTrades": 387,
+          "nullPctTotal": 76.5,
+          "nullPctLong": 79.8,
+          "nullPctShort": 64.3,
+          "return2022": -0.46
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 19.57,
+          "maxDD": 17.13,
+          "returnDdRatio": 1.14,
+          "trades": 175,
+          "longReturn": 19.57,
+          "longTrades": 175,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 100,
+          "nullPctLong": 100,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": 1.11,
+          "maxDD": 11.29,
+          "returnDdRatio": 0.1,
+          "trades": 199,
+          "longReturn": 1.11,
+          "longTrades": 199,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 75.5,
+          "nullPctLong": 75.5,
+          "nullPctShort": 50,
+          "return2022": -0.31
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 33.8,
+          "maxDD": 15.05,
+          "returnDdRatio": 2.25,
+          "trades": 385,
+          "longReturn": 26.32,
+          "longTrades": 188,
+          "shortReturn": 7.48,
+          "shortTrades": 197,
+          "nullPctTotal": 99.5,
+          "nullPctLong": 100,
+          "nullPctShort": 58.8,
+          "return2022": 13.8
+        },
+        "detrended": {
+          "totalReturn": -1.15,
+          "maxDD": 12.35,
+          "returnDdRatio": -0.09,
+          "trades": 496,
+          "longReturn": 1,
+          "longTrades": 199,
+          "shortReturn": -2.15,
+          "shortTrades": 297,
+          "nullPctTotal": 90.5,
+          "nullPctLong": 78,
+          "nullPctShort": 85,
+          "return2022": -1.49
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 9.97,
+          "maxDD": 15.49,
+          "returnDdRatio": 0.64,
+          "trades": 146,
+          "longReturn": 14.4,
+          "longTrades": 46,
+          "shortReturn": -4.43,
+          "shortTrades": 100,
+          "nullPctTotal": 74,
+          "nullPctLong": 90,
+          "nullPctShort": 34.5,
+          "return2022": 19.67
+        },
+        "detrended": {
+          "totalReturn": -11.19,
+          "maxDD": 18.91,
+          "returnDdRatio": -0.59,
+          "trades": 211,
+          "longReturn": 0.59,
+          "longTrades": 67,
+          "shortReturn": -11.78,
+          "shortTrades": 144,
+          "nullPctTotal": 36.8,
+          "nullPctLong": 74.8,
+          "nullPctShort": 15.5,
+          "return2022": -1.4
+        }
+      }
+    }
+  },
+  {
+    "market": "BTC 1h",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 34.26,
+        "maxDD": 13.89,
+        "returnDdRatio": 2.47,
+        "trades": 271,
+        "longReturn": 34.26,
+        "longTrades": 271,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -5.35
+      },
+      "detrended": {
+        "totalReturn": -2.03,
+        "maxDD": 12.8,
+        "returnDdRatio": -0.16,
+        "trades": 313,
+        "longReturn": -2.03,
+        "longTrades": 313,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -4.49
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 33.52,
+        "maxDD": 13.23,
+        "returnDdRatio": 2.53,
+        "trades": 446,
+        "longReturn": 34.08,
+        "longTrades": 235,
+        "shortReturn": -0.56,
+        "shortTrades": 211,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 10.78
+      },
+      "detrended": {
+        "totalReturn": -13.53,
+        "maxDD": 18.84,
+        "returnDdRatio": -0.72,
+        "trades": 621,
+        "longReturn": -3.89,
+        "longTrades": 308,
+        "shortReturn": -9.64,
+        "shortTrades": 313,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -8.06
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 2.64,
+          "maxDD": 14.21,
+          "returnDdRatio": 0.19,
+          "trades": 334,
+          "longReturn": 5.1,
+          "longTrades": 172,
+          "shortReturn": -2.46,
+          "shortTrades": 162,
+          "nullPctTotal": 12,
+          "nullPctLong": 7.5,
+          "nullPctShort": 32.5,
+          "return2022": 10.1
+        },
+        "detrended": {
+          "totalReturn": -8.48,
+          "maxDD": 14.36,
+          "returnDdRatio": -0.59,
+          "trades": 344,
+          "longReturn": -4.08,
+          "longTrades": 160,
+          "shortReturn": -4.4,
+          "shortTrades": 184,
+          "nullPctTotal": 8,
+          "nullPctLong": 10,
+          "nullPctShort": 23.8,
+          "return2022": -3.78
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 0.05,
+          "maxDD": 14.03,
+          "returnDdRatio": 0,
+          "trades": 358,
+          "longReturn": 4.47,
+          "longTrades": 178,
+          "shortReturn": -4.42,
+          "shortTrades": 180,
+          "nullPctTotal": 5.5,
+          "nullPctLong": 23.3,
+          "nullPctShort": 5,
+          "return2022": -0.68
+        },
+        "detrended": {
+          "totalReturn": -5.86,
+          "maxDD": 13.54,
+          "returnDdRatio": -0.43,
+          "trades": 358,
+          "longReturn": -4.18,
+          "longTrades": 160,
+          "shortReturn": -1.68,
+          "shortTrades": 198,
+          "nullPctTotal": 6.8,
+          "nullPctLong": 8.5,
+          "nullPctShort": 19.5,
+          "return2022": -2.66
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 4.62,
+          "maxDD": 12.72,
+          "returnDdRatio": 0.36,
+          "trades": 178,
+          "longReturn": 4.62,
+          "longTrades": 178,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 12,
+          "nullPctLong": 12,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -4.23,
+          "maxDD": 12.56,
+          "returnDdRatio": -0.34,
+          "trades": 160,
+          "longReturn": -4.23,
+          "longTrades": 160,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 4.5,
+          "nullPctLong": 4.5,
+          "nullPctShort": 50,
+          "return2022": -1.52
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 8.68,
+          "maxDD": 12.92,
+          "returnDdRatio": 0.67,
+          "trades": 344,
+          "longReturn": 6.4,
+          "longTrades": 182,
+          "shortReturn": 2.28,
+          "shortTrades": 162,
+          "nullPctTotal": 31.5,
+          "nullPctLong": 21.5,
+          "nullPctShort": 54,
+          "return2022": 10.1
+        },
+        "detrended": {
+          "totalReturn": -8.31,
+          "maxDD": 14.36,
+          "returnDdRatio": -0.58,
+          "trades": 344,
+          "longReturn": -4.08,
+          "longTrades": 160,
+          "shortReturn": -4.24,
+          "shortTrades": 184,
+          "nullPctTotal": 7.5,
+          "nullPctLong": 9.5,
+          "nullPctShort": 22,
+          "return2022": -3.78
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 9.23,
+          "maxDD": 16.23,
+          "returnDdRatio": 0.57,
+          "trades": 121,
+          "longReturn": 13.15,
+          "longTrades": 46,
+          "shortReturn": -3.93,
+          "shortTrades": 75,
+          "nullPctTotal": 72.5,
+          "nullPctLong": 88,
+          "nullPctShort": 37.5,
+          "return2022": 13.35
+        },
+        "detrended": {
+          "totalReturn": -13.83,
+          "maxDD": 21.33,
+          "returnDdRatio": -0.65,
+          "trades": 176,
+          "longReturn": -1.98,
+          "longTrades": 62,
+          "shortReturn": -11.85,
+          "shortTrades": 114,
+          "nullPctTotal": 15.5,
+          "nullPctLong": 37,
+          "nullPctShort": 12.5,
+          "return2022": -6.39
+        }
+      }
+    }
+  },
+  {
+    "market": "BTC 4h",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 22.43,
+        "maxDD": 9.1,
+        "returnDdRatio": 2.46,
+        "trades": 133,
+        "longReturn": 22.43,
+        "longTrades": 133,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.47
+      },
+      "detrended": {
+        "totalReturn": -1.62,
+        "maxDD": 5.71,
+        "returnDdRatio": -0.28,
+        "trades": 125,
+        "longReturn": -1.62,
+        "longTrades": 125,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.5
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 19.32,
+        "maxDD": 8.62,
+        "returnDdRatio": 2.24,
+        "trades": 206,
+        "longReturn": 22.47,
+        "longTrades": 131,
+        "shortReturn": -3.15,
+        "shortTrades": 75,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.56
+      },
+      "detrended": {
+        "totalReturn": -6.09,
+        "maxDD": 8.86,
+        "returnDdRatio": -0.69,
+        "trades": 217,
+        "longReturn": -1.67,
+        "longTrades": 125,
+        "shortReturn": -4.43,
+        "shortTrades": 92,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.51
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -0.43,
+          "maxDD": 9.49,
+          "returnDdRatio": -0.05,
+          "trades": 117,
+          "longReturn": 0.7,
+          "longTrades": 66,
+          "shortReturn": -1.14,
+          "shortTrades": 51,
+          "nullPctTotal": 35.5,
+          "nullPctLong": 38.5,
+          "nullPctShort": 50.5,
+          "return2022": 0.92
+        },
+        "detrended": {
+          "totalReturn": -3.89,
+          "maxDD": 6.94,
+          "returnDdRatio": -0.56,
+          "trades": 119,
+          "longReturn": -2.76,
+          "longTrades": 63,
+          "shortReturn": -1.13,
+          "shortTrades": 56,
+          "nullPctTotal": 18.8,
+          "nullPctLong": 11.3,
+          "nullPctShort": 50.2,
+          "return2022": -0.44
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 0.35,
+          "maxDD": 9.27,
+          "returnDdRatio": 0.04,
+          "trades": 117,
+          "longReturn": 0.71,
+          "longTrades": 66,
+          "shortReturn": -0.36,
+          "shortTrades": 51,
+          "nullPctTotal": 39.5,
+          "nullPctLong": 38.5,
+          "nullPctShort": 59,
+          "return2022": 0.75
+        },
+        "detrended": {
+          "totalReturn": -2.77,
+          "maxDD": 6.56,
+          "returnDdRatio": -0.42,
+          "trades": 119,
+          "longReturn": -2.78,
+          "longTrades": 63,
+          "shortReturn": 0.01,
+          "shortTrades": 56,
+          "nullPctTotal": 24,
+          "nullPctLong": 11,
+          "nullPctShort": 70.5,
+          "return2022": 0.06
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 0.7,
+          "maxDD": 8.88,
+          "returnDdRatio": 0.08,
+          "trades": 66,
+          "longReturn": 0.7,
+          "longTrades": 66,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 37.5,
+          "nullPctLong": 37.5,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -2.78,
+          "maxDD": 6.12,
+          "returnDdRatio": -0.45,
+          "trades": 63,
+          "longReturn": -2.78,
+          "longTrades": 63,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 15.5,
+          "nullPctLong": 15.5,
+          "nullPctShort": 50,
+          "return2022": -0.59
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 0.2,
+          "maxDD": 8.98,
+          "returnDdRatio": 0.02,
+          "trades": 117,
+          "longReturn": 1.17,
+          "longTrades": 66,
+          "shortReturn": -0.98,
+          "shortTrades": 51,
+          "nullPctTotal": 29,
+          "nullPctLong": 40,
+          "nullPctShort": 31,
+          "return2022": 0.92
+        },
+        "detrended": {
+          "totalReturn": -3.79,
+          "maxDD": 6.84,
+          "returnDdRatio": -0.55,
+          "trades": 119,
+          "longReturn": -2.76,
+          "longTrades": 63,
+          "shortReturn": -1.03,
+          "shortTrades": 56,
+          "nullPctTotal": 18.5,
+          "nullPctLong": 11.5,
+          "nullPctShort": 51,
+          "return2022": -0.44
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 3.13,
+          "maxDD": 13.59,
+          "returnDdRatio": 0.23,
+          "trades": 85,
+          "longReturn": 5.09,
+          "longTrades": 38,
+          "shortReturn": -1.96,
+          "shortTrades": 47,
+          "nullPctTotal": 44,
+          "nullPctLong": 37,
+          "nullPctShort": 60.5,
+          "return2022": 4.14
+        },
+        "detrended": {
+          "totalReturn": -6.27,
+          "maxDD": 11.58,
+          "returnDdRatio": -0.54,
+          "trades": 90,
+          "longReturn": -4.63,
+          "longTrades": 42,
+          "shortReturn": -1.64,
+          "shortTrades": 48,
+          "nullPctTotal": 34,
+          "nullPctLong": 14,
+          "nullPctShort": 68,
+          "return2022": -1.48
+        }
+      }
+    }
+  },
+  {
+    "market": "ETH 15m",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 49.7,
+        "maxDD": 17.22,
+        "returnDdRatio": 2.89,
+        "trades": 552,
+        "longReturn": 49.7,
+        "longTrades": 552,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -2.09
+      },
+      "detrended": {
+        "totalReturn": 17.76,
+        "maxDD": 15.27,
+        "returnDdRatio": 1.16,
+        "trades": 565,
+        "longReturn": 17.76,
+        "longTrades": 565,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 1.62
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 9.51,
+        "maxDD": 19.81,
+        "returnDdRatio": 0.48,
+        "trades": 1057,
+        "longReturn": 27.45,
+        "longTrades": 564,
+        "shortReturn": -17.94,
+        "shortTrades": 493,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -4.7
+      },
+      "detrended": {
+        "totalReturn": -11.99,
+        "maxDD": 24.31,
+        "returnDdRatio": -0.49,
+        "trades": 1133,
+        "longReturn": 1.02,
+        "longTrades": 562,
+        "shortReturn": -13.01,
+        "shortTrades": 571,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -2.78
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 0.27,
+          "maxDD": 18.61,
+          "returnDdRatio": 0.01,
+          "trades": 540,
+          "longReturn": 2.5,
+          "longTrades": 282,
+          "shortReturn": -2.22,
+          "shortTrades": 258,
+          "nullPctTotal": 67.5,
+          "nullPctLong": 51,
+          "nullPctShort": 73.5,
+          "return2022": 10.17
+        },
+        "detrended": {
+          "totalReturn": -3.79,
+          "maxDD": 15.44,
+          "returnDdRatio": -0.25,
+          "trades": 618,
+          "longReturn": 2.01,
+          "longTrades": 242,
+          "shortReturn": -5.8,
+          "shortTrades": 376,
+          "nullPctTotal": 29,
+          "nullPctLong": 9.5,
+          "nullPctShort": 69.8,
+          "return2022": -6.28
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": -0.22,
+          "maxDD": 16.39,
+          "returnDdRatio": -0.01,
+          "trades": 673,
+          "longReturn": 0.57,
+          "longTrades": 317,
+          "shortReturn": -0.79,
+          "shortTrades": 356,
+          "nullPctTotal": 32,
+          "nullPctLong": 31.5,
+          "nullPctShort": 38.3,
+          "return2022": -0.35
+        },
+        "detrended": {
+          "totalReturn": 6.59,
+          "maxDD": 13.14,
+          "returnDdRatio": 0.5,
+          "trades": 657,
+          "longReturn": 2.5,
+          "longTrades": 242,
+          "shortReturn": 4.08,
+          "shortTrades": 415,
+          "nullPctTotal": 39.3,
+          "nullPctLong": 10.5,
+          "nullPctShort": 81.5,
+          "return2022": -3.4
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 0.72,
+          "maxDD": 15.8,
+          "returnDdRatio": 0.05,
+          "trades": 317,
+          "longReturn": 0.72,
+          "longTrades": 317,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 35.5,
+          "nullPctLong": 35.5,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": 2.35,
+          "maxDD": 14.48,
+          "returnDdRatio": 0.16,
+          "trades": 242,
+          "longReturn": 2.35,
+          "longTrades": 242,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 11.5,
+          "nullPctLong": 11.5,
+          "nullPctShort": 50,
+          "return2022": -2.3
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 2.37,
+          "maxDD": 18.56,
+          "returnDdRatio": 0.13,
+          "trades": 580,
+          "longReturn": 0.74,
+          "longTrades": 317,
+          "shortReturn": 1.63,
+          "shortTrades": 263,
+          "nullPctTotal": 65.5,
+          "nullPctLong": 30,
+          "nullPctShort": 83.3,
+          "return2022": 10.17
+        },
+        "detrended": {
+          "totalReturn": -5.12,
+          "maxDD": 15.44,
+          "returnDdRatio": -0.33,
+          "trades": 621,
+          "longReturn": 0.61,
+          "longTrades": 245,
+          "shortReturn": -5.74,
+          "shortTrades": 376,
+          "nullPctTotal": 25,
+          "nullPctLong": 7.5,
+          "nullPctShort": 67,
+          "return2022": -6.28
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 3.01,
+          "maxDD": 21.75,
+          "returnDdRatio": 0.14,
+          "trades": 230,
+          "longReturn": 8.75,
+          "longTrades": 90,
+          "shortReturn": -5.73,
+          "shortTrades": 140,
+          "nullPctTotal": 91,
+          "nullPctLong": 89,
+          "nullPctShort": 72,
+          "return2022": 13.51
+        },
+        "detrended": {
+          "totalReturn": -9.66,
+          "maxDD": 29.14,
+          "returnDdRatio": -0.33,
+          "trades": 276,
+          "longReturn": -2.55,
+          "longTrades": 103,
+          "shortReturn": -7.11,
+          "shortTrades": 173,
+          "nullPctTotal": 55.8,
+          "nullPctLong": 25,
+          "nullPctShort": 81,
+          "return2022": -0.67
+        }
+      }
+    }
+  },
+  {
+    "market": "ETH 1h",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 11.05,
+        "maxDD": 14.72,
+        "returnDdRatio": 0.75,
+        "trades": 394,
+        "longReturn": 11.05,
+        "longTrades": 394,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -6.08
+      },
+      "detrended": {
+        "totalReturn": 5,
+        "maxDD": 12.77,
+        "returnDdRatio": 0.39,
+        "trades": 376,
+        "longReturn": 5,
+        "longTrades": 376,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.69
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 1.73,
+        "maxDD": 15.32,
+        "returnDdRatio": 0.11,
+        "trades": 665,
+        "longReturn": 9.45,
+        "longTrades": 379,
+        "shortReturn": -7.72,
+        "shortTrades": 286,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 1.22
+      },
+      "detrended": {
+        "totalReturn": -3.81,
+        "maxDD": 15.84,
+        "returnDdRatio": -0.24,
+        "trades": 671,
+        "longReturn": 4.62,
+        "longTrades": 366,
+        "shortReturn": -8.43,
+        "shortTrades": 305,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -5.63
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 1.9,
+          "maxDD": 13.86,
+          "returnDdRatio": 0.14,
+          "trades": 358,
+          "longReturn": 3.95,
+          "longTrades": 186,
+          "shortReturn": -2.05,
+          "shortTrades": 172,
+          "nullPctTotal": 74.5,
+          "nullPctLong": 72.5,
+          "nullPctShort": 65.5,
+          "return2022": 6.98
+        },
+        "detrended": {
+          "totalReturn": 1.2,
+          "maxDD": 12.14,
+          "returnDdRatio": 0.1,
+          "trades": 346,
+          "longReturn": 5.47,
+          "longTrades": 145,
+          "shortReturn": -4.28,
+          "shortTrades": 201,
+          "nullPctTotal": 30.5,
+          "nullPctLong": 35.5,
+          "nullPctShort": 35.5,
+          "return2022": -3.47
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 0.33,
+          "maxDD": 11.95,
+          "returnDdRatio": 0.03,
+          "trades": 373,
+          "longReturn": 3.7,
+          "longTrades": 188,
+          "shortReturn": -3.37,
+          "shortTrades": 185,
+          "nullPctTotal": 30.5,
+          "nullPctLong": 71.5,
+          "nullPctShort": 1.8,
+          "return2022": -0.66
+        },
+        "detrended": {
+          "totalReturn": 5.43,
+          "maxDD": 11.46,
+          "returnDdRatio": 0.47,
+          "trades": 351,
+          "longReturn": 5.75,
+          "longTrades": 145,
+          "shortReturn": -0.32,
+          "shortTrades": 206,
+          "nullPctTotal": 16.5,
+          "nullPctLong": 34.3,
+          "nullPctShort": 8.5,
+          "return2022": -2.57
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 3.93,
+          "maxDD": 10.31,
+          "returnDdRatio": 0.38,
+          "trades": 188,
+          "longReturn": 3.93,
+          "longTrades": 188,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 66.5,
+          "nullPctLong": 66.5,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": 5.68,
+          "maxDD": 11.07,
+          "returnDdRatio": 0.51,
+          "trades": 145,
+          "longReturn": 5.68,
+          "longTrades": 145,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 40.5,
+          "nullPctLong": 40.5,
+          "nullPctShort": 50,
+          "return2022": -2.61
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 4.75,
+          "maxDD": 13.14,
+          "returnDdRatio": 0.36,
+          "trades": 360,
+          "longReturn": 4.03,
+          "longTrades": 188,
+          "shortReturn": 0.73,
+          "shortTrades": 172,
+          "nullPctTotal": 83.5,
+          "nullPctLong": 75.5,
+          "nullPctShort": 72.8,
+          "return2022": 6.98
+        },
+        "detrended": {
+          "totalReturn": 1.24,
+          "maxDD": 12.14,
+          "returnDdRatio": 0.1,
+          "trades": 346,
+          "longReturn": 5.47,
+          "longTrades": 145,
+          "shortReturn": -4.23,
+          "shortTrades": 201,
+          "nullPctTotal": 37.5,
+          "nullPctLong": 45,
+          "nullPctShort": 33.5,
+          "return2022": -3.47
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -0.72,
+          "maxDD": 24.13,
+          "returnDdRatio": -0.03,
+          "trades": 192,
+          "longReturn": 5.32,
+          "longTrades": 79,
+          "shortReturn": -6.03,
+          "shortTrades": 113,
+          "nullPctTotal": 77.5,
+          "nullPctLong": 79,
+          "nullPctShort": 59,
+          "return2022": 11.64
+        },
+        "detrended": {
+          "totalReturn": -17.36,
+          "maxDD": 28.21,
+          "returnDdRatio": -0.62,
+          "trades": 220,
+          "longReturn": -2.58,
+          "longTrades": 76,
+          "shortReturn": -14.78,
+          "shortTrades": 144,
+          "nullPctTotal": 8.5,
+          "nullPctLong": 10.3,
+          "nullPctShort": 24.5,
+          "return2022": -8.35
+        }
+      }
+    }
+  },
+  {
+    "market": "ETH 4h",
+    "isOos": false,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 7.43,
+        "maxDD": 11.97,
+        "returnDdRatio": 0.62,
+        "trades": 137,
+        "longReturn": 7.43,
+        "longTrades": 137,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.37
+      },
+      "detrended": {
+        "totalReturn": 3.19,
+        "maxDD": 9.9,
+        "returnDdRatio": 0.32,
+        "trades": 131,
+        "longReturn": 3.19,
+        "longTrades": 131,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.27
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 3.58,
+        "maxDD": 13.61,
+        "returnDdRatio": 0.26,
+        "trades": 222,
+        "longReturn": 7.32,
+        "longTrades": 137,
+        "shortReturn": -3.73,
+        "shortTrades": 85,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.19
+      },
+      "detrended": {
+        "totalReturn": 0.44,
+        "maxDD": 11.71,
+        "returnDdRatio": 0.04,
+        "trades": 221,
+        "longReturn": 3.03,
+        "longTrades": 129,
+        "shortReturn": -2.6,
+        "shortTrades": 92,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.92
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -0.1,
+          "maxDD": 9.05,
+          "returnDdRatio": -0.01,
+          "trades": 118,
+          "longReturn": 1.63,
+          "longTrades": 70,
+          "shortReturn": -1.72,
+          "shortTrades": 48,
+          "nullPctTotal": 61.5,
+          "nullPctLong": 70.5,
+          "nullPctShort": 35,
+          "return2022": -0.88
+        },
+        "detrended": {
+          "totalReturn": 0.7,
+          "maxDD": 8.83,
+          "returnDdRatio": 0.08,
+          "trades": 139,
+          "longReturn": 2,
+          "longTrades": 72,
+          "shortReturn": -1.3,
+          "shortTrades": 67,
+          "nullPctTotal": 45.3,
+          "nullPctLong": 49.5,
+          "nullPctShort": 46.3,
+          "return2022": -1.72
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 1.23,
+          "maxDD": 8.29,
+          "returnDdRatio": 0.15,
+          "trades": 118,
+          "longReturn": 1.64,
+          "longTrades": 70,
+          "shortReturn": -0.41,
+          "shortTrades": 48,
+          "nullPctTotal": 64,
+          "nullPctLong": 70.5,
+          "nullPctShort": 35.5,
+          "return2022": -0.37
+        },
+        "detrended": {
+          "totalReturn": 2.13,
+          "maxDD": 8.04,
+          "returnDdRatio": 0.26,
+          "trades": 143,
+          "longReturn": 2.02,
+          "longTrades": 72,
+          "shortReturn": 0.11,
+          "shortTrades": 71,
+          "nullPctTotal": 39.5,
+          "nullPctLong": 47.5,
+          "nullPctShort": 27.8,
+          "return2022": -1.58
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 1.66,
+          "maxDD": 8.44,
+          "returnDdRatio": 0.2,
+          "trades": 70,
+          "longReturn": 1.66,
+          "longTrades": 70,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 63.5,
+          "nullPctLong": 63.5,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": 2,
+          "maxDD": 7.98,
+          "returnDdRatio": 0.25,
+          "trades": 72,
+          "longReturn": 2,
+          "longTrades": 72,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 45.8,
+          "nullPctLong": 45.8,
+          "nullPctShort": 50,
+          "return2022": -1.01
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -0.1,
+          "maxDD": 9.05,
+          "returnDdRatio": -0.01,
+          "trades": 118,
+          "longReturn": 1.63,
+          "longTrades": 70,
+          "shortReturn": -1.72,
+          "shortTrades": 48,
+          "nullPctTotal": 58,
+          "nullPctLong": 70.5,
+          "nullPctShort": 30.5,
+          "return2022": -0.88
+        },
+        "detrended": {
+          "totalReturn": 0.7,
+          "maxDD": 8.83,
+          "returnDdRatio": 0.08,
+          "trades": 139,
+          "longReturn": 2,
+          "longTrades": 72,
+          "shortReturn": -1.3,
+          "shortTrades": 67,
+          "nullPctTotal": 47.5,
+          "nullPctLong": 54,
+          "nullPctShort": 44.3,
+          "return2022": -1.72
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -6.49,
+          "maxDD": 13.88,
+          "returnDdRatio": -0.47,
+          "trades": 96,
+          "longReturn": -1.2,
+          "longTrades": 51,
+          "shortReturn": -5.29,
+          "shortTrades": 45,
+          "nullPctTotal": 33.5,
+          "nullPctLong": 37.8,
+          "nullPctShort": 35,
+          "return2022": -2.94
+        },
+        "detrended": {
+          "totalReturn": -5.64,
+          "maxDD": 14.4,
+          "returnDdRatio": -0.39,
+          "trades": 105,
+          "longReturn": 3.03,
+          "longTrades": 45,
+          "shortReturn": -8.67,
+          "shortTrades": 60,
+          "nullPctTotal": 16.5,
+          "nullPctLong": 41.5,
+          "nullPctShort": 8.8,
+          "return2022": -4.78
+        }
+      }
+    }
+  },
+  {
+    "market": "SOL 1h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 51.64,
+        "maxDD": 31.17,
+        "returnDdRatio": 1.66,
+        "trades": 296,
+        "longReturn": 51.64,
+        "longTrades": 296,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.16
+      },
+      "detrended": {
+        "totalReturn": 7.33,
+        "maxDD": 18.31,
+        "returnDdRatio": 0.4,
+        "trades": 334,
+        "longReturn": 7.33,
+        "longTrades": 334,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.19
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 43.08,
+        "maxDD": 31.69,
+        "returnDdRatio": 1.36,
+        "trades": 612,
+        "longReturn": 50.89,
+        "longTrades": 288,
+        "shortReturn": -7.82,
+        "shortTrades": 324,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -2.29
+      },
+      "detrended": {
+        "totalReturn": -2.03,
+        "maxDD": 18.57,
+        "returnDdRatio": -0.11,
+        "trades": 667,
+        "longReturn": 3.33,
+        "longTrades": 334,
+        "shortReturn": -5.36,
+        "shortTrades": 333,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -7.31
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 40.25,
+          "maxDD": 30.31,
+          "returnDdRatio": 1.33,
+          "trades": 338,
+          "longReturn": 47.18,
+          "longTrades": 129,
+          "shortReturn": -6.94,
+          "shortTrades": 209,
+          "nullPctTotal": 54.5,
+          "nullPctLong": 56.5,
+          "nullPctShort": 39.5,
+          "return2022": -0.25
+        },
+        "detrended": {
+          "totalReturn": -5.73,
+          "maxDD": 11.73,
+          "returnDdRatio": -0.49,
+          "trades": 391,
+          "longReturn": -4.1,
+          "longTrades": 187,
+          "shortReturn": -1.63,
+          "shortTrades": 204,
+          "nullPctTotal": 48,
+          "nullPctLong": 65.5,
+          "nullPctShort": 33,
+          "return2022": -2.47
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 44.51,
+          "maxDD": 30.13,
+          "returnDdRatio": 1.48,
+          "trades": 346,
+          "longReturn": 48.31,
+          "longTrades": 131,
+          "shortReturn": -3.81,
+          "shortTrades": 215,
+          "nullPctTotal": 71.5,
+          "nullPctLong": 80,
+          "nullPctShort": 5.5,
+          "return2022": 0.15
+        },
+        "detrended": {
+          "totalReturn": -5.75,
+          "maxDD": 9.89,
+          "returnDdRatio": -0.58,
+          "trades": 410,
+          "longReturn": -4.11,
+          "longTrades": 187,
+          "shortReturn": -1.64,
+          "shortTrades": 223,
+          "nullPctTotal": 48.5,
+          "nullPctLong": 64.5,
+          "nullPctShort": 30.3,
+          "return2022": -0.77
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 47.87,
+          "maxDD": 27.92,
+          "returnDdRatio": 1.71,
+          "trades": 131,
+          "longReturn": 47.87,
+          "longTrades": 131,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 64.5,
+          "nullPctLong": 64.5,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -4.09,
+          "maxDD": 7.27,
+          "returnDdRatio": -0.56,
+          "trades": 187,
+          "longReturn": -4.09,
+          "longTrades": 187,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 71.5,
+          "nullPctLong": 71.5,
+          "nullPctShort": 50,
+          "return2022": -1.12
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 42.24,
+          "maxDD": 30.18,
+          "returnDdRatio": 1.4,
+          "trades": 341,
+          "longReturn": 47.26,
+          "longTrades": 131,
+          "shortReturn": -5.02,
+          "shortTrades": 210,
+          "nullPctTotal": 52,
+          "nullPctLong": 55,
+          "nullPctShort": 33,
+          "return2022": -0.25
+        },
+        "detrended": {
+          "totalReturn": -5.73,
+          "maxDD": 11.73,
+          "returnDdRatio": -0.49,
+          "trades": 391,
+          "longReturn": -4.1,
+          "longTrades": 187,
+          "shortReturn": -1.63,
+          "shortTrades": 204,
+          "nullPctTotal": 41,
+          "nullPctLong": 65.5,
+          "nullPctShort": 28,
+          "return2022": -2.47
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 51.13,
+          "maxDD": 37.52,
+          "returnDdRatio": 1.36,
+          "trades": 208,
+          "longReturn": 71.63,
+          "longTrades": 61,
+          "shortReturn": -20.5,
+          "shortTrades": 147,
+          "nullPctTotal": 55.5,
+          "nullPctLong": 77,
+          "nullPctShort": 21.5,
+          "return2022": 1.93
+        },
+        "detrended": {
+          "totalReturn": -9.63,
+          "maxDD": 16.75,
+          "returnDdRatio": -0.57,
+          "trades": 241,
+          "longReturn": -6.39,
+          "longTrades": 103,
+          "shortReturn": -3.24,
+          "shortTrades": 138,
+          "nullPctTotal": 44.5,
+          "nullPctLong": 52,
+          "nullPctShort": 42.5,
+          "return2022": -7.11
+        }
+      }
+    }
+  },
+  {
+    "market": "SOL 4h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": -3.63,
+        "maxDD": 7.85,
+        "returnDdRatio": -0.46,
+        "trades": 112,
+        "longReturn": -3.63,
+        "longTrades": 112,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.87
+      },
+      "detrended": {
+        "totalReturn": -2.36,
+        "maxDD": 7.86,
+        "returnDdRatio": -0.3,
+        "trades": 107,
+        "longReturn": -2.36,
+        "longTrades": 107,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 0.88
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": -5.07,
+        "maxDD": 9.59,
+        "returnDdRatio": -0.53,
+        "trades": 195,
+        "longReturn": -3.57,
+        "longTrades": 112,
+        "shortReturn": -1.5,
+        "shortTrades": 83,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.21
+      },
+      "detrended": {
+        "totalReturn": -3.49,
+        "maxDD": 8.03,
+        "returnDdRatio": -0.43,
+        "trades": 210,
+        "longReturn": -2.33,
+        "longTrades": 107,
+        "shortReturn": -1.16,
+        "shortTrades": 103,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.78
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -2.65,
+          "maxDD": 5.09,
+          "returnDdRatio": -0.52,
+          "trades": 105,
+          "longReturn": -2.02,
+          "longTrades": 50,
+          "shortReturn": -0.62,
+          "shortTrades": 55,
+          "nullPctTotal": 16.5,
+          "nullPctLong": 8.5,
+          "nullPctShort": 72.5,
+          "return2022": 0.24
+        },
+        "detrended": {
+          "totalReturn": -1.84,
+          "maxDD": 5.14,
+          "returnDdRatio": -0.36,
+          "trades": 127,
+          "longReturn": -1.87,
+          "longTrades": 56,
+          "shortReturn": 0.03,
+          "shortTrades": 71,
+          "nullPctTotal": 49,
+          "nullPctLong": 35.3,
+          "nullPctShort": 66.5,
+          "return2022": -1.46
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": -2.29,
+          "maxDD": 3.97,
+          "returnDdRatio": -0.58,
+          "trades": 105,
+          "longReturn": -2.03,
+          "longTrades": 50,
+          "shortReturn": -0.26,
+          "shortTrades": 55,
+          "nullPctTotal": 14,
+          "nullPctLong": 8.5,
+          "nullPctShort": 63,
+          "return2022": 0.39
+        },
+        "detrended": {
+          "totalReturn": -1.75,
+          "maxDD": 3.37,
+          "returnDdRatio": -0.52,
+          "trades": 127,
+          "longReturn": -1.89,
+          "longTrades": 56,
+          "shortReturn": 0.13,
+          "shortTrades": 71,
+          "nullPctTotal": 50.5,
+          "nullPctLong": 34.5,
+          "nullPctShort": 70,
+          "return2022": -1.34
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": -2.03,
+          "maxDD": 2.7,
+          "returnDdRatio": -0.75,
+          "trades": 50,
+          "longReturn": -2.03,
+          "longTrades": 50,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 9,
+          "nullPctLong": 9,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -1.88,
+          "maxDD": 2.79,
+          "returnDdRatio": -0.67,
+          "trades": 56,
+          "longReturn": -1.88,
+          "longTrades": 56,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 36,
+          "nullPctLong": 36,
+          "nullPctShort": 50,
+          "return2022": -0.74
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -2.22,
+          "maxDD": 5.09,
+          "returnDdRatio": -0.44,
+          "trades": 105,
+          "longReturn": -2.03,
+          "longTrades": 50,
+          "shortReturn": -0.19,
+          "shortTrades": 55,
+          "nullPctTotal": 17,
+          "nullPctLong": 8.5,
+          "nullPctShort": 67,
+          "return2022": 0.24
+        },
+        "detrended": {
+          "totalReturn": -1.43,
+          "maxDD": 5.14,
+          "returnDdRatio": -0.28,
+          "trades": 127,
+          "longReturn": -1.87,
+          "longTrades": 56,
+          "shortReturn": 0.44,
+          "shortTrades": 71,
+          "nullPctTotal": 53.5,
+          "nullPctLong": 35.3,
+          "nullPctShort": 71,
+          "return2022": -1.46
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -8.72,
+          "maxDD": 12.98,
+          "returnDdRatio": -0.67,
+          "trades": 96,
+          "longReturn": -5.92,
+          "longTrades": 44,
+          "shortReturn": -2.8,
+          "shortTrades": 52,
+          "nullPctTotal": 15.5,
+          "nullPctLong": 6.5,
+          "nullPctShort": 79.5,
+          "return2022": 0.13
+        },
+        "detrended": {
+          "totalReturn": -4.77,
+          "maxDD": 15.2,
+          "returnDdRatio": -0.31,
+          "trades": 115,
+          "longReturn": -5.23,
+          "longTrades": 52,
+          "shortReturn": 0.46,
+          "shortTrades": 63,
+          "nullPctTotal": 46.8,
+          "nullPctLong": 31,
+          "nullPctShort": 67.5,
+          "return2022": -4.81
+        }
+      }
+    }
+  },
+  {
+    "market": "BNB 1h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 21.93,
+        "maxDD": 13.22,
+        "returnDdRatio": 1.66,
+        "trades": 401,
+        "longReturn": 21.93,
+        "longTrades": 401,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -2.35
+      },
+      "detrended": {
+        "totalReturn": 23.49,
+        "maxDD": 17.44,
+        "returnDdRatio": 1.35,
+        "trades": 342,
+        "longReturn": 23.49,
+        "longTrades": 342,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.19
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 6.55,
+        "maxDD": 18.83,
+        "returnDdRatio": 0.35,
+        "trades": 649,
+        "longReturn": 16.16,
+        "longTrades": 387,
+        "shortReturn": -9.61,
+        "shortTrades": 262,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -4.3
+      },
+      "detrended": {
+        "totalReturn": 20.31,
+        "maxDD": 17.73,
+        "returnDdRatio": 1.15,
+        "trades": 599,
+        "longReturn": 22.52,
+        "longTrades": 309,
+        "shortReturn": -2.21,
+        "shortTrades": 290,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.91
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -3,
+          "maxDD": 12.23,
+          "returnDdRatio": -0.25,
+          "trades": 380,
+          "longReturn": 3.65,
+          "longTrades": 224,
+          "shortReturn": -6.65,
+          "shortTrades": 156,
+          "nullPctTotal": 22,
+          "nullPctLong": 10,
+          "nullPctShort": 78.5,
+          "return2022": -3.1
+        },
+        "detrended": {
+          "totalReturn": 10.54,
+          "maxDD": 8.01,
+          "returnDdRatio": 1.32,
+          "trades": 330,
+          "longReturn": 8.46,
+          "longTrades": 133,
+          "shortReturn": 2.09,
+          "shortTrades": 197,
+          "nullPctTotal": 98,
+          "nullPctLong": 95.5,
+          "nullPctShort": 84,
+          "return2022": 1.94
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 1.13,
+          "maxDD": 11.42,
+          "returnDdRatio": 0.1,
+          "trades": 383,
+          "longReturn": 3.88,
+          "longTrades": 224,
+          "shortReturn": -2.75,
+          "shortTrades": 159,
+          "nullPctTotal": 25.5,
+          "nullPctLong": 17,
+          "nullPctShort": 76.5,
+          "return2022": -1.74
+        },
+        "detrended": {
+          "totalReturn": 8.9,
+          "maxDD": 6.73,
+          "returnDdRatio": 1.32,
+          "trades": 361,
+          "longReturn": 8.66,
+          "longTrades": 135,
+          "shortReturn": 0.24,
+          "shortTrades": 226,
+          "nullPctTotal": 95,
+          "nullPctLong": 95.5,
+          "nullPctShort": 60.8,
+          "return2022": 2.61
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 3.96,
+          "maxDD": 10.78,
+          "returnDdRatio": 0.37,
+          "trades": 224,
+          "longReturn": 3.96,
+          "longTrades": 224,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 16,
+          "nullPctLong": 16,
+          "nullPctShort": 50,
+          "return2022": -0.71
+        },
+        "detrended": {
+          "totalReturn": 8.56,
+          "maxDD": 5.75,
+          "returnDdRatio": 1.49,
+          "trades": 135,
+          "longReturn": 8.56,
+          "longTrades": 135,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 87.8,
+          "nullPctLong": 87.8,
+          "nullPctShort": 50,
+          "return2022": 1.53
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -1.22,
+          "maxDD": 12.13,
+          "returnDdRatio": -0.1,
+          "trades": 380,
+          "longReturn": 3.72,
+          "longTrades": 224,
+          "shortReturn": -4.94,
+          "shortTrades": 156,
+          "nullPctTotal": 24.5,
+          "nullPctLong": 9.3,
+          "nullPctShort": 75.5,
+          "return2022": -3.06
+        },
+        "detrended": {
+          "totalReturn": 10.08,
+          "maxDD": 7.96,
+          "returnDdRatio": 1.27,
+          "trades": 340,
+          "longReturn": 8.81,
+          "longTrades": 135,
+          "shortReturn": 1.27,
+          "shortTrades": 205,
+          "nullPctTotal": 97.5,
+          "nullPctLong": 96,
+          "nullPctShort": 81,
+          "return2022": 1.94
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -4.97,
+          "maxDD": 22.52,
+          "returnDdRatio": -0.22,
+          "trades": 192,
+          "longReturn": 9.78,
+          "longTrades": 91,
+          "shortReturn": -14.76,
+          "shortTrades": 101,
+          "nullPctTotal": 46.8,
+          "nullPctLong": 71.5,
+          "nullPctShort": 21.5,
+          "return2022": -6.73
+        },
+        "detrended": {
+          "totalReturn": 7.52,
+          "maxDD": 12.77,
+          "returnDdRatio": 0.59,
+          "trades": 176,
+          "longReturn": 7.29,
+          "longTrades": 53,
+          "shortReturn": 0.24,
+          "shortTrades": 123,
+          "nullPctTotal": 65,
+          "nullPctLong": 49,
+          "nullPctShort": 63.7,
+          "return2022": -0.33
+        }
+      }
+    }
+  },
+  {
+    "market": "BNB 4h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 8.92,
+        "maxDD": 11.68,
+        "returnDdRatio": 0.76,
+        "trades": 134,
+        "longReturn": 8.92,
+        "longTrades": 134,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.45
+      },
+      "detrended": {
+        "totalReturn": 5.92,
+        "maxDD": 10.86,
+        "returnDdRatio": 0.55,
+        "trades": 108,
+        "longReturn": 5.92,
+        "longTrades": 108,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.25
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 5.19,
+        "maxDD": 13.58,
+        "returnDdRatio": 0.38,
+        "trades": 219,
+        "longReturn": 8.82,
+        "longTrades": 134,
+        "shortReturn": -3.64,
+        "shortTrades": 85,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.77
+      },
+      "detrended": {
+        "totalReturn": 3.31,
+        "maxDD": 10.97,
+        "returnDdRatio": 0.3,
+        "trades": 219,
+        "longReturn": 5.82,
+        "longTrades": 108,
+        "shortReturn": -2.51,
+        "shortTrades": 111,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.15
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -0.34,
+          "maxDD": 4.68,
+          "returnDdRatio": -0.07,
+          "trades": 112,
+          "longReturn": 1.7,
+          "longTrades": 68,
+          "shortReturn": -2.04,
+          "shortTrades": 44,
+          "nullPctTotal": 43,
+          "nullPctLong": 39,
+          "nullPctShort": 59.5,
+          "return2022": -0.5
+        },
+        "detrended": {
+          "totalReturn": -3.51,
+          "maxDD": 4.33,
+          "returnDdRatio": -0.81,
+          "trades": 116,
+          "longReturn": -0.41,
+          "longTrades": 39,
+          "shortReturn": -3.1,
+          "shortTrades": 77,
+          "nullPctTotal": 2,
+          "nullPctLong": 19.3,
+          "nullPctShort": 2,
+          "return2022": -0.01
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 0.8,
+          "maxDD": 4.39,
+          "returnDdRatio": 0.18,
+          "trades": 112,
+          "longReturn": 1.72,
+          "longTrades": 68,
+          "shortReturn": -0.92,
+          "shortTrades": 44,
+          "nullPctTotal": 42,
+          "nullPctLong": 38.8,
+          "nullPctShort": 65.8,
+          "return2022": -0.18
+        },
+        "detrended": {
+          "totalReturn": -2.4,
+          "maxDD": 3.67,
+          "returnDdRatio": -0.65,
+          "trades": 116,
+          "longReturn": -0.41,
+          "longTrades": 39,
+          "shortReturn": -1.99,
+          "shortTrades": 77,
+          "nullPctTotal": 3,
+          "nullPctLong": 19.5,
+          "nullPctShort": 3,
+          "return2022": 0.04
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 1.75,
+          "maxDD": 4.54,
+          "returnDdRatio": 0.39,
+          "trades": 68,
+          "longReturn": 1.75,
+          "longTrades": 68,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 40,
+          "nullPctLong": 40,
+          "nullPctShort": 50,
+          "return2022": -0.01
+        },
+        "detrended": {
+          "totalReturn": -0.41,
+          "maxDD": 2.86,
+          "returnDdRatio": -0.14,
+          "trades": 39,
+          "longReturn": -0.41,
+          "longTrades": 39,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 17.3,
+          "nullPctLong": 17.3,
+          "nullPctShort": 50,
+          "return2022": 0.53
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 0.07,
+          "maxDD": 4.39,
+          "returnDdRatio": 0.02,
+          "trades": 112,
+          "longReturn": 1.7,
+          "longTrades": 68,
+          "shortReturn": -1.63,
+          "shortTrades": 44,
+          "nullPctTotal": 43,
+          "nullPctLong": 38.3,
+          "nullPctShort": 63.2,
+          "return2022": -0.5
+        },
+        "detrended": {
+          "totalReturn": -4.03,
+          "maxDD": 4.84,
+          "returnDdRatio": -0.83,
+          "trades": 116,
+          "longReturn": -0.41,
+          "longTrades": 39,
+          "shortReturn": -3.61,
+          "shortTrades": 77,
+          "nullPctTotal": 1,
+          "nullPctLong": 19,
+          "nullPctShort": 1.8,
+          "return2022": -0.01
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -1.16,
+          "maxDD": 11.4,
+          "returnDdRatio": -0.1,
+          "trades": 93,
+          "longReturn": 3.93,
+          "longTrades": 52,
+          "shortReturn": -5.09,
+          "shortTrades": 41,
+          "nullPctTotal": 45.5,
+          "nullPctLong": 35.3,
+          "nullPctShort": 63,
+          "return2022": -1.68
+        },
+        "detrended": {
+          "totalReturn": -6.14,
+          "maxDD": 9.15,
+          "returnDdRatio": -0.67,
+          "trades": 96,
+          "longReturn": -0.9,
+          "longTrades": 34,
+          "shortReturn": -5.24,
+          "shortTrades": 62,
+          "nullPctTotal": 7,
+          "nullPctLong": 16.5,
+          "nullPctShort": 14.5,
+          "return2022": 0.12
+        }
+      }
+    }
+  },
+  {
+    "market": "XRP 1h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 13.44,
+        "maxDD": 14.07,
+        "returnDdRatio": 0.96,
+        "trades": 345,
+        "longReturn": 13.44,
+        "longTrades": 345,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -4.1
+      },
+      "detrended": {
+        "totalReturn": -2,
+        "maxDD": 11.95,
+        "returnDdRatio": -0.17,
+        "trades": 275,
+        "longReturn": -2,
+        "longTrades": 275,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -2.72
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 3.07,
+        "maxDD": 16.72,
+        "returnDdRatio": 0.18,
+        "trades": 685,
+        "longReturn": 12.68,
+        "longTrades": 343,
+        "shortReturn": -9.61,
+        "shortTrades": 342,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.8
+      },
+      "detrended": {
+        "totalReturn": -9.34,
+        "maxDD": 18.82,
+        "returnDdRatio": -0.5,
+        "trades": 598,
+        "longReturn": -2.42,
+        "longTrades": 274,
+        "shortReturn": -6.92,
+        "shortTrades": 324,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -5.03
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -2.61,
+          "maxDD": 15.45,
+          "returnDdRatio": -0.17,
+          "trades": 382,
+          "longReturn": 3.53,
+          "longTrades": 180,
+          "shortReturn": -6.14,
+          "shortTrades": 202,
+          "nullPctTotal": 36,
+          "nullPctLong": 38.5,
+          "nullPctShort": 36,
+          "return2022": -1.43
+        },
+        "detrended": {
+          "totalReturn": -1.79,
+          "maxDD": 11.79,
+          "returnDdRatio": -0.15,
+          "trades": 310,
+          "longReturn": 2.67,
+          "longTrades": 105,
+          "shortReturn": -4.46,
+          "shortTrades": 205,
+          "nullPctTotal": 86,
+          "nullPctLong": 100,
+          "nullPctShort": 10.5,
+          "return2022": -2.63
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 0.26,
+          "maxDD": 11.92,
+          "returnDdRatio": 0.02,
+          "trades": 385,
+          "longReturn": 3.61,
+          "longTrades": 180,
+          "shortReturn": -3.35,
+          "shortTrades": 205,
+          "nullPctTotal": 34.5,
+          "nullPctLong": 38.5,
+          "nullPctShort": 34.3,
+          "return2022": -0.93
+        },
+        "detrended": {
+          "totalReturn": 1.11,
+          "maxDD": 8.11,
+          "returnDdRatio": 0.14,
+          "trades": 314,
+          "longReturn": 2.85,
+          "longTrades": 105,
+          "shortReturn": -1.73,
+          "shortTrades": 209,
+          "nullPctTotal": 94.5,
+          "nullPctLong": 100,
+          "nullPctShort": 11,
+          "return2022": -0.94
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 3.79,
+          "maxDD": 11.36,
+          "returnDdRatio": 0.33,
+          "trades": 180,
+          "longReturn": 3.79,
+          "longTrades": 180,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 47.5,
+          "nullPctLong": 47.5,
+          "nullPctShort": 50,
+          "return2022": -1.16
+        },
+        "detrended": {
+          "totalReturn": 2.78,
+          "maxDD": 7.31,
+          "returnDdRatio": 0.38,
+          "trades": 105,
+          "longReturn": 2.78,
+          "longTrades": 105,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 99,
+          "nullPctLong": 99,
+          "nullPctShort": 50,
+          "return2022": -1.02
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -2.11,
+          "maxDD": 15.02,
+          "returnDdRatio": -0.14,
+          "trades": 382,
+          "longReturn": 3.55,
+          "longTrades": 180,
+          "shortReturn": -5.67,
+          "shortTrades": 202,
+          "nullPctTotal": 33,
+          "nullPctLong": 38.5,
+          "nullPctShort": 30.3,
+          "return2022": -0.93
+        },
+        "detrended": {
+          "totalReturn": -1.79,
+          "maxDD": 11.79,
+          "returnDdRatio": -0.15,
+          "trades": 310,
+          "longReturn": 2.67,
+          "longTrades": 105,
+          "shortReturn": -4.46,
+          "shortTrades": 205,
+          "nullPctTotal": 81.3,
+          "nullPctLong": 100,
+          "nullPctShort": 9.5,
+          "return2022": -2.63
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -14.04,
+          "maxDD": 30.49,
+          "returnDdRatio": -0.46,
+          "trades": 249,
+          "longReturn": 3.71,
+          "longTrades": 105,
+          "shortReturn": -17.75,
+          "shortTrades": 144,
+          "nullPctTotal": 12,
+          "nullPctLong": 20.5,
+          "nullPctShort": 7.5,
+          "return2022": -6.58
+        },
+        "detrended": {
+          "totalReturn": -16.31,
+          "maxDD": 24.84,
+          "returnDdRatio": -0.66,
+          "trades": 221,
+          "longReturn": -1.1,
+          "longTrades": 72,
+          "shortReturn": -15.22,
+          "shortTrades": 149,
+          "nullPctTotal": 15.5,
+          "nullPctLong": 94,
+          "nullPctShort": 1,
+          "return2022": -5.27
+        }
+      }
+    }
+  },
+  {
+    "market": "XRP 4h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 3.47,
+        "maxDD": 4.38,
+        "returnDdRatio": 0.79,
+        "trades": 90,
+        "longReturn": 3.47,
+        "longTrades": 90,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 0.3
+      },
+      "detrended": {
+        "totalReturn": 9.66,
+        "maxDD": 8.26,
+        "returnDdRatio": 1.17,
+        "trades": 74,
+        "longReturn": 9.66,
+        "longTrades": 74,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.75
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 0.7,
+        "maxDD": 5.06,
+        "returnDdRatio": 0.14,
+        "trades": 184,
+        "longReturn": 3.42,
+        "longTrades": 90,
+        "shortReturn": -2.72,
+        "shortTrades": 94,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 1
+      },
+      "detrended": {
+        "totalReturn": 7.54,
+        "maxDD": 9.1,
+        "returnDdRatio": 0.83,
+        "trades": 176,
+        "longReturn": 9.63,
+        "longTrades": 74,
+        "shortReturn": -2.09,
+        "shortTrades": 102,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.51
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -2.3,
+          "maxDD": 3.23,
+          "returnDdRatio": -0.71,
+          "trades": 105,
+          "longReturn": -1.01,
+          "longTrades": 47,
+          "shortReturn": -1.29,
+          "shortTrades": 58,
+          "nullPctTotal": 30,
+          "nullPctLong": 29,
+          "nullPctShort": 60.5,
+          "return2022": 0.59
+        },
+        "detrended": {
+          "totalReturn": 0.05,
+          "maxDD": 3.58,
+          "returnDdRatio": 0.01,
+          "trades": 95,
+          "longReturn": 0.38,
+          "longTrades": 25,
+          "shortReturn": -0.33,
+          "shortTrades": 70,
+          "nullPctTotal": 81.5,
+          "nullPctLong": 90.3,
+          "nullPctShort": 55.8,
+          "return2022": 0.22
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": -2.12,
+          "maxDD": 2.46,
+          "returnDdRatio": -0.86,
+          "trades": 105,
+          "longReturn": -1.01,
+          "longTrades": 47,
+          "shortReturn": -1.11,
+          "shortTrades": 58,
+          "nullPctTotal": 25,
+          "nullPctLong": 29,
+          "nullPctShort": 42.3,
+          "return2022": 0.16
+        },
+        "detrended": {
+          "totalReturn": 2.32,
+          "maxDD": 2.36,
+          "returnDdRatio": 0.98,
+          "trades": 95,
+          "longReturn": 0.39,
+          "longTrades": 25,
+          "shortReturn": 1.94,
+          "shortTrades": 70,
+          "nullPctTotal": 97,
+          "nullPctLong": 90.5,
+          "nullPctShort": 94.3,
+          "return2022": 0.1
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": -1.01,
+          "maxDD": 1.94,
+          "returnDdRatio": -0.52,
+          "trades": 47,
+          "longReturn": -1.01,
+          "longTrades": 47,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 40.5,
+          "nullPctLong": 40.5,
+          "nullPctShort": 50,
+          "return2022": -0.11
+        },
+        "detrended": {
+          "totalReturn": 0.38,
+          "maxDD": 1.93,
+          "returnDdRatio": 0.2,
+          "trades": 25,
+          "longReturn": 0.38,
+          "longTrades": 25,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 93,
+          "nullPctLong": 93,
+          "nullPctShort": 50,
+          "return2022": 0.03
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -2.17,
+          "maxDD": 3.1,
+          "returnDdRatio": -0.7,
+          "trades": 105,
+          "longReturn": -0.87,
+          "longTrades": 47,
+          "shortReturn": -1.29,
+          "shortTrades": 58,
+          "nullPctTotal": 29.5,
+          "nullPctLong": 30,
+          "nullPctShort": 58.5,
+          "return2022": 0.59
+        },
+        "detrended": {
+          "totalReturn": 0.19,
+          "maxDD": 3.45,
+          "returnDdRatio": 0.06,
+          "trades": 95,
+          "longReturn": 0.38,
+          "longTrades": 25,
+          "shortReturn": -0.19,
+          "shortTrades": 70,
+          "nullPctTotal": 81.3,
+          "nullPctLong": 90.3,
+          "nullPctShort": 60.3,
+          "return2022": 0.36
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -6.67,
+          "maxDD": 9.68,
+          "returnDdRatio": -0.69,
+          "trades": 99,
+          "longReturn": -2.34,
+          "longTrades": 41,
+          "shortReturn": -4.33,
+          "shortTrades": 58,
+          "nullPctTotal": 27.5,
+          "nullPctLong": 26,
+          "nullPctShort": 64.5,
+          "return2022": 1.92
+        },
+        "detrended": {
+          "totalReturn": 1.01,
+          "maxDD": 11.37,
+          "returnDdRatio": 0.09,
+          "trades": 92,
+          "longReturn": 1.8,
+          "longTrades": 24,
+          "shortReturn": -0.78,
+          "shortTrades": 68,
+          "nullPctTotal": 83.5,
+          "nullPctLong": 92,
+          "nullPctShort": 61.5,
+          "return2022": 0.69
+        }
+      }
+    }
+  },
+  {
+    "market": "ADA 1h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": -2.35,
+        "maxDD": 9.33,
+        "returnDdRatio": -0.25,
+        "trades": 373,
+        "longReturn": -2.35,
+        "longTrades": 373,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -3.02
+      },
+      "detrended": {
+        "totalReturn": 3.06,
+        "maxDD": 11.08,
+        "returnDdRatio": 0.28,
+        "trades": 317,
+        "longReturn": 3.06,
+        "longTrades": 317,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 0.02
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": -3.87,
+        "maxDD": 12.51,
+        "returnDdRatio": -0.31,
+        "trades": 733,
+        "longReturn": -1.64,
+        "longTrades": 363,
+        "shortReturn": -2.23,
+        "shortTrades": 370,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 4.43
+      },
+      "detrended": {
+        "totalReturn": -1,
+        "maxDD": 12.69,
+        "returnDdRatio": -0.08,
+        "trades": 633,
+        "longReturn": 3.46,
+        "longTrades": 315,
+        "shortReturn": -4.46,
+        "shortTrades": 318,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -4.12
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": 2.73,
+          "maxDD": 8.88,
+          "returnDdRatio": 0.31,
+          "trades": 380,
+          "longReturn": 4.45,
+          "longTrades": 135,
+          "shortReturn": -1.71,
+          "shortTrades": 245,
+          "nullPctTotal": 65.8,
+          "nullPctLong": 69,
+          "nullPctShort": 57,
+          "return2022": 7.58
+        },
+        "detrended": {
+          "totalReturn": -7.91,
+          "maxDD": 12.61,
+          "returnDdRatio": -0.63,
+          "trades": 356,
+          "longReturn": -5.72,
+          "longTrades": 153,
+          "shortReturn": -2.19,
+          "shortTrades": 203,
+          "nullPctTotal": 5,
+          "nullPctLong": 7,
+          "nullPctShort": 17.3,
+          "return2022": -7.23
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": 2.88,
+          "maxDD": 7.32,
+          "returnDdRatio": 0.39,
+          "trades": 417,
+          "longReturn": 3.98,
+          "longTrades": 140,
+          "shortReturn": -1.1,
+          "shortTrades": 277,
+          "nullPctTotal": 51,
+          "nullPctLong": 56.5,
+          "nullPctShort": 40.5,
+          "return2022": 1.8
+        },
+        "detrended": {
+          "totalReturn": -7.38,
+          "maxDD": 11.32,
+          "returnDdRatio": -0.65,
+          "trades": 357,
+          "longReturn": -5.83,
+          "longTrades": 153,
+          "shortReturn": -1.55,
+          "shortTrades": 204,
+          "nullPctTotal": 6.5,
+          "nullPctLong": 7,
+          "nullPctShort": 22.5,
+          "return2022": -5.88
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 4.04,
+          "maxDD": 6.28,
+          "returnDdRatio": 0.64,
+          "trades": 140,
+          "longReturn": 4.04,
+          "longTrades": 140,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 54,
+          "nullPctLong": 54,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -5.84,
+          "maxDD": 6.48,
+          "returnDdRatio": -0.9,
+          "trades": 153,
+          "longReturn": -5.84,
+          "longTrades": 153,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 11,
+          "nullPctLong": 11,
+          "nullPctShort": 50,
+          "return2022": -3.52
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": 4.63,
+          "maxDD": 8.83,
+          "returnDdRatio": 0.52,
+          "trades": 397,
+          "longReturn": 4.05,
+          "longTrades": 140,
+          "shortReturn": 0.58,
+          "shortTrades": 257,
+          "nullPctTotal": 63,
+          "nullPctLong": 61.8,
+          "nullPctShort": 61.5,
+          "return2022": 7.58
+        },
+        "detrended": {
+          "totalReturn": -7.64,
+          "maxDD": 12.51,
+          "returnDdRatio": -0.61,
+          "trades": 356,
+          "longReturn": -5.72,
+          "longTrades": 153,
+          "shortReturn": -1.92,
+          "shortTrades": 203,
+          "nullPctTotal": 3.5,
+          "nullPctLong": 7.5,
+          "nullPctShort": 12,
+          "return2022": -7.23
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": 9.03,
+          "maxDD": 20.86,
+          "returnDdRatio": 0.43,
+          "trades": 220,
+          "longReturn": 11.06,
+          "longTrades": 70,
+          "shortReturn": -2.03,
+          "shortTrades": 150,
+          "nullPctTotal": 85,
+          "nullPctLong": 80,
+          "nullPctShort": 66.8,
+          "return2022": 19.41
+        },
+        "detrended": {
+          "totalReturn": -10.57,
+          "maxDD": 20.21,
+          "returnDdRatio": -0.52,
+          "trades": 234,
+          "longReturn": -4.43,
+          "longTrades": 88,
+          "shortReturn": -6.14,
+          "shortTrades": 146,
+          "nullPctTotal": 10,
+          "nullPctLong": 21,
+          "nullPctShort": 27,
+          "return2022": -15.52
+        }
+      }
+    }
+  },
+  {
+    "market": "ADA 4h",
+    "isOos": true,
+    "baselineLO": {
+      "real": {
+        "totalReturn": 16.14,
+        "maxDD": 10.6,
+        "returnDdRatio": 1.52,
+        "trades": 123,
+        "longReturn": 16.14,
+        "longTrades": 123,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.14
+      },
+      "detrended": {
+        "totalReturn": -1.33,
+        "maxDD": 2.81,
+        "returnDdRatio": -0.47,
+        "trades": 99,
+        "longReturn": -1.33,
+        "longTrades": 99,
+        "shortReturn": 0,
+        "shortTrades": 0,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -0.26
+      }
+    },
+    "baselineLS": {
+      "real": {
+        "totalReturn": 11.5,
+        "maxDD": 12.82,
+        "returnDdRatio": 0.9,
+        "trades": 248,
+        "longReturn": 16.01,
+        "longTrades": 123,
+        "shortReturn": -4.51,
+        "shortTrades": 125,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": 2.85
+      },
+      "detrended": {
+        "totalReturn": -3.67,
+        "maxDD": 5.36,
+        "returnDdRatio": -0.68,
+        "trades": 214,
+        "longReturn": -1.29,
+        "longTrades": 99,
+        "shortReturn": -2.37,
+        "shortTrades": 115,
+        "nullPctTotal": 50,
+        "nullPctLong": 50,
+        "nullPctShort": 50,
+        "return2022": -1.58
+      }
+    },
+    "variants": {
+      "G1": {
+        "real": {
+          "totalReturn": -1.27,
+          "maxDD": 4.93,
+          "returnDdRatio": -0.26,
+          "trades": 136,
+          "longReturn": 1.09,
+          "longTrades": 46,
+          "shortReturn": -2.36,
+          "shortTrades": 90,
+          "nullPctTotal": 37,
+          "nullPctLong": 58.5,
+          "nullPctShort": 27,
+          "return2022": 2.99
+        },
+        "detrended": {
+          "totalReturn": -1.44,
+          "maxDD": 4.45,
+          "returnDdRatio": -0.32,
+          "trades": 136,
+          "longReturn": -0.66,
+          "longTrades": 54,
+          "shortReturn": -0.78,
+          "shortTrades": 82,
+          "nullPctTotal": 41,
+          "nullPctLong": 59.8,
+          "nullPctShort": 31.3,
+          "return2022": -1.96
+        }
+      },
+      "G2": {
+        "real": {
+          "totalReturn": -0.84,
+          "maxDD": 3.59,
+          "returnDdRatio": -0.23,
+          "trades": 136,
+          "longReturn": 1.08,
+          "longTrades": 46,
+          "shortReturn": -1.92,
+          "shortTrades": 90,
+          "nullPctTotal": 32,
+          "nullPctLong": 58.5,
+          "nullPctShort": 9.5,
+          "return2022": -0.02
+        },
+        "detrended": {
+          "totalReturn": -1.95,
+          "maxDD": 3.54,
+          "returnDdRatio": -0.55,
+          "trades": 136,
+          "longReturn": -0.67,
+          "longTrades": 54,
+          "shortReturn": -1.29,
+          "shortTrades": 82,
+          "nullPctTotal": 32.3,
+          "nullPctLong": 59.3,
+          "nullPctShort": 18,
+          "return2022": -1.35
+        }
+      },
+      "G3": {
+        "real": {
+          "totalReturn": 1.08,
+          "maxDD": 2.63,
+          "returnDdRatio": 0.41,
+          "trades": 46,
+          "longReturn": 1.08,
+          "longTrades": 46,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 60.3,
+          "nullPctLong": 60.3,
+          "nullPctShort": 50,
+          "return2022": 0
+        },
+        "detrended": {
+          "totalReturn": -0.67,
+          "maxDD": 1.79,
+          "returnDdRatio": -0.37,
+          "trades": 54,
+          "longReturn": -0.67,
+          "longTrades": 54,
+          "shortReturn": 0,
+          "shortTrades": 0,
+          "nullPctTotal": 62,
+          "nullPctLong": 62,
+          "nullPctShort": 50,
+          "return2022": -0.52
+        }
+      },
+      "G4": {
+        "real": {
+          "totalReturn": -0.45,
+          "maxDD": 4.55,
+          "returnDdRatio": -0.1,
+          "trades": 136,
+          "longReturn": 1.09,
+          "longTrades": 46,
+          "shortReturn": -1.54,
+          "shortTrades": 90,
+          "nullPctTotal": 38.5,
+          "nullPctLong": 58.5,
+          "nullPctShort": 33,
+          "return2022": 2.99
+        },
+        "detrended": {
+          "totalReturn": -1.44,
+          "maxDD": 4.45,
+          "returnDdRatio": -0.32,
+          "trades": 136,
+          "longReturn": -0.66,
+          "longTrades": 54,
+          "shortReturn": -0.78,
+          "shortTrades": 82,
+          "nullPctTotal": 28.5,
+          "nullPctLong": 60.3,
+          "nullPctShort": 22.8,
+          "return2022": -1.96
+        }
+      },
+      "G5": {
+        "real": {
+          "totalReturn": -0.73,
+          "maxDD": 13.15,
+          "returnDdRatio": -0.06,
+          "trades": 120,
+          "longReturn": 5.94,
+          "longTrades": 36,
+          "shortReturn": -6.67,
+          "shortTrades": 84,
+          "nullPctTotal": 54.5,
+          "nullPctLong": 73,
+          "nullPctShort": 28.5,
+          "return2022": 10.62
+        },
+        "detrended": {
+          "totalReturn": -4.94,
+          "maxDD": 12.08,
+          "returnDdRatio": -0.41,
+          "trades": 117,
+          "longReturn": 0.3,
+          "longTrades": 44,
+          "shortReturn": -5.24,
+          "shortTrades": 73,
+          "nullPctTotal": 32,
+          "nullPctLong": 73.3,
+          "nullPctShort": 17,
+          "return2022": -6.41
+        }
+      }
+    }
+  }
+]
