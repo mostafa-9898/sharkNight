@@ -12,7 +12,8 @@ export type ExitReason =
   | 'end'
   | 'tkCrossExit'
   | 'kijunExit'
-  | 'timeStop';
+  | 'timeStop'
+  | 'regimeFlip';
 export type ExitMode = 'reverse' | 'tkCross' | 'kijun' | 'trailingOnly';
 export type StopCheckMode = 'intrabar' | 'close';
 
@@ -96,6 +97,8 @@ export interface BacktestConfig {
   slippagePercent?: number;       // default 0, applied adversely on stop/TP exits
   stopCheckMode?: StopCheckMode;  // default 'intrabar'
   collectTrace?: boolean;         // optional passive trace collector
+  regimeExit?: boolean;           // If true, force close open positions when macro regime flips to opposite
+  getMacroRegime?: (candles: readonly Candle[], index: number) => 'Bull' | 'Bear' | 'Neutral';
 }
 
 export type StopUpdateReason =

@@ -60,6 +60,8 @@ export class BacktestEngine {
       slippagePercent = 0,
       stopCheckMode = 'intrabar',
       collectTrace = false,
+      regimeExit = false,
+      getMacroRegime,
     } = config;
 
     if (!Number.isInteger(maxOpenPositions) || maxOpenPositions < 1) {
@@ -695,6 +697,44 @@ export class BacktestEngine {
         }
       }
 
+      // 2c. Forced regime flip exit (G4)
+      if (regimeExit && typeof getMacroRegime === 'function') {
+        const activePos = portfolio.getOpenPosition();
+        if (activePos && tradeState) {
+          const currentRegime = getMacroRegime(candles, i);
+          const shouldExit =
+            (activePos.side === 'long' && currentRegime === 'Bear') ||
+            (activePos.side === 'short' && currentRegime === 'Bull');
+          if (shouldExit) {
+            const mfe =
+              activePos.side === 'long'
+                ? ((tradeState.highestHigh - activePos.entryPrice) / activePos.entryPrice) * 100
+                : ((activePos.entryPrice - tradeState.lowestLow) / activePos.entryPrice) * 100;
+            const mae =
+              activePos.side === 'long'
+                ? ((activePos.entryPrice - tradeState.lowestLow) / activePos.entryPrice) * 100
+                : ((tradeState.highestHigh - activePos.entryPrice) / activePos.entryPrice) * 100;
+            const exitSig: TradeSignal = {
+              action: activePos.side === 'long' ? 'SELL' : 'BUY',
+              timestamp: candle.timestamp,
+              price: candle.close,
+              reason: `Forced exit: macro regime flipped to ${currentRegime}`,
+            };
+            portfolio.closePosition(exitSig, candle.close, candle.timestamp, 'regimeFlip', {
+              maxFavorablePercent: mfe,
+              maxAdversePercent: mae,
+              stopPrice: tradeState.stopPrice ?? undefined,
+              initialStopPrice: tradeState.initialStopPrice ?? undefined,
+              initialStopPercent: tradeState.initialStopPercent,
+              stopHistory: tradeState.stopHistory,
+              ratchetSteps: tradeState.ratchetSteps,
+              entryDiagnostics: tradeState.entryDiagnostics,
+            });
+            tradeState = null;
+          }
+        }
+      }
+
       // 3. Process strategy signal at candle close (even after stop-out)
       const signal = strategy.analyze(candles, i);
       const activePos = portfolio.getOpenPosition();
@@ -1044,6 +1084,8 @@ export class BacktestEngine {
       slippagePercent = 0,
       stopCheckMode = 'intrabar',
       collectTrace = false,
+      regimeExit = false,
+      getMacroRegime,
     } = config;
 
     const trace: BacktestTrace = {
@@ -1595,6 +1637,77 @@ export class BacktestEngine {
               maxAdversePercent: roundTo(mae, 2),
               stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
               initialStopPrice: pos.initialStopPrice !== null && pos.initialStopPrice !== undefined ? roundTo(pos.initialStopPrice, 4) : undefined,
+              initialStopPercent: pos.initialStopPercent,
+              stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
+              ratchetSteps: pos.ratchetSteps,
+              entryDiagnostics: pos.entryDiagnostics,
+              positionId: pos.positionId,
+              concurrentOpenAtEntry: pos.concurrentOpenAtEntry,
+            });
+            openPositions.splice(pIdx, 1);
+          }
+        }
+      }
+
+      // 2c. Forced regime flip exit (G4)
+      if (regimeExit && typeof getMacroRegime === 'function') {
+        const currentRegime = getMacroRegime(candles, i);
+        for (let pIdx = openPositions.length - 1; pIdx >= 0; pIdx--) {
+          const pos = openPositions[pIdx];
+          const shouldExit =
+            (pos.side === 'long' && currentRegime === 'Bear') ||
+            (pos.side === 'short' && currentRegime === 'Bull');
+
+          if (shouldExit) {
+            const mfe =
+              pos.side === 'long'
+                ? ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100
+                : ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100;
+            const mae =
+              pos.side === 'long'
+                ? ((pos.entryPrice - pos.lowestLow) / pos.entryPrice) * 100
+                : ((pos.highestHigh - pos.entryPrice) / pos.entryPrice) * 100;
+
+            const grossExitValue = pos.quantity * candle.close;
+            const exitFee = grossExitValue * feeRate;
+            const totalFee = pos.entryFee + exitFee;
+            let pnl: number;
+            let netExitValue: number;
+            if (pos.side === 'long') {
+              netExitValue = grossExitValue - exitFee;
+              pnl = netExitValue - pos.entryCost;
+            } else {
+              pnl = pos.quantity * (pos.entryPrice - candle.close) - exitFee - pos.entryFee;
+              netExitValue = pos.entryCost + pnl;
+            }
+            cash += netExitValue;
+
+            completedTrades.push({
+              side: pos.side,
+              exitReason: 'regimeFlip',
+              entrySignal: pos.entrySignal,
+              exitSignal: {
+                action: pos.side === 'long' ? 'SELL' : 'BUY',
+                timestamp: candle.timestamp,
+                price: candle.close,
+                reason: `Forced exit: macro regime flipped to ${currentRegime}`,
+              },
+              entryPrice: pos.entryPrice,
+              exitPrice: candle.close,
+              quantity: pos.quantity,
+              pnl: roundTo(pnl, 8),
+              pnlPercent: roundTo((pnl / pos.entryCost) * 100, 4),
+              fee: roundTo(totalFee, 8),
+              entryTime: pos.entryTime,
+              exitTime: candle.timestamp,
+              duration: Math.max(0, candle.timestamp - pos.entryTime),
+              maxFavorablePercent: roundTo(mfe, 2),
+              maxAdversePercent: roundTo(mae, 2),
+              stopPrice: pos.stopPrice !== null ? roundTo(pos.stopPrice, 4) : undefined,
+              initialStopPrice:
+                pos.initialStopPrice !== null && pos.initialStopPrice !== undefined
+                  ? roundTo(pos.initialStopPrice, 4)
+                  : undefined,
               initialStopPercent: pos.initialStopPercent,
               stopHistory: pos.stopHistory.length > 0 ? [...pos.stopHistory] : undefined,
               ratchetSteps: pos.ratchetSteps,

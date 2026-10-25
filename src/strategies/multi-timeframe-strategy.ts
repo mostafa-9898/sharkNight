@@ -6,12 +6,14 @@ import { calculateStochastic, type StochasticResult } from '../indicators/stocha
 import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../indicators/fisher-rsi';
 import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
 import { roundTo } from '../utils/math';
+import type { DailyRegimeCalculator } from '../utils/market-regime';
 
 export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
 export type FisherKind = 'fisher' | 'ift';
 export type FisherGate = 'none' | 'zone';
 export type ShortEntryFilter = 'none' | 'v1_1dBearish' | 'v2_ltfBelowCloud' | 'v3_bearRegime' | 'v4_consecutiveHtf';
 export type EdgeCandidate = 'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'A6';
+export type RegimeVariant = 'G1' | 'G2' | 'G3' | 'G4' | 'G5';
 
 export interface MultiTimeframeConfig {
   htfMode?: 'strict';
@@ -22,10 +24,11 @@ export interface MultiTimeframeConfig {
   attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
   edgeCandidate?: EdgeCandidate;
   a6Components?: EdgeCandidate[];
+  regimeVariant?: RegimeVariant;
   htf4hCandles?: readonly Candle[];
   htf1hCandles?: readonly Candle[];
   daily1dCandles?: readonly Candle[];
-  dailyRegimeCalculator?: { getRegimeAt(timestamp: number): 'bull' | 'bear' };
+  dailyRegimeCalculator?: DailyRegimeCalculator | { getRegimeAt(timestamp: number): 'bull' | 'bear'; getDailyTrendAt?(timestamp: number): 1 | -1 | 0 };
   ltfIntervalMs?: number;
 
   fisherMode?: FisherMode;
@@ -74,6 +77,9 @@ interface CachedIndicators {
   // HTF 1d indicators
   daily1dCandles: readonly Candle[];
   daily1dIchimoku: IchimokuResult;
+
+  // Cached HTF directions
+  strictHtfDirections?: Int8Array;
 }
 
 /**
@@ -234,6 +240,7 @@ export class MultiTimeframeStrategy implements Strategy {
   readonly attributionLayer?: 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
   readonly edgeCandidate?: EdgeCandidate;
   readonly a6Components?: EdgeCandidate[];
+  readonly regimeVariant?: RegimeVariant;
 
   readonly initialStopPercent: number;
   readonly useTdrStop: boolean;
@@ -242,7 +249,7 @@ export class MultiTimeframeStrategy implements Strategy {
   private explicitHtf4h?: readonly Candle[];
   private explicitHtf1h?: readonly Candle[];
   private explicitDaily1d?: readonly Candle[];
-  private dailyRegimeCalculator?: { getRegimeAt(timestamp: number): 'bull' | 'bear' };
+  public readonly dailyRegimeCalculator?: DailyRegimeCalculator | { getRegimeAt(timestamp: number): 'bull' | 'bear'; getDailyTrendAt?(timestamp: number): 1 | -1 | 0 };
   private cached1dIchimoku?: IchimokuResult;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
@@ -259,6 +266,7 @@ export class MultiTimeframeStrategy implements Strategy {
     this.attributionLayer = config?.attributionLayer;
     this.edgeCandidate = config?.edgeCandidate;
     this.a6Components = config?.a6Components;
+    this.regimeVariant = config?.regimeVariant;
     this.ltfIntervalMs = config?.ltfIntervalMs;
     this.fisherMode = config?.fisherMode ?? 'replace-stoch';
     this.fisherKind = config?.fisherKind ?? 'fisher';
@@ -654,55 +662,80 @@ export class MultiTimeframeStrategy implements Strategy {
    */
   public getStrictHtfDirection(candles: readonly Candle[], index: number): 1 | -1 | 0 {
     if (index < 0 || index >= candles.length) return 0;
-    const candle = candles[index];
-    if (!candle) return 0;
-
     const cached = this.getIndicators(candles);
-    const ltfMs = this.getLtfMs(candles, index);
-    const ltfEndTime = candle.timestamp + ltfMs;
-    const ms4h = 4 * 60 * 60 * 1000;
-    const ms1h = 60 * 60 * 1000;
 
-    const { htf4hCandles, htf4hIchimoku, htf1hCandles, htf1hIchimoku } = cached;
+    if (!cached.strictHtfDirections) {
+      const directions = new Int8Array(candles.length);
+      const { htf4hCandles, htf4hIchimoku, htf1hCandles, htf1hIchimoku } = cached;
+      const ms4h = 4 * 60 * 60 * 1000;
+      const ms1h = 60 * 60 * 1000;
 
-    // Find the latest closed 4h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
-    let htf4hIdx = -1;
-    let low4h = 0;
-    let high4h = htf4hCandles.length - 1;
-    while (low4h <= high4h) {
-      const mid = (low4h + high4h) >> 1;
-      if (htf4hCandles[mid].timestamp + ms4h <= ltfEndTime) {
-        htf4hIdx = mid;
-        low4h = mid + 1;
-      } else {
-        high4h = mid - 1;
+      const n4 = htf4hCandles.length;
+      const n1 = htf1hCandles.length;
+
+      const trends4h = new Int8Array(n4);
+      for (let j = 0; j < n4; j++) {
+        trends4h[j] = computeStrictHtfTrend(htf4hCandles[j], htf4hIchimoku, j);
       }
-    }
-
-    // Find the latest closed 1h candle: htf.timestamp + htfMs <= ltf.timestamp + ltfMs
-    let htf1hIdx = -1;
-    let low1h = 0;
-    let high1h = htf1hCandles.length - 1;
-    while (low1h <= high1h) {
-      const mid = (low1h + high1h) >> 1;
-      if (htf1hCandles[mid].timestamp + ms1h <= ltfEndTime) {
-        htf1hIdx = mid;
-        low1h = mid + 1;
-      } else {
-        high1h = mid - 1;
+      const trends1h = new Int8Array(n1);
+      for (let j = 0; j < n1; j++) {
+        trends1h[j] = computeStrictHtfTrend(htf1hCandles[j], htf1hIchimoku, j);
       }
+
+      let h4Ptr = 0;
+      let h1Ptr = 0;
+
+      for (let i = 0; i < candles.length; i++) {
+        const ltfMs = this.getLtfMs(candles, i);
+        const ltfEndTime = candles[i].timestamp + ltfMs;
+
+        while (h4Ptr + 1 < n4 && htf4hCandles[h4Ptr + 1].timestamp + ms4h <= ltfEndTime) {
+          h4Ptr++;
+        }
+        while (h1Ptr + 1 < n1 && htf1hCandles[h1Ptr + 1].timestamp + ms1h <= ltfEndTime) {
+          h1Ptr++;
+        }
+
+        const valid4h = n4 > 0 && htf4hCandles[h4Ptr].timestamp + ms4h <= ltfEndTime;
+        const valid1h = n1 > 0 && htf1hCandles[h1Ptr].timestamp + ms1h <= ltfEndTime;
+
+        if (valid4h && valid1h) {
+          const t4 = trends4h[h4Ptr];
+          const t1 = trends1h[h1Ptr];
+          if (t4 === 1 && t1 === 1) directions[i] = 1;
+          else if (t4 === -1 && t1 === -1) directions[i] = -1;
+        }
+      }
+      cached.strictHtfDirections = directions;
     }
 
-    if (htf4hIdx < 0 || htf1hIdx < 0) {
-      return 0;
-    }
+    return (cached.strictHtfDirections[index] ?? 0) as 1 | -1 | 0;
+  }
 
-    const trend4h = computeStrictHtfTrend(htf4hCandles[htf4hIdx], htf4hIchimoku, htf4hIdx);
-    const trend1h = computeStrictHtfTrend(htf1hCandles[htf1hIdx], htf1hIchimoku, htf1hIdx);
+  /**
+   * Evaluates macro market regime for candle at `index`:
+   * - 'Bull': daily close > SMA200 AND HTF strict is Bullish (+1)
+   * - 'Bear': daily close < SMA200 AND HTF strict is Bearish (-1)
+   * - 'Neutral': all other cases
+   */
+  public getMacroRegimeAt(candles: readonly Candle[], index: number): 'Bull' | 'Bear' | 'Neutral' {
+    if (index < 0 || index >= candles.length) return 'Neutral';
+    const candle = candles[index];
+    if (!candle) return 'Neutral';
 
-    if (trend4h === 1 && trend1h === 1) return 1;
-    if (trend4h === -1 && trend1h === -1) return -1;
-    return 0;
+    const dailyTrend =
+      typeof this.dailyRegimeCalculator?.getDailyTrendAt === 'function'
+        ? this.dailyRegimeCalculator.getDailyTrendAt(candle.timestamp)
+        : this.dailyRegimeCalculator?.getRegimeAt(candle.timestamp) === 'bull'
+        ? 1
+        : this.dailyRegimeCalculator?.getRegimeAt(candle.timestamp) === 'bear'
+        ? -1
+        : 0;
+    const htfDir = this.getStrictHtfDirection(candles, index);
+
+    if (dailyTrend === 1 && htfDir === 1) return 'Bull';
+    if (dailyTrend === -1 && htfDir === -1) return 'Bear';
+    return 'Neutral';
   }
 
   analyze(candles: readonly Candle[], currentIndex: number): TradeSignal {
@@ -1012,7 +1045,12 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
+    const macroRegime = this.regimeVariant ? this.getMacroRegimeAt(candles, currentIndex) : undefined;
+
     if (effectiveHtfBullish && !bullBlockedByOpposite && bullTrigger) {
+      if (this.regimeVariant && macroRegime !== 'Bull') {
+        return defaultSignal;
+      }
 
       if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
         return defaultSignal;
@@ -1084,6 +1122,12 @@ export class MultiTimeframeStrategy implements Strategy {
     }
 
     if (effectiveHtfBearish && !bearBlockedByOpposite && bearTrigger) {
+      if (this.regimeVariant === 'G3') {
+        return defaultSignal;
+      }
+      if (this.regimeVariant && macroRegime !== 'Bear') {
+        return defaultSignal;
+      }
 
       if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
         return defaultSignal;

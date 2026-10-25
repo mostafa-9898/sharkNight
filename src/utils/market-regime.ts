@@ -6,6 +6,8 @@ import { calculateSMA } from '../indicators/sma';
 
 export interface DailyRegimeCalculator {
   getRegimeAt(timestamp: number): 'bull' | 'bear';
+  getDailyTrendAt(timestamp: number): 1 | -1 | 0;
+  getDailyDataAt(timestamp: number): { close: number; sma200: number } | null;
 }
 
 function loadGzCandles(filePath: string): Candle[] {
@@ -27,7 +29,7 @@ function loadGzCandles(filePath: string): Candle[] {
     .sort((a, b) => a.timestamp - b.timestamp);
 }
 
-function aggregateToUtcDaily(candles: readonly Candle[]): Candle[] {
+export function aggregateToUtcDaily(candles: readonly Candle[]): Candle[] {
   if (candles.length === 0) return [];
   const dayMs = 86400000;
   const aggregated: Candle[] = [];
@@ -93,55 +95,70 @@ export function getDailyCandlesForSymbol(
   return aggregateToUtcDaily(h1Candles);
 }
 
-export function createDailyRegimeCalculator(
-  symbol: string,
-  dataDir: string = path.resolve('docs/review/data')
+export function createDailyRegimeCalculatorFromDailyCandles(
+  dailyCandles: readonly Candle[]
 ): DailyRegimeCalculator {
-  const dailyCandles = getDailyCandlesForSymbol(symbol, dataDir);
-
-  const closes = dailyCandles.map((c) => c.close);
+  const sorted = [...dailyCandles].sort((a, b) => a.timestamp - b.timestamp);
+  const closes = sorted.map((c) => c.close);
   const sma200Values = calculateSMA(closes, 200);
 
   const dayMap = new Map<number, { close: number; sma200: number }>();
-  for (let i = 0; i < dailyCandles.length; i++) {
+  for (let i = 0; i < sorted.length; i++) {
     const sma = sma200Values[i];
     if (sma !== null && !isNaN(sma)) {
-      dayMap.set(dailyCandles[i].timestamp, {
-        close: dailyCandles[i].close,
+      dayMap.set(sorted[i].timestamp, {
+        close: sorted[i].close,
         sma200: sma,
       });
     }
   }
 
-  const timestamps = dailyCandles.map((c) => c.timestamp);
+  const timestamps = sorted.map((c) => c.timestamp);
+
+  const getDailyDataAt = (timestamp: number): { close: number; sma200: number } | null => {
+    const currentDayStart = Math.floor(timestamp / 86400000) * 86400000;
+    let low = 0;
+    let high = timestamps.length - 1;
+    let foundIdx = -1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (timestamps[mid] < currentDayStart) {
+        foundIdx = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (foundIdx === -1) {
+      return null;
+    }
+
+    const prevDayTs = timestamps[foundIdx];
+    return dayMap.get(prevDayTs) ?? null;
+  };
 
   return {
+    getDailyDataAt,
+    getDailyTrendAt(timestamp: number): 1 | -1 | 0 {
+      const data = getDailyDataAt(timestamp);
+      if (!data) return 0;
+      if (data.close > data.sma200) return 1;
+      if (data.close < data.sma200) return -1;
+      return 0;
+    },
     getRegimeAt(timestamp: number): 'bull' | 'bear' {
-      const currentDayStart = Math.floor(timestamp / 86400000) * 86400000;
-      let low = 0;
-      let high = timestamps.length - 1;
-      let foundIdx = -1;
-      while (low <= high) {
-        const mid = (low + high) >> 1;
-        if (timestamps[mid] < currentDayStart) {
-          foundIdx = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      if (foundIdx === -1) {
-        return 'bear';
-      }
-
-      const prevDayTs = timestamps[foundIdx];
-      const data = dayMap.get(prevDayTs);
-      if (!data) {
-        return 'bear';
-      }
-
+      const data = getDailyDataAt(timestamp);
+      if (!data) return 'bear';
       return data.close > data.sma200 ? 'bull' : 'bear';
     },
   };
+}
+
+export function createDailyRegimeCalculator(
+  symbol: string,
+  dataDir: string = path.resolve('docs/review/data')
+): DailyRegimeCalculator {
+  const dailyCandles = getDailyCandlesForSymbol(symbol, dataDir);
+  return createDailyRegimeCalculatorFromDailyCandles(dailyCandles);
 }
