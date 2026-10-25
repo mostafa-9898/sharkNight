@@ -1185,7 +1185,13 @@ export class BacktestEngine {
     }));
     verifyFunnelReconciliation(funnel, trades);
     trace.signalFunnel = funnel;
-    const metrics = calculateMetrics(trades, initialBalance, equityCurve);
+    const percentTimeInMarket = candles.length > 0 ? roundTo((capacityCandles / candles.length) * 100, 2) : 0;
+    const avgExposurePercent = candles.length > 0 ? roundTo((capacityCandles * positionSizePercent) / candles.length, 2) : 0;
+    const metrics = calculateMetrics(trades, initialBalance, equityCurve, {
+      timestamps: candles.map((c) => c.timestamp),
+      percentTimeInMarket,
+      avgExposurePercent,
+    });
 
     const avgConcurrentPositions = candles.length > 0 ? roundTo(capacityCandles / candles.length, 2) : 0;
     const maxConcurrentPositions = trades.length > 0 ? 1 : 0;
@@ -1312,6 +1318,7 @@ export class BacktestEngine {
     let lastEntryIndex = -Infinity;
     let capacityCandles = 0;
     const openCountSamples: number[] = [];
+    const exposureSamples: number[] = [];
     let maxConcurrentLong = 0;
     let maxConcurrentShort = 0;
     let maxConcurrentTotal = 0;
@@ -2144,6 +2151,8 @@ export class BacktestEngine {
       if (countLong > 0 && countShort > 0) {
         dualDirectionCandles++;
       }
+      const currentNotional = openPositions.reduce((sum, p) => sum + (p.quantity * candle.close), 0);
+      exposureSamples.push(initialBalance > 0 ? (currentNotional / initialBalance) * 100 : 0);
       equityCurve.push(computeEquity(candle.close));
     }
 
@@ -2217,7 +2226,26 @@ export class BacktestEngine {
     verifyFunnelReconciliation(funnel, completedTrades);
     trace.signalFunnel = funnel;
 
-    const metrics = calculateMetrics(completedTrades, initialBalance, equityCurve);
+    let barsWithOpenPos = 0;
+    for (let k = 0; k < openCountSamples.length; k++) {
+      if (openCountSamples[k] > 0) barsWithOpenPos++;
+    }
+    const percentTimeInMarket = openCountSamples.length > 0
+      ? roundTo((barsWithOpenPos / openCountSamples.length) * 100, 2)
+      : 0;
+    let sumExposure = 0;
+    for (let k = 0; k < exposureSamples.length; k++) {
+      sumExposure += exposureSamples[k];
+    }
+    const avgExposurePercent = exposureSamples.length > 0
+      ? roundTo(sumExposure / exposureSamples.length, 2)
+      : 0;
+
+    const metrics = calculateMetrics(completedTrades, initialBalance, equityCurve, {
+      timestamps: candles.map((c) => c.timestamp),
+      percentTimeInMarket,
+      avgExposurePercent,
+    });
 
     let sumOpenCount = 0;
     for (let k = 0; k < openCountSamples.length; k++) {

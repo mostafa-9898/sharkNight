@@ -232,30 +232,57 @@ export interface SideMetrics {
   totalTrades: number;
   winningTrades: number;
   losingTrades: number;
+  breakEvenTrades?: number;
   winRate: number;                // 0-1
   totalPnl: number;
   totalPnlPercent: number;
+  profitFactor?: number;
+  expectancy?: number;            // $ per trade
+  expectancyPercent?: number;     // % of initial capital
+  averageDuration?: number;       // in candles
 }
 
 export interface BacktestMetrics {
   totalTrades: number;
   winningTrades: number;
   losingTrades: number;
+  breakEvenTrades?: number;
   winRate: number;                // 0-1
   totalPnl: number;
   totalPnlPercent: number;
   maxDrawdown: number;            // 0-1
   maxDrawdownPercent: number;
-  sharpeRatio: number;
+  sharpeRatio: number;            // Annualized Sharpe ratio from daily equity returns (rf=0)
+  sortinoRatio?: number;          // Annualized Sortino ratio from downside daily returns
+  calmarRatio?: number;           // CAGR / maxDrawdown
+  cagr?: number;                  // CAGR %
+  tradeReturnRatio?: number;      // Unannualized mean(returns)/std(returns) across trades
+  tradeSqnLike?: number;          // Alias for tradeReturnRatio
+  profitFactor?: number;          // Gross profit / gross loss in $
+  expectancy?: number;            // Dollar expectancy per trade
+  expectancyPercent?: number;     // Expectancy as % of initial balance
+  payoffRatio?: number;           // Average win $ / average loss $
+  maxConsecutiveWins?: number;
+  maxConsecutiveLosses?: number;
+  maxConsecutiveLossesDollars?: number;
+  maxDrawdownDurationCandles?: number;
+  maxDrawdownDurationDays?: number;
+  maxDrawdownRecoveryCandles?: number;
+  maxDrawdownRecoveryDays?: number;
+  percentTimeInMarket?: number;   // % of bars with at least one active position
+  avgExposurePercent?: number;    // Average exposure as % of capital
   averageTradeReturn: number;
   bestTrade: number;
   worstTrade: number;
   finalBalance: number;
   totalFees: number;              // Absolute fees paid across all trades
   totalFeesPercent: number;       // Total fees paid as % of initial balance
-  averageWin: number;             // Average return % of winning trades
-  averageLoss: number;            // Average return % of losing trades
   feeDragPercent: number;         // Total fee drag (% of initial balance)
+  feesPercentOfGrossProfit?: number; // Fees as % of gross profit
+  averageWin: number;             // Average return % of position size for winning trades
+  averageLoss: number;            // Average return % of position size for losing trades
+  averageWinCapitalPercent?: number;  // Average win as % of initial capital
+  averageLossCapitalPercent?: number; // Average loss as % of initial capital
   long: SideMetrics;
   short: SideMetrics;
 }
