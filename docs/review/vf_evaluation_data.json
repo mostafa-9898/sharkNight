@@ -1,0 +1,304 @@
+{
+  "records": [
+    {
+      "market": "BTC 15m",
+      "isOos": false,
+      "b4": {
+        "realReturn": -10.5,
+        "realMaxDD": 26.54,
+        "d2Return": -16.38,
+        "d3MeanReturn": -7.4,
+        "d4MeanReturn": -14.57,
+        "d4Percentile": 67.5
+      },
+      "s1l": {
+        "realReturn": 55.09,
+        "realMaxDD": 16.78,
+        "d2Return": 21.02,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 23.47,
+        "d4Percentile": 92.5
+      }
+    },
+    {
+      "market": "BTC 1h",
+      "isOos": false,
+      "b4": {
+        "realReturn": -10.5,
+        "realMaxDD": 26.32,
+        "d2Return": -16.29,
+        "d3MeanReturn": -6.14,
+        "d4MeanReturn": -11.06,
+        "d4Percentile": 58
+      },
+      "s1l": {
+        "realReturn": 20.54,
+        "realMaxDD": 12.99,
+        "d2Return": 30.33,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 7.3,
+        "d4Percentile": 80.5
+      }
+    },
+    {
+      "market": "BTC 4h",
+      "isOos": false,
+      "b4": {
+        "realReturn": -0.17,
+        "realMaxDD": 19.03,
+        "d2Return": -13.6,
+        "d3MeanReturn": 26.87,
+        "d4MeanReturn": 0.34,
+        "d4Percentile": 57.5
+      },
+      "s1l": {
+        "realReturn": 13.81,
+        "realMaxDD": 6.67,
+        "d2Return": 9.92,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 11.72,
+        "d4Percentile": 69.5
+      }
+    },
+    {
+      "market": "ETH 15m",
+      "isOos": false,
+      "b4": {
+        "realReturn": 31.93,
+        "realMaxDD": 21.11,
+        "d2Return": -20.52,
+        "d3MeanReturn": 15.38,
+        "d4MeanReturn": 13.46,
+        "d4Percentile": 77.5
+      },
+      "s1l": {
+        "realReturn": 33.63,
+        "realMaxDD": 14.87,
+        "d2Return": 27.68,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 42.57,
+        "d4Percentile": 78
+      }
+    },
+    {
+      "market": "ETH 1h",
+      "isOos": false,
+      "b4": {
+        "realReturn": 31.93,
+        "realMaxDD": 20.93,
+        "d2Return": -20.4,
+        "d3MeanReturn": 19.52,
+        "d4MeanReturn": 17.32,
+        "d4Percentile": 74.5
+      },
+      "s1l": {
+        "realReturn": 7.46,
+        "realMaxDD": 10.55,
+        "d2Return": 22.54,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 6,
+        "d4Percentile": 66.5
+      }
+    },
+    {
+      "market": "ETH 4h",
+      "isOos": false,
+      "b4": {
+        "realReturn": 46.92,
+        "realMaxDD": 15.63,
+        "d2Return": -6.91,
+        "d3MeanReturn": 81.34,
+        "d4MeanReturn": 38.76,
+        "d4Percentile": 65
+      },
+      "s1l": {
+        "realReturn": 5.47,
+        "realMaxDD": 7.06,
+        "d2Return": 11.05,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 3.86,
+        "d4Percentile": 78.5
+      }
+    },
+    {
+      "market": "SOL 1h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 122.53,
+        "realMaxDD": 12.42,
+        "d2Return": 15.27,
+        "d3MeanReturn": 124.72,
+        "d4MeanReturn": 91.27,
+        "d4Percentile": 70.5
+      },
+      "s1l": {
+        "realReturn": 44.86,
+        "realMaxDD": 27.33,
+        "d2Return": 27.6,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 15.63,
+        "d4Percentile": 90.5
+      }
+    },
+    {
+      "market": "SOL 4h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 70.08,
+        "realMaxDD": 15.88,
+        "d2Return": 7.14,
+        "d3MeanReturn": 198.03,
+        "d4MeanReturn": 141.23,
+        "d4Percentile": 33
+      },
+      "s1l": {
+        "realReturn": 8.83,
+        "realMaxDD": 12.67,
+        "d2Return": 4.67,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 17.77,
+        "d4Percentile": 64
+      }
+    },
+    {
+      "market": "BNB 1h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 76.79,
+        "realMaxDD": 18.25,
+        "d2Return": 23.32,
+        "d3MeanReturn": 76.82,
+        "d4MeanReturn": 50.26,
+        "d4Percentile": 74
+      },
+      "s1l": {
+        "realReturn": 12.98,
+        "realMaxDD": 10.36,
+        "d2Return": 16.13,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 11.56,
+        "d4Percentile": 84
+      }
+    },
+    {
+      "market": "BNB 4h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 93.44,
+        "realMaxDD": 22.85,
+        "d2Return": 33.69,
+        "d3MeanReturn": 286.96,
+        "d4MeanReturn": 146.5,
+        "d4Percentile": 55.5
+      },
+      "s1l": {
+        "realReturn": 1.82,
+        "realMaxDD": 6.18,
+        "d2Return": -0.77,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 4.78,
+        "d4Percentile": 56
+      }
+    },
+    {
+      "market": "XRP 1h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 142.04,
+        "realMaxDD": 32.07,
+        "d2Return": 165.6,
+        "d3MeanReturn": 128.77,
+        "d4MeanReturn": 130.59,
+        "d4Percentile": 63
+      },
+      "s1l": {
+        "realReturn": 21.73,
+        "realMaxDD": 13.76,
+        "d2Return": 2.55,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 9.33,
+        "d4Percentile": 85.5
+      }
+    },
+    {
+      "market": "XRP 4h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 175.49,
+        "realMaxDD": 26.94,
+        "d2Return": 164,
+        "d3MeanReturn": 218.58,
+        "d4MeanReturn": 187.25,
+        "d4Percentile": 65
+      },
+      "s1l": {
+        "realReturn": 6.93,
+        "realMaxDD": 7.11,
+        "d2Return": 5.09,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 7.03,
+        "d4Percentile": 71.5
+      }
+    },
+    {
+      "market": "ADA 1h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 102.88,
+        "realMaxDD": 17.37,
+        "d2Return": 106.61,
+        "d3MeanReturn": 84.29,
+        "d4MeanReturn": 95.73,
+        "d4Percentile": 60
+      },
+      "s1l": {
+        "realReturn": 2.79,
+        "realMaxDD": 9.87,
+        "d2Return": 5.66,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 2.77,
+        "d4Percentile": 67.5
+      }
+    },
+    {
+      "market": "ADA 4h",
+      "isOos": true,
+      "b4": {
+        "realReturn": 111.53,
+        "realMaxDD": 15.95,
+        "d2Return": 78.29,
+        "d3MeanReturn": 141.52,
+        "d4MeanReturn": 86.27,
+        "d4Percentile": 73.5
+      },
+      "s1l": {
+        "realReturn": 15.99,
+        "realMaxDD": 10.29,
+        "d2Return": 1.54,
+        "d3MeanReturn": null,
+        "d4MeanReturn": 9.18,
+        "d4Percentile": 81
+      }
+    }
+  ],
+  "b4Criteria": {
+    "critA_Parity": true,
+    "critB_D2Positivity": false,
+    "critC_D4Percentile95": false,
+    "critD_LooAndAltsExcluded": true,
+    "critE_Btc1hAnd4hPos": false,
+    "b4D2PosCount": 8,
+    "b4D4Pct95Count": 0,
+    "overallEdge": false
+  },
+  "s1lCriteria": {
+    "critA_Parity": true,
+    "critB_D2Positivity": true,
+    "critC_D4Percentile95": false,
+    "critD_LooAndAltsExcluded": true,
+    "critE_Btc1hAnd4hPos": true,
+    "s1lD2PosCount": 13,
+    "s1lD4Pct95Count": 0,
+    "overallEdge": false
+  }
+}
