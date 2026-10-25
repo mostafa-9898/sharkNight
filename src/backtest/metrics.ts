@@ -118,6 +118,140 @@ export function computeMfeMaeAnalysis(trades: readonly Trade[]): MfeMaeAnalysis 
  * - Long/short breakdown
  * - Fee drag and fees % of gross profit
  */
+function computeTradeNotional(t: Trade): number {
+  if (t.entryPrice !== undefined && t.quantity !== undefined && t.entryPrice > 0 && t.quantity > 0) {
+    return t.entryPrice * t.quantity;
+  }
+  if (t.pnlPercent !== undefined && t.pnlPercent !== 0 && t.pnl !== undefined) {
+    return Math.abs(t.pnl / (t.pnlPercent / 100));
+  }
+  return 0;
+}
+
+function computeTimeWeightedExposure(
+  trades: readonly Trade[],
+  initialBalance: number,
+  equityCurve: readonly number[],
+  timestamps?: readonly (number | { timestamp: number })[]
+): number | undefined {
+  if (trades.length === 0) return 0;
+  if (equityCurve.length === 0) return undefined;
+
+  // Case 1: Timestamps array provided and aligns with equityCurve
+  if (timestamps && timestamps.length === equityCurve.length && equityCurve.length > 0) {
+    const getTs = (idx: number) => {
+      const val = timestamps[idx];
+      return typeof val === 'number' ? val : val.timestamp;
+    };
+
+    let sumExposure = 0;
+    for (let i = 0; i < equityCurve.length; i++) {
+      const ts = getTs(i);
+      const eq = equityCurve[i] > 0 ? equityCurve[i] : initialBalance;
+      if (eq <= 0) continue;
+
+      let openNotional = 0;
+      for (const t of trades) {
+        if (t.entryTime === undefined) continue;
+        const entryT = t.entryTime;
+        const exitT = t.exitTime ?? entryT;
+        const isOpen = exitT === entryT ? ts === entryT : (ts >= entryT && ts < exitT);
+        if (isOpen) {
+          openNotional += computeTradeNotional(t);
+        }
+      }
+      sumExposure += (openNotional / eq) * 100;
+    }
+    return roundTo(sumExposure / equityCurve.length, 2);
+  }
+
+  // Case 2: Trades with candle index timings [0, equityCurve.length]
+  const allTradesHaveIndices = trades.length > 0 && trades.every((t) =>
+    t.entryTime !== undefined &&
+    t.entryTime >= 0 &&
+    t.entryTime < equityCurve.length &&
+    (t.exitTime === undefined || (t.exitTime >= 0 && t.exitTime <= equityCurve.length))
+  );
+
+  if (allTradesHaveIndices && equityCurve.length > 0) {
+    let sumExposure = 0;
+    for (let i = 0; i < equityCurve.length; i++) {
+      const eq = equityCurve[i] > 0 ? equityCurve[i] : initialBalance;
+      if (eq <= 0) continue;
+
+      let openNotional = 0;
+      for (const t of trades) {
+        const entryIdx = t.entryTime!;
+        const exitIdx = t.exitTime ?? (t.duration !== undefined ? entryIdx + t.duration : entryIdx);
+        const isOpen = exitIdx === entryIdx ? i === entryIdx : (i >= entryIdx && i < exitIdx);
+        if (isOpen) {
+          openNotional += computeTradeNotional(t);
+        }
+      }
+      sumExposure += (openNotional / eq) * 100;
+    }
+    return roundTo(sumExposure / equityCurve.length, 2);
+  }
+
+  // When trade timing cannot be reliably matched to equity timeline, return undefined (do NOT fall back to percentTimeInMarket)
+  return undefined;
+}
+
+function computePercentTimeInMarket(
+  trades: readonly Trade[],
+  equityCurve: readonly number[],
+  timestamps?: readonly (number | { timestamp: number })[]
+): number {
+  if (trades.length === 0 || equityCurve.length === 0) return 0;
+
+  // Case 1: Timestamps array provided
+  if (timestamps && timestamps.length === equityCurve.length && equityCurve.length > 0) {
+    const getTs = (idx: number) => {
+      const val = timestamps[idx];
+      return typeof val === 'number' ? val : val.timestamp;
+    };
+    let barsWithPos = 0;
+    for (let i = 0; i < equityCurve.length; i++) {
+      const ts = getTs(i);
+      const hasOpen = trades.some((t) => {
+        if (t.entryTime === undefined) return false;
+        const entryT = t.entryTime;
+        const exitT = t.exitTime ?? entryT;
+        return exitT === entryT ? ts === entryT : (ts >= entryT && ts < exitT);
+      });
+      if (hasOpen) barsWithPos++;
+    }
+    return roundTo((barsWithPos / equityCurve.length) * 100, 2);
+  }
+
+  // Case 2: Bar indices
+  const allTradesHaveIndices = trades.length > 0 && trades.every((t) =>
+    t.entryTime !== undefined &&
+    t.entryTime >= 0 &&
+    t.entryTime < equityCurve.length &&
+    (t.exitTime === undefined || (t.exitTime >= 0 && t.exitTime <= equityCurve.length))
+  );
+
+  if (allTradesHaveIndices && equityCurve.length > 0) {
+    let barsWithPos = 0;
+    for (let i = 0; i < equityCurve.length; i++) {
+      const hasOpen = trades.some((t) => {
+        const entryIdx = t.entryTime!;
+        const exitIdx = t.exitTime ?? (t.duration !== undefined ? entryIdx + t.duration : entryIdx);
+        return exitIdx === entryIdx ? i === entryIdx : (i >= entryIdx && i < exitIdx);
+      });
+      if (hasOpen) barsWithPos++;
+    }
+    return roundTo((barsWithPos / equityCurve.length) * 100, 2);
+  }
+
+  // Fallback: sum durations (capped at 100%)
+  const totalBarsInTrade = trades.reduce((sum, t) => sum + (t.duration ?? 0), 0);
+  return equityCurve.length > 0
+    ? roundTo(Math.min(100, (totalBarsInTrade / equityCurve.length) * 100), 2)
+    : 0;
+}
+
 export function calculateMetrics(
   trades: readonly Trade[],
   initialBalance: number,
@@ -359,15 +493,15 @@ export function calculateMetrics(
   maxConsecutiveLossesDollars = roundTo(maxConsecutiveLossesDollars, 2);
 
   // Time in market & exposure
-  let percentTimeInMarket = percentTimeInMarketOverride ?? 0;
-  let avgExposurePercent = avgExposurePercentOverride ?? 0;
+  let percentTimeInMarket: number | undefined = percentTimeInMarketOverride;
+  let avgExposurePercent: number | undefined = avgExposurePercentOverride;
 
-  if (percentTimeInMarketOverride === undefined) {
-    const totalBarsInTrade = trades.reduce((sum, t) => sum + (t.duration ?? 0), 0);
-    percentTimeInMarket = equityCurve.length > 0
-      ? roundTo(Math.min(100, (totalBarsInTrade / equityCurve.length) * 100), 2)
-      : 0;
-    avgExposurePercent = percentTimeInMarket;
+  if (avgExposurePercent === undefined) {
+    avgExposurePercent = computeTimeWeightedExposure(trades, initialBalance, equityCurve, timestamps);
+  }
+
+  if (percentTimeInMarket === undefined) {
+    percentTimeInMarket = computePercentTimeInMarket(trades, equityCurve, timestamps);
   }
 
   // Fees

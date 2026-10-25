@@ -213,4 +213,80 @@ describe('ST2: Metrics Correctness Unit Tests with Manual Calculations', () => {
     // Drawdown from 10200 to 9400 = 800 / 10200 = 7.84%
     expect(metrics.maxDrawdownPercent).toBeCloseTo(7.84, 1);
   });
+
+  it('VF4: calculates time-weighted exposure accurately with hand-calculated concurrent positions (2x 3% for 50% of time => 6% concurrent, 3% average)', () => {
+    const initialBalance = 10000;
+    // Total timeline: 10 bars
+    const timestamps = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000];
+    const equityCurve = new Array(10).fill(10000);
+
+    // Two concurrent positions of 3% each ($300 notional each) open for bars 0..4 (5 bars = 50% of time)
+    // At bars 0..4: concurrent open notional = $300 + $300 = $600 => concurrent exposure = 6%
+    // At bars 5..9: 0 positions => exposure = 0%
+    // Time-weighted average exposure = (5 * 6% + 5 * 0%) / 10 = 3.0%
+    // Percent time in market = 5 / 10 = 50.0%
+    const trades: Trade[] = [
+      {
+        side: 'long',
+        exitReason: 'signal',
+        entrySignal: dummySignal('BUY'),
+        exitSignal: dummySignal('SELL'),
+        entryPrice: 100,
+        exitPrice: 100,
+        quantity: 3, // notional = 300 (3% of initialBalance 10000)
+        pnl: 0,
+        pnlPercent: 0,
+        fee: 0,
+        entryTime: 0,
+        exitTime: 5000,
+        duration: 5,
+        maxFavorablePercent: 0,
+        maxAdversePercent: 0,
+      },
+      {
+        side: 'long',
+        exitReason: 'signal',
+        entrySignal: dummySignal('BUY'),
+        exitSignal: dummySignal('SELL'),
+        entryPrice: 100,
+        exitPrice: 100,
+        quantity: 3, // notional = 300 (3% of initialBalance 10000)
+        pnl: 0,
+        pnlPercent: 0,
+        fee: 0,
+        entryTime: 0,
+        exitTime: 5000,
+        duration: 5,
+        maxFavorablePercent: 0,
+        maxAdversePercent: 0,
+      },
+    ];
+
+    // 1. With timestamps passed:
+    const metricsWithTs = calculateMetrics(trades, initialBalance, equityCurve, { timestamps });
+    expect(metricsWithTs.percentTimeInMarket).toBe(50.0);
+    expect(metricsWithTs.avgExposurePercent).toBe(3.0);
+
+    // 2. With bar index timings (without explicit timestamps):
+    const barIndexTrades: Trade[] = trades.map((t) => ({
+      ...t,
+      entryTime: 0,
+      exitTime: 5,
+    }));
+    const metricsBarIndex = calculateMetrics(barIndexTrades, initialBalance, equityCurve);
+    expect(metricsBarIndex.percentTimeInMarket).toBe(50.0);
+    expect(metricsBarIndex.avgExposurePercent).toBe(3.0);
+
+    // 3. Fallback check: When trade timings cannot be aligned, avgExposurePercent must NOT fall back to percentTimeInMarket
+    const unalignedTrades: Trade[] = trades.map((t) => ({
+      ...t,
+      entryTime: 99999999, // Unalignable timestamp far outside equityCurve range
+      exitTime: 99999999,
+      duration: 5,
+    }));
+    const metricsUnaligned = calculateMetrics(unalignedTrades, initialBalance, equityCurve);
+    expect(metricsUnaligned.avgExposurePercent).toBeUndefined();
+    expect(metricsUnaligned.avgExposurePercent).not.toBe(metricsUnaligned.percentTimeInMarket);
+  });
 });
+
