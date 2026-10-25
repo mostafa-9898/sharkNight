@@ -1,0 +1,1080 @@
+{
+  "marketOutputs": [
+    {
+      "market": "BTC 15m",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 185.71,
+          "maxDD": 55.74,
+          "returnDdRatio": 3.33,
+          "timeExposure": 100,
+          "capitalExposure": 63.59,
+          "trades": 1,
+          "return2022": -40.9,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 20.8,
+          "maxDD": 23.75,
+          "returnDdRatio": 0.88,
+          "timeExposure": 47.79,
+          "capitalExposure": 17.59,
+          "trades": 27,
+          "return2022": 0,
+          "detrendReturn": -18.06
+        },
+        "B3": {
+          "totalReturn": 9.02,
+          "maxDD": 19.23,
+          "returnDdRatio": 0.47,
+          "timeExposure": 47.74,
+          "capitalExposure": 16.42,
+          "trades": 7,
+          "return2022": -2.09,
+          "detrendReturn": -35.54
+        },
+        "B4": {
+          "totalReturn": -10.5,
+          "maxDD": 26.54,
+          "returnDdRatio": -0.4,
+          "timeExposure": 20.67,
+          "capitalExposure": 6.27,
+          "trades": 735,
+          "return2022": -8.91,
+          "detrendReturn": -18.57
+        },
+        "S1L": {
+          "totalReturn": 78.3,
+          "maxDD": 25.69,
+          "returnDdRatio": 3.05,
+          "timeExposure": 76.96,
+          "capitalExposure": 21.79,
+          "trades": 87,
+          "return2022": -8.63,
+          "detrendReturn": -4.44
+        },
+        "S1LS": {
+          "totalReturn": 62.87,
+          "maxDD": 28.33,
+          "returnDdRatio": 2.22,
+          "timeExposure": 93.29,
+          "capitalExposure": 26.72,
+          "trades": 190,
+          "return2022": 10.44,
+          "detrendReturn": -30.94
+        }
+      }
+    },
+    {
+      "market": "BTC 1h",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 185.52,
+          "maxDD": 55.69,
+          "returnDdRatio": 3.33,
+          "timeExposure": 100,
+          "capitalExposure": 63.6,
+          "trades": 1,
+          "return2022": -41.17,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 21.09,
+          "maxDD": 24.96,
+          "returnDdRatio": 0.84,
+          "timeExposure": 47.75,
+          "capitalExposure": 17.54,
+          "trades": 27,
+          "return2022": 0,
+          "detrendReturn": -18.51
+        },
+        "B3": {
+          "totalReturn": 9.33,
+          "maxDD": 19.21,
+          "returnDdRatio": 0.49,
+          "timeExposure": 47.71,
+          "capitalExposure": 16.42,
+          "trades": 7,
+          "return2022": -2.23,
+          "detrendReturn": -35.15
+        },
+        "B4": {
+          "totalReturn": -10.5,
+          "maxDD": 26.32,
+          "returnDdRatio": -0.4,
+          "timeExposure": 20.67,
+          "capitalExposure": 6.27,
+          "trades": 735,
+          "return2022": -8.91,
+          "detrendReturn": -18.54
+        },
+        "S1L": {
+          "totalReturn": 69.72,
+          "maxDD": 24.02,
+          "returnDdRatio": 2.9,
+          "timeExposure": 67.1,
+          "capitalExposure": 18.07,
+          "trades": 90,
+          "return2022": -9.58,
+          "detrendReturn": -2.03
+        },
+        "S1LS": {
+          "totalReturn": 58.31,
+          "maxDD": 27,
+          "returnDdRatio": 2.16,
+          "timeExposure": 90.18,
+          "capitalExposure": 23.81,
+          "trades": 158,
+          "return2022": 6.58,
+          "detrendReturn": -23.71
+        }
+      }
+    },
+    {
+      "market": "BTC 4h",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 185.27,
+          "maxDD": 55.52,
+          "returnDdRatio": 3.34,
+          "timeExposure": 100,
+          "capitalExposure": 63.57,
+          "trades": 1,
+          "return2022": -41.28,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 24.52,
+          "maxDD": 21.85,
+          "returnDdRatio": 1.12,
+          "timeExposure": 47.76,
+          "capitalExposure": 17.55,
+          "trades": 27,
+          "return2022": 0,
+          "detrendReturn": -17.98
+        },
+        "B3": {
+          "totalReturn": 10.15,
+          "maxDD": 18.9,
+          "returnDdRatio": 0.54,
+          "timeExposure": 47.71,
+          "capitalExposure": 16.45,
+          "trades": 7,
+          "return2022": -2.45,
+          "detrendReturn": -35.55
+        },
+        "B4": {
+          "totalReturn": -0.17,
+          "maxDD": 19.03,
+          "returnDdRatio": -0.01,
+          "timeExposure": 21.2,
+          "capitalExposure": 6.43,
+          "trades": 538,
+          "return2022": -8.7,
+          "detrendReturn": -10.12
+        },
+        "S1L": {
+          "totalReturn": 56.63,
+          "maxDD": 17.01,
+          "returnDdRatio": 3.33,
+          "timeExposure": 67.18,
+          "capitalExposure": 16.95,
+          "trades": 44,
+          "return2022": -4.32,
+          "detrendReturn": -1.8
+        },
+        "S1LS": {
+          "totalReturn": 50.64,
+          "maxDD": 16.48,
+          "returnDdRatio": 3.07,
+          "timeExposure": 79.6,
+          "capitalExposure": 19.51,
+          "trades": 86,
+          "return2022": 0.14,
+          "detrendReturn": -12.84
+        }
+      }
+    },
+    {
+      "market": "ETH 15m",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 166.8,
+          "maxDD": 69.22,
+          "returnDdRatio": 2.41,
+          "timeExposure": 100,
+          "capitalExposure": 71.53,
+          "trades": 1,
+          "return2022": -54.87,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 28.49,
+          "maxDD": 20.85,
+          "returnDdRatio": 1.37,
+          "timeExposure": 45.64,
+          "capitalExposure": 16.99,
+          "trades": 17,
+          "return2022": -7.29,
+          "detrendReturn": -35.19
+        },
+        "B3": {
+          "totalReturn": -8.19,
+          "maxDD": 27.57,
+          "returnDdRatio": -0.3,
+          "timeExposure": 46.19,
+          "capitalExposure": 15.94,
+          "trades": 7,
+          "return2022": -10.53,
+          "detrendReturn": -16.27
+        },
+        "B4": {
+          "totalReturn": 31.93,
+          "maxDD": 21.11,
+          "returnDdRatio": 1.51,
+          "timeExposure": 19.61,
+          "capitalExposure": 5.99,
+          "trades": 648,
+          "return2022": -3.31,
+          "detrendReturn": -10.01
+        },
+        "S1L": {
+          "totalReturn": 56.13,
+          "maxDD": 15.53,
+          "returnDdRatio": 3.61,
+          "timeExposure": 55.33,
+          "capitalExposure": 13.96,
+          "trades": 176,
+          "return2022": -2.06,
+          "detrendReturn": -0.47
+        },
+        "S1LS": {
+          "totalReturn": -4.09,
+          "maxDD": 31.44,
+          "returnDdRatio": -0.13,
+          "timeExposure": 79.46,
+          "capitalExposure": 18.04,
+          "trades": 451,
+          "return2022": -0.15,
+          "detrendReturn": -34.08
+        }
+      }
+    },
+    {
+      "market": "ETH 1h",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 168.42,
+          "maxDD": 69.11,
+          "returnDdRatio": 2.44,
+          "timeExposure": 100,
+          "capitalExposure": 71.5,
+          "trades": 1,
+          "return2022": -55.16,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 28.48,
+          "maxDD": 21.05,
+          "returnDdRatio": 1.35,
+          "timeExposure": 45.61,
+          "capitalExposure": 16.99,
+          "trades": 17,
+          "return2022": -6.89,
+          "detrendReturn": -33.78
+        },
+        "B3": {
+          "totalReturn": -8.6,
+          "maxDD": 27.68,
+          "returnDdRatio": -0.31,
+          "timeExposure": 46.16,
+          "capitalExposure": 15.95,
+          "trades": 7,
+          "return2022": -10.98,
+          "detrendReturn": -16.04
+        },
+        "B4": {
+          "totalReturn": 31.93,
+          "maxDD": 20.93,
+          "returnDdRatio": 1.53,
+          "timeExposure": 19.61,
+          "capitalExposure": 5.99,
+          "trades": 648,
+          "return2022": -3.31,
+          "detrendReturn": -10.02
+        },
+        "S1L": {
+          "totalReturn": 14.79,
+          "maxDD": 20.83,
+          "returnDdRatio": 0.71,
+          "timeExposure": 49.55,
+          "capitalExposure": 10.36,
+          "trades": 180,
+          "return2022": -10.57,
+          "detrendReturn": -1.58
+        },
+        "S1LS": {
+          "totalReturn": -1.28,
+          "maxDD": 24.51,
+          "returnDdRatio": -0.05,
+          "timeExposure": 79.96,
+          "capitalExposure": 16.76,
+          "trades": 340,
+          "return2022": 3.26,
+          "detrendReturn": -32.6
+        }
+      }
+    },
+    {
+      "market": "ETH 4h",
+      "isOos": false,
+      "methods": {
+        "B1": {
+          "totalReturn": 168.06,
+          "maxDD": 68.91,
+          "returnDdRatio": 2.44,
+          "timeExposure": 100,
+          "capitalExposure": 71.46,
+          "trades": 1,
+          "return2022": -55.14,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 21.58,
+          "maxDD": 21.37,
+          "returnDdRatio": 1.01,
+          "timeExposure": 45.62,
+          "capitalExposure": 16.98,
+          "trades": 17,
+          "return2022": -7.2,
+          "detrendReturn": -28.39
+        },
+        "B3": {
+          "totalReturn": -10.08,
+          "maxDD": 27.45,
+          "returnDdRatio": -0.37,
+          "timeExposure": 46.16,
+          "capitalExposure": 15.88,
+          "trades": 7,
+          "return2022": -11.13,
+          "detrendReturn": -16.41
+        },
+        "B4": {
+          "totalReturn": 46.92,
+          "maxDD": 15.63,
+          "returnDdRatio": 3,
+          "timeExposure": 19.99,
+          "capitalExposure": 6.1,
+          "trades": 495,
+          "return2022": -6.59,
+          "detrendReturn": 8.84
+        },
+        "S1L": {
+          "totalReturn": 15.12,
+          "maxDD": 18.03,
+          "returnDdRatio": 0.84,
+          "timeExposure": 33.81,
+          "capitalExposure": 6.16,
+          "trades": 92,
+          "return2022": -0.65,
+          "detrendReturn": -1.93
+        },
+        "S1LS": {
+          "totalReturn": -1.7,
+          "maxDD": 23.06,
+          "returnDdRatio": -0.07,
+          "timeExposure": 45.22,
+          "capitalExposure": 8.1,
+          "trades": 167,
+          "return2022": -3.39,
+          "detrendReturn": -13.86
+        }
+      }
+    },
+    {
+      "market": "SOL 1h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 61.82,
+          "maxDD": 74,
+          "returnDdRatio": 0.84,
+          "timeExposure": 100,
+          "capitalExposure": 50.87,
+          "trades": 1,
+          "return2022": -64.45,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 113.73,
+          "maxDD": 38.26,
+          "returnDdRatio": 2.97,
+          "timeExposure": 37.49,
+          "capitalExposure": 16.98,
+          "trades": 21,
+          "return2022": 0,
+          "detrendReturn": -0.09
+        },
+        "B3": {
+          "totalReturn": 46.03,
+          "maxDD": 41.33,
+          "returnDdRatio": 1.11,
+          "timeExposure": 38.12,
+          "capitalExposure": 17.15,
+          "trades": 6,
+          "return2022": 0,
+          "detrendReturn": -30.16
+        },
+        "B4": {
+          "totalReturn": 122.53,
+          "maxDD": 12.42,
+          "returnDdRatio": 9.87,
+          "timeExposure": 17.5,
+          "capitalExposure": 5.38,
+          "trades": 487,
+          "return2022": -6.58,
+          "detrendReturn": 32.38
+        },
+        "S1L": {
+          "totalReturn": 124.33,
+          "maxDD": 39.96,
+          "returnDdRatio": 3.11,
+          "timeExposure": 37.07,
+          "capitalExposure": 11.48,
+          "trades": 162,
+          "return2022": -7.24,
+          "detrendReturn": 10.78
+        },
+        "S1LS": {
+          "totalReturn": 81.49,
+          "maxDD": 37.51,
+          "returnDdRatio": 2.17,
+          "timeExposure": 79.82,
+          "capitalExposure": 16.88,
+          "trades": 333,
+          "return2022": 2.38,
+          "detrendReturn": -6.89
+        }
+      }
+    },
+    {
+      "market": "SOL 4h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 61.14,
+          "maxDD": 73.72,
+          "returnDdRatio": 0.83,
+          "timeExposure": 100,
+          "capitalExposure": 50.71,
+          "trades": 1,
+          "return2022": -64.37,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": 117.93,
+          "maxDD": 38.84,
+          "returnDdRatio": 3.04,
+          "timeExposure": 37.48,
+          "capitalExposure": 17.02,
+          "trades": 21,
+          "return2022": 0,
+          "detrendReturn": -1.57
+        },
+        "B3": {
+          "totalReturn": 40.31,
+          "maxDD": 40.68,
+          "returnDdRatio": 0.99,
+          "timeExposure": 38.12,
+          "capitalExposure": 16.92,
+          "trades": 6,
+          "return2022": 0,
+          "detrendReturn": -29.58
+        },
+        "B4": {
+          "totalReturn": 70.08,
+          "maxDD": 15.88,
+          "returnDdRatio": 4.41,
+          "timeExposure": 17.72,
+          "capitalExposure": 5.44,
+          "trades": 376,
+          "return2022": -12.15,
+          "detrendReturn": 39.13
+        },
+        "S1L": {
+          "totalReturn": -9.55,
+          "maxDD": 22.4,
+          "returnDdRatio": -0.43,
+          "timeExposure": 13.53,
+          "capitalExposure": 1.92,
+          "trades": 102,
+          "return2022": -2.88,
+          "detrendReturn": -7.78
+        },
+        "S1LS": {
+          "totalReturn": -14.69,
+          "maxDD": 28.07,
+          "returnDdRatio": -0.52,
+          "timeExposure": 34.05,
+          "capitalExposure": 4.42,
+          "trades": 182,
+          "return2022": -1.42,
+          "detrendReturn": -11.11
+        }
+      }
+    },
+    {
+      "market": "BNB 1h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 696.91,
+          "maxDD": 65.8,
+          "returnDdRatio": 10.59,
+          "timeExposure": 100,
+          "capitalExposure": 83.03,
+          "trades": 1,
+          "return2022": -46.15,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": -6.14,
+          "maxDD": 28.24,
+          "returnDdRatio": -0.22,
+          "timeExposure": 50.21,
+          "capitalExposure": 17.84,
+          "trades": 40,
+          "return2022": -12.06,
+          "detrendReturn": -0.82
+        },
+        "B3": {
+          "totalReturn": 7.06,
+          "maxDD": 32.34,
+          "returnDdRatio": 0.22,
+          "timeExposure": 48.48,
+          "capitalExposure": 16.79,
+          "trades": 8,
+          "return2022": -14.43,
+          "detrendReturn": -7.27
+        },
+        "B4": {
+          "totalReturn": 76.79,
+          "maxDD": 18.25,
+          "returnDdRatio": 4.21,
+          "timeExposure": 20.11,
+          "capitalExposure": 6.15,
+          "trades": 693,
+          "return2022": -5.88,
+          "detrendReturn": 25.88
+        },
+        "S1L": {
+          "totalReturn": 56.62,
+          "maxDD": 24.19,
+          "returnDdRatio": 2.34,
+          "timeExposure": 49.35,
+          "capitalExposure": 10.85,
+          "trades": 176,
+          "return2022": -4.78,
+          "detrendReturn": 30.16
+        },
+        "S1LS": {
+          "totalReturn": 7.19,
+          "maxDD": 41.55,
+          "returnDdRatio": 0.17,
+          "timeExposure": 73.01,
+          "capitalExposure": 15.52,
+          "trades": 344,
+          "return2022": -10.58,
+          "detrendReturn": 23.73
+        }
+      }
+    },
+    {
+      "market": "BNB 4h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 699,
+          "maxDD": 65.73,
+          "returnDdRatio": 10.63,
+          "timeExposure": 100,
+          "capitalExposure": 83.07,
+          "trades": 1,
+          "return2022": -46.23,
+          "detrendReturn": -0.06
+        },
+        "B2": {
+          "totalReturn": -8.19,
+          "maxDD": 30.18,
+          "returnDdRatio": -0.27,
+          "timeExposure": 50.21,
+          "capitalExposure": 17.82,
+          "trades": 40,
+          "return2022": -12.63,
+          "detrendReturn": 1.7
+        },
+        "B3": {
+          "totalReturn": 9.26,
+          "maxDD": 31.91,
+          "returnDdRatio": 0.29,
+          "timeExposure": 48.48,
+          "capitalExposure": 16.86,
+          "trades": 8,
+          "return2022": -13.65,
+          "detrendReturn": -8.45
+        },
+        "B4": {
+          "totalReturn": 93.44,
+          "maxDD": 22.85,
+          "returnDdRatio": 4.09,
+          "timeExposure": 20.53,
+          "capitalExposure": 6.27,
+          "trades": 516,
+          "return2022": -6.74,
+          "detrendReturn": 32.83
+        },
+        "S1L": {
+          "totalReturn": 31.7,
+          "maxDD": 26.83,
+          "returnDdRatio": 1.18,
+          "timeExposure": 34.95,
+          "capitalExposure": 5.57,
+          "trades": 99,
+          "return2022": -2.93,
+          "detrendReturn": 22.26
+        },
+        "S1LS": {
+          "totalReturn": 23.44,
+          "maxDD": 28.73,
+          "returnDdRatio": 0.82,
+          "timeExposure": 58.92,
+          "capitalExposure": 9.63,
+          "trades": 170,
+          "return2022": -3.52,
+          "detrendReturn": 18.88
+        }
+      }
+    },
+    {
+      "market": "XRP 1h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 127.27,
+          "maxDD": 65.36,
+          "returnDdRatio": 1.95,
+          "timeExposure": 100,
+          "capitalExposure": 57.83,
+          "trades": 1,
+          "return2022": -35.34,
+          "detrendReturn": -0.74
+        },
+        "B2": {
+          "totalReturn": -6.46,
+          "maxDD": 44.68,
+          "returnDdRatio": -0.14,
+          "timeExposure": 43.46,
+          "capitalExposure": 15.9,
+          "trades": 43,
+          "return2022": -10.97,
+          "detrendReturn": -24.51
+        },
+        "B3": {
+          "totalReturn": -3.24,
+          "maxDD": 43.91,
+          "returnDdRatio": -0.07,
+          "timeExposure": 44.23,
+          "capitalExposure": 14.99,
+          "trades": 9,
+          "return2022": -6.67,
+          "detrendReturn": -38.48
+        },
+        "B4": {
+          "totalReturn": 142.04,
+          "maxDD": 32.07,
+          "returnDdRatio": 4.43,
+          "timeExposure": 14.87,
+          "capitalExposure": 4.6,
+          "trades": 563,
+          "return2022": -10.34,
+          "detrendReturn": 163.85
+        },
+        "S1L": {
+          "totalReturn": 35.78,
+          "maxDD": 30.16,
+          "returnDdRatio": 1.19,
+          "timeExposure": 27.37,
+          "capitalExposure": 6.03,
+          "trades": 197,
+          "return2022": -10.21,
+          "detrendReturn": -7.93
+        },
+        "S1LS": {
+          "totalReturn": -8.95,
+          "maxDD": 34.13,
+          "returnDdRatio": -0.26,
+          "timeExposure": 57.67,
+          "capitalExposure": 10.76,
+          "trades": 437,
+          "return2022": -10.11,
+          "detrendReturn": -25.09
+        }
+      }
+    },
+    {
+      "market": "XRP 4h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 128.02,
+          "maxDD": 64.9,
+          "returnDdRatio": 1.97,
+          "timeExposure": 100,
+          "capitalExposure": 57.94,
+          "trades": 1,
+          "return2022": -35.46,
+          "detrendReturn": 0.2
+        },
+        "B2": {
+          "totalReturn": -10.75,
+          "maxDD": 45.53,
+          "returnDdRatio": -0.24,
+          "timeExposure": 43.46,
+          "capitalExposure": 15.82,
+          "trades": 43,
+          "return2022": -13.86,
+          "detrendReturn": -26.1
+        },
+        "B3": {
+          "totalReturn": -5.46,
+          "maxDD": 44.38,
+          "returnDdRatio": -0.12,
+          "timeExposure": 44.23,
+          "capitalExposure": 14.97,
+          "trades": 9,
+          "return2022": -6.64,
+          "detrendReturn": -38.85
+        },
+        "B4": {
+          "totalReturn": 175.49,
+          "maxDD": 26.94,
+          "returnDdRatio": 6.51,
+          "timeExposure": 15.18,
+          "capitalExposure": 4.69,
+          "trades": 417,
+          "return2022": -3.68,
+          "detrendReturn": 152.88
+        },
+        "S1L": {
+          "totalReturn": 12.67,
+          "maxDD": 12.73,
+          "returnDdRatio": 1,
+          "timeExposure": 14.66,
+          "capitalExposure": 2.36,
+          "trades": 80,
+          "return2022": 0.98,
+          "detrendReturn": 32.57
+        },
+        "S1LS": {
+          "totalReturn": 3.3,
+          "maxDD": 14.42,
+          "returnDdRatio": 0.23,
+          "timeExposure": 35.17,
+          "capitalExposure": 4.75,
+          "trades": 171,
+          "return2022": 3.28,
+          "detrendReturn": 25.8
+        }
+      }
+    },
+    {
+      "market": "ADA 1h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 28.86,
+          "maxDD": 88.17,
+          "returnDdRatio": 0.33,
+          "timeExposure": 100,
+          "capitalExposure": 65.07,
+          "trades": 1,
+          "return2022": -68.29,
+          "detrendReturn": -6.44
+        },
+        "B2": {
+          "totalReturn": -16.98,
+          "maxDD": 47.68,
+          "returnDdRatio": -0.36,
+          "timeExposure": 32.28,
+          "capitalExposure": 12.33,
+          "trades": 28,
+          "return2022": 0,
+          "detrendReturn": 2.45
+        },
+        "B3": {
+          "totalReturn": -29.21,
+          "maxDD": 44.81,
+          "returnDdRatio": -0.65,
+          "timeExposure": 33.83,
+          "capitalExposure": 11.18,
+          "trades": 7,
+          "return2022": 0,
+          "detrendReturn": -27.4
+        },
+        "B4": {
+          "totalReturn": 102.88,
+          "maxDD": 17.37,
+          "returnDdRatio": 5.92,
+          "timeExposure": 16.34,
+          "capitalExposure": 5.04,
+          "trades": 574,
+          "return2022": 15.86,
+          "detrendReturn": 132.24
+        },
+        "S1L": {
+          "totalReturn": 0.89,
+          "maxDD": 17.31,
+          "returnDdRatio": 0.05,
+          "timeExposure": 24.94,
+          "capitalExposure": 4.73,
+          "trades": 229,
+          "return2022": -5.76,
+          "detrendReturn": 18.65
+        },
+        "S1LS": {
+          "totalReturn": 3.21,
+          "maxDD": 27.77,
+          "returnDdRatio": 0.12,
+          "timeExposure": 73.82,
+          "capitalExposure": 13.71,
+          "trades": 434,
+          "return2022": 15.51,
+          "detrendReturn": 5.48
+        }
+      }
+    },
+    {
+      "market": "ADA 4h",
+      "isOos": true,
+      "methods": {
+        "B1": {
+          "totalReturn": 29.68,
+          "maxDD": 88.03,
+          "returnDdRatio": 0.34,
+          "timeExposure": 100,
+          "capitalExposure": 65.36,
+          "trades": 1,
+          "return2022": -68.34,
+          "detrendReturn": -1.43
+        },
+        "B2": {
+          "totalReturn": -14.97,
+          "maxDD": 45.68,
+          "returnDdRatio": -0.33,
+          "timeExposure": 32.28,
+          "capitalExposure": 12.32,
+          "trades": 28,
+          "return2022": 0,
+          "detrendReturn": 1.16
+        },
+        "B3": {
+          "totalReturn": -30.44,
+          "maxDD": 45.89,
+          "returnDdRatio": -0.66,
+          "timeExposure": 33.83,
+          "capitalExposure": 11.11,
+          "trades": 7,
+          "return2022": 0,
+          "detrendReturn": -26.61
+        },
+        "B4": {
+          "totalReturn": 111.53,
+          "maxDD": 15.95,
+          "returnDdRatio": 6.99,
+          "timeExposure": 16.66,
+          "capitalExposure": 5.13,
+          "trades": 431,
+          "return2022": 11.39,
+          "detrendReturn": 125.89
+        },
+        "S1L": {
+          "totalReturn": 43.91,
+          "maxDD": 20.02,
+          "returnDdRatio": 2.19,
+          "timeExposure": 20.18,
+          "capitalExposure": 4.23,
+          "trades": 85,
+          "return2022": 0.09,
+          "detrendReturn": 1.25
+        },
+        "S1LS": {
+          "totalReturn": 22.36,
+          "maxDD": 26.13,
+          "returnDdRatio": 0.86,
+          "timeExposure": 50.83,
+          "capitalExposure": 7.32,
+          "trades": 199,
+          "return2022": 10.52,
+          "detrendReturn": -13.52
+        }
+      }
+    }
+  ],
+  "avgMetrics": {
+    "B1": {
+      "totalReturn": 206.61,
+      "maxDD": 68.56,
+      "returnDdRatio": 3.2,
+      "timeExposure": 100,
+      "capitalExposure": 65.65,
+      "trades": 1,
+      "return2022": -119.52,
+      "detrendReturn": -0.64
+    },
+    "B2": {
+      "totalReturn": 22.37,
+      "maxDD": 32.35,
+      "returnDdRatio": 0.79,
+      "timeExposure": 43.36,
+      "capitalExposure": 16.4,
+      "trades": 28,
+      "return2022": -11.82,
+      "detrendReturn": -14.26
+    },
+    "B3": {
+      "totalReturn": 2.57,
+      "maxDD": 33.24,
+      "returnDdRatio": 0.12,
+      "timeExposure": 43.64,
+      "capitalExposure": 15.5,
+      "trades": 7,
+      "return2022": -13.47,
+      "detrendReturn": -25.84
+    },
+    "B4": {
+      "totalReturn": 70.31,
+      "maxDD": 20.81,
+      "returnDdRatio": 3.69,
+      "timeExposure": 18.62,
+      "capitalExposure": 5.7,
+      "trades": 561,
+      "return2022": -9.64,
+      "detrendReturn": 46.19
+    },
+    "S1L": {
+      "totalReturn": 41.93,
+      "maxDD": 22.48,
+      "returnDdRatio": 1.79,
+      "timeExposure": 40.86,
+      "capitalExposure": 9.6,
+      "trades": 129,
+      "return2022": -11.42,
+      "detrendReturn": 6.27
+    },
+    "S1LS": {
+      "totalReturn": 20.15,
+      "maxDD": 27.8,
+      "returnDdRatio": 0.77,
+      "timeExposure": 66.5,
+      "capitalExposure": 14,
+      "trades": 262,
+      "return2022": 3.82,
+      "detrendReturn": -9.34
+    }
+  },
+  "comparisons": [
+    {
+      "benchmark": "B1",
+      "strategy": "S1L",
+      "primaryWins": 1,
+      "oosWins": 2,
+      "primaryPass": false,
+      "oosPass": false,
+      "detrendAvgDiff": 6.91,
+      "detrendPass": true,
+      "overallPass": false
+    },
+    {
+      "benchmark": "B2",
+      "strategy": "S1L",
+      "primaryWins": 4,
+      "oosWins": 7,
+      "primaryPass": true,
+      "oosPass": true,
+      "detrendAvgDiff": 20.53,
+      "detrendPass": true,
+      "overallPass": true
+    },
+    {
+      "benchmark": "B3",
+      "strategy": "S1L",
+      "primaryWins": 4,
+      "oosWins": 7,
+      "primaryPass": true,
+      "oosPass": true,
+      "detrendAvgDiff": 32.11,
+      "detrendPass": true,
+      "overallPass": true
+    },
+    {
+      "benchmark": "B4",
+      "strategy": "S1L",
+      "primaryWins": 4,
+      "oosWins": 0,
+      "primaryPass": true,
+      "oosPass": false,
+      "detrendAvgDiff": -39.92,
+      "detrendPass": false,
+      "overallPass": false
+    },
+    {
+      "benchmark": "B1",
+      "strategy": "S1LS",
+      "primaryWins": 0,
+      "oosWins": 2,
+      "primaryPass": false,
+      "oosPass": false,
+      "detrendAvgDiff": -8.7,
+      "detrendPass": false,
+      "overallPass": false
+    },
+    {
+      "benchmark": "B2",
+      "strategy": "S1LS",
+      "primaryWins": 3,
+      "oosWins": 4,
+      "primaryPass": false,
+      "oosPass": false,
+      "detrendAvgDiff": 4.92,
+      "detrendPass": true,
+      "overallPass": false
+    },
+    {
+      "benchmark": "B3",
+      "strategy": "S1LS",
+      "primaryWins": 4,
+      "oosWins": 5,
+      "primaryPass": true,
+      "oosPass": true,
+      "detrendAvgDiff": 16.5,
+      "detrendPass": true,
+      "overallPass": true
+    },
+    {
+      "benchmark": "B4",
+      "strategy": "S1LS",
+      "primaryWins": 3,
+      "oosWins": 0,
+      "primaryPass": false,
+      "oosPass": false,
+      "detrendAvgDiff": -55.53,
+      "detrendPass": false,
+      "overallPass": false
+    }
+  ]
+}
