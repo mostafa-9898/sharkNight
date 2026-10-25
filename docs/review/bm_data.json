@@ -45,24 +45,24 @@
           "detrendReturn": -18.57
         },
         "S1L": {
-          "totalReturn": 78.3,
-          "maxDD": 25.69,
-          "returnDdRatio": 3.05,
-          "timeExposure": 76.96,
-          "capitalExposure": 21.79,
-          "trades": 87,
-          "return2022": -8.63,
-          "detrendReturn": -4.44
+          "totalReturn": 55.09,
+          "maxDD": 16.78,
+          "returnDdRatio": 3.28,
+          "timeExposure": 69.24,
+          "capitalExposure": 17.89,
+          "trades": 334,
+          "return2022": -6.05,
+          "detrendReturn": -0.72
         },
         "S1LS": {
-          "totalReturn": 62.87,
-          "maxDD": 28.33,
-          "returnDdRatio": 2.22,
-          "timeExposure": 93.29,
-          "capitalExposure": 26.72,
-          "trades": 190,
-          "return2022": 10.44,
-          "detrendReturn": -30.94
+          "totalReturn": 37.29,
+          "maxDD": 16.44,
+          "returnDdRatio": 2.27,
+          "timeExposure": 93.57,
+          "capitalExposure": 22.07,
+          "trades": 544,
+          "return2022": 2.85,
+          "detrendReturn": -18.04
         }
       }
     },
@@ -111,24 +111,24 @@
           "detrendReturn": -18.54
         },
         "S1L": {
-          "totalReturn": 69.72,
-          "maxDD": 24.02,
-          "returnDdRatio": 2.9,
-          "timeExposure": 67.1,
-          "capitalExposure": 18.07,
-          "trades": 90,
-          "return2022": -9.58,
-          "detrendReturn": -2.03
+          "totalReturn": 20.54,
+          "maxDD": 12.99,
+          "returnDdRatio": 1.58,
+          "timeExposure": 64,
+          "capitalExposure": 11.76,
+          "trades": 220,
+          "return2022": -4.32,
+          "detrendReturn": -2.02
         },
         "S1LS": {
-          "totalReturn": 58.31,
-          "maxDD": 27,
-          "returnDdRatio": 2.16,
-          "timeExposure": 90.18,
-          "capitalExposure": 23.81,
-          "trades": 158,
-          "return2022": 6.58,
-          "detrendReturn": -23.71
+          "totalReturn": 15.79,
+          "maxDD": 13.21,
+          "returnDdRatio": 1.2,
+          "timeExposure": 91.69,
+          "capitalExposure": 15.88,
+          "trades": 400,
+          "return2022": 0.77,
+          "detrendReturn": -8.27
         }
       }
     },
@@ -177,24 +177,24 @@
           "detrendReturn": -10.12
         },
         "S1L": {
-          "totalReturn": 56.63,
-          "maxDD": 17.01,
-          "returnDdRatio": 3.33,
-          "timeExposure": 67.18,
-          "capitalExposure": 16.95,
-          "trades": 44,
-          "return2022": -4.32,
-          "detrendReturn": -1.8
+          "totalReturn": 13.81,
+          "maxDD": 6.67,
+          "returnDdRatio": 2.07,
+          "timeExposure": 60.02,
+          "capitalExposure": 5.41,
+          "trades": 122,
+          "return2022": -0.95,
+          "detrendReturn": -0.02
         },
         "S1LS": {
-          "totalReturn": 50.64,
-          "maxDD": 16.48,
-          "returnDdRatio": 3.07,
-          "timeExposure": 79.6,
-          "capitalExposure": 19.51,
-          "trades": 86,
-          "return2022": 0.14,
-          "detrendReturn": -12.84
+          "totalReturn": 10.27,
+          "maxDD": 7.63,
+          "returnDdRatio": 1.35,
+          "timeExposure": 78.81,
+          "capitalExposure": 6.64,
+          "trades": 197,
+          "return2022": -0.39,
+          "detrendReturn": -3.24
         }
       }
     },
@@ -243,24 +243,24 @@
           "detrendReturn": -10.01
         },
         "S1L": {
-          "totalReturn": 56.13,
-          "maxDD": 15.53,
-          "returnDdRatio": 3.61,
-          "timeExposure": 55.33,
-          "capitalExposure": 13.96,
-          "trades": 176,
-          "return2022": -2.06,
-          "detrendReturn": -0.47
+          "totalReturn": 33.63,
+          "maxDD": 14.87,
+          "returnDdRatio": 2.26,
+          "timeExposure": 52.69,
+          "capitalExposure": 11.04,
+          "trades": 475,
+          "return2022": -2.69,
+          "detrendReturn": 13.3
         },
         "S1LS": {
-          "totalReturn": -4.09,
-          "maxDD": 31.44,
-          "returnDdRatio": -0.13,
-          "timeExposure": 79.46,
-          "capitalExposure": 18.04,
-          "trades": 451,
-          "return2022": -0.15,
-          "detrendReturn": -34.08
+          "totalReturn": 7.15,
+          "maxDD": 21.57,
+          "returnDdRatio": 0.33,
+          "timeExposure": 79.84,
+          "capitalExposure": 13.9,
+          "trades": 866,
+          "return2022": -6.34,
+          "detrendReturn": -8.63
         }
       }
     },
@@ -309,24 +309,24 @@
           "detrendReturn": -10.02
         },
         "S1L": {
-          "totalReturn": 14.79,
-          "maxDD": 20.83,
+          "totalReturn": 7.46,
+          "maxDD": 10.55,
           "returnDdRatio": 0.71,
-          "timeExposure": 49.55,
-          "capitalExposure": 10.36,
-          "trades": 180,
-          "return2022": -10.57,
-          "detrendReturn": -1.58
+          "timeExposure": 40.95,
+          "capitalExposure": 4.69,
+          "trades": 296,
+          "return2022": -3.93,
+          "detrendReturn": 8.7
         },
         "S1LS": {
-          "totalReturn": -1.28,
-          "maxDD": 24.51,
-          "returnDdRatio": -0.05,
-          "timeExposure": 79.96,
-          "capitalExposure": 16.76,
-          "trades": 340,
-          "return2022": 3.26,
-          "detrendReturn": -32.6
+          "totalReturn": 2.44,
+          "maxDD": 13.28,
+          "returnDdRatio": 0.18,
+          "timeExposure": 73.11,
+          "capitalExposure": 7.52,
+          "trades": 519,
+          "return2022": 1.89,
+          "detrendReturn": 2.89
         }
       }
     },
@@ -375,24 +375,24 @@
           "detrendReturn": 8.84
         },
         "S1L": {
-          "totalReturn": 15.12,
-          "maxDD": 18.03,
-          "returnDdRatio": 0.84,
-          "timeExposure": 33.81,
-          "capitalExposure": 6.16,
-          "trades": 92,
-          "return2022": -0.65,
-          "detrendReturn": -1.93
+          "totalReturn": 5.47,
+          "maxDD": 7.06,
+          "returnDdRatio": 0.77,
+          "timeExposure": 35.42,
+          "capitalExposure": 2.85,
+          "trades": 122,
+          "return2022": -0.11,
+          "detrendReturn": 5.39
         },
         "S1LS": {
-          "totalReturn": -1.7,
-          "maxDD": 23.06,
-          "returnDdRatio": -0.07,
-          "timeExposure": 45.22,
-          "capitalExposure": 8.1,
-          "trades": 167,
-          "return2022": -3.39,
-          "detrendReturn": -13.86
+          "totalReturn": 2.51,
+          "maxDD": 8.57,
+          "returnDdRatio": 0.29,
+          "timeExposure": 58.96,
+          "capitalExposure": 3.88,
+          "trades": 192,
+          "return2022": 0.87,
+          "detrendReturn": 3.27
         }
       }
     },
@@ -441,24 +441,24 @@
           "detrendReturn": 32.38
         },
         "S1L": {
-          "totalReturn": 124.33,
-          "maxDD": 39.96,
-          "returnDdRatio": 3.11,
-          "timeExposure": 37.07,
-          "capitalExposure": 11.48,
-          "trades": 162,
-          "return2022": -7.24,
-          "detrendReturn": 10.78
+          "totalReturn": 44.86,
+          "maxDD": 27.33,
+          "returnDdRatio": 1.64,
+          "timeExposure": 35.01,
+          "capitalExposure": 5.45,
+          "trades": 212,
+          "return2022": -2.4,
+          "detrendReturn": 5.55
         },
         "S1LS": {
-          "totalReturn": 81.49,
-          "maxDD": 37.51,
-          "returnDdRatio": 2.17,
-          "timeExposure": 79.82,
-          "capitalExposure": 16.88,
-          "trades": 333,
-          "return2022": 2.38,
-          "detrendReturn": -6.89
+          "totalReturn": 36.39,
+          "maxDD": 27.97,
+          "returnDdRatio": 1.3,
+          "timeExposure": 66.69,
+          "capitalExposure": 7.67,
+          "trades": 455,
+          "return2022": -2.23,
+          "detrendReturn": 0.86
         }
       }
     },
@@ -507,24 +507,24 @@
           "detrendReturn": 39.13
         },
         "S1L": {
-          "totalReturn": -9.55,
-          "maxDD": 22.4,
-          "returnDdRatio": -0.43,
-          "timeExposure": 13.53,
-          "capitalExposure": 1.92,
-          "trades": 102,
-          "return2022": -2.88,
-          "detrendReturn": -7.78
+          "totalReturn": 8.83,
+          "maxDD": 12.67,
+          "returnDdRatio": 0.7,
+          "timeExposure": 24.86,
+          "capitalExposure": 1.79,
+          "trades": 95,
+          "return2022": -1.11,
+          "detrendReturn": 0.8
         },
         "S1LS": {
-          "totalReturn": -14.69,
-          "maxDD": 28.07,
-          "returnDdRatio": -0.52,
-          "timeExposure": 34.05,
-          "capitalExposure": 4.42,
-          "trades": 182,
-          "return2022": -1.42,
-          "detrendReturn": -11.11
+          "totalReturn": 6.12,
+          "maxDD": 13.02,
+          "returnDdRatio": 0.47,
+          "timeExposure": 45.64,
+          "capitalExposure": 2.42,
+          "trades": 176,
+          "return2022": -1.24,
+          "detrendReturn": -2.96
         }
       }
     },
@@ -573,24 +573,24 @@
           "detrendReturn": 25.88
         },
         "S1L": {
-          "totalReturn": 56.62,
-          "maxDD": 24.19,
-          "returnDdRatio": 2.34,
-          "timeExposure": 49.35,
-          "capitalExposure": 10.85,
-          "trades": 176,
-          "return2022": -4.78,
-          "detrendReturn": 30.16
+          "totalReturn": 12.98,
+          "maxDD": 10.36,
+          "returnDdRatio": 1.25,
+          "timeExposure": 48.72,
+          "capitalExposure": 5.41,
+          "trades": 308,
+          "return2022": -1.97,
+          "detrendReturn": 12.23
         },
         "S1LS": {
-          "totalReturn": 7.19,
-          "maxDD": 41.55,
-          "returnDdRatio": 0.17,
-          "timeExposure": 73.01,
-          "capitalExposure": 15.52,
-          "trades": 344,
-          "return2022": -10.58,
-          "detrendReturn": 23.73
+          "totalReturn": 6.76,
+          "maxDD": 11.61,
+          "returnDdRatio": 0.58,
+          "timeExposure": 77.68,
+          "capitalExposure": 8.98,
+          "trades": 497,
+          "return2022": -1.65,
+          "detrendReturn": 13.09
         }
       }
     },
@@ -639,24 +639,24 @@
           "detrendReturn": 32.83
         },
         "S1L": {
-          "totalReturn": 31.7,
-          "maxDD": 26.83,
-          "returnDdRatio": 1.18,
-          "timeExposure": 34.95,
-          "capitalExposure": 5.57,
-          "trades": 99,
-          "return2022": -2.93,
-          "detrendReturn": 22.26
+          "totalReturn": 1.82,
+          "maxDD": 6.18,
+          "returnDdRatio": 0.29,
+          "timeExposure": 25.88,
+          "capitalExposure": 1.51,
+          "trades": 109,
+          "return2022": -0.41,
+          "detrendReturn": 1.16
         },
         "S1LS": {
-          "totalReturn": 23.44,
-          "maxDD": 28.73,
-          "returnDdRatio": 0.82,
-          "timeExposure": 58.92,
-          "capitalExposure": 9.63,
-          "trades": 170,
-          "return2022": -3.52,
-          "detrendReturn": 18.88
+          "totalReturn": -1.71,
+          "maxDD": 6.74,
+          "returnDdRatio": -0.25,
+          "timeExposure": 46.7,
+          "capitalExposure": 2.27,
+          "trades": 172,
+          "return2022": -1.01,
+          "detrendReturn": -0.68
         }
       }
     },
@@ -705,24 +705,24 @@
           "detrendReturn": 163.85
         },
         "S1L": {
-          "totalReturn": 35.78,
-          "maxDD": 30.16,
-          "returnDdRatio": 1.19,
-          "timeExposure": 27.37,
-          "capitalExposure": 6.03,
-          "trades": 197,
-          "return2022": -10.21,
-          "detrendReturn": -7.93
+          "totalReturn": 21.73,
+          "maxDD": 13.76,
+          "returnDdRatio": 1.58,
+          "timeExposure": 25.61,
+          "capitalExposure": 2.64,
+          "trades": 262,
+          "return2022": -1.72,
+          "detrendReturn": 3.93
         },
         "S1LS": {
-          "totalReturn": -8.95,
-          "maxDD": 34.13,
-          "returnDdRatio": -0.26,
-          "timeExposure": 57.67,
-          "capitalExposure": 10.76,
-          "trades": 437,
-          "return2022": -10.11,
-          "detrendReturn": -25.09
+          "totalReturn": 13.01,
+          "maxDD": 15.26,
+          "returnDdRatio": 0.85,
+          "timeExposure": 56.31,
+          "capitalExposure": 4.69,
+          "trades": 525,
+          "return2022": -0.76,
+          "detrendReturn": 2.17
         }
       }
     },
@@ -771,24 +771,24 @@
           "detrendReturn": 152.88
         },
         "S1L": {
-          "totalReturn": 12.67,
-          "maxDD": 12.73,
-          "returnDdRatio": 1,
-          "timeExposure": 14.66,
-          "capitalExposure": 2.36,
-          "trades": 80,
-          "return2022": 0.98,
-          "detrendReturn": 32.57
+          "totalReturn": 6.93,
+          "maxDD": 7.11,
+          "returnDdRatio": 0.97,
+          "timeExposure": 14.51,
+          "capitalExposure": 0.85,
+          "trades": 72,
+          "return2022": 0.12,
+          "detrendReturn": 7.92
         },
         "S1LS": {
-          "totalReturn": 3.3,
-          "maxDD": 14.42,
+          "totalReturn": 1.96,
+          "maxDD": 8.69,
           "returnDdRatio": 0.23,
-          "timeExposure": 35.17,
-          "capitalExposure": 4.75,
-          "trades": 171,
-          "return2022": 3.28,
-          "detrendReturn": 25.8
+          "timeExposure": 27.9,
+          "capitalExposure": 1.35,
+          "trades": 159,
+          "return2022": -0.6,
+          "detrendReturn": 5.28
         }
       }
     },
@@ -837,24 +837,24 @@
           "detrendReturn": 132.24
         },
         "S1L": {
-          "totalReturn": 0.89,
-          "maxDD": 17.31,
-          "returnDdRatio": 0.05,
-          "timeExposure": 24.94,
-          "capitalExposure": 4.73,
-          "trades": 229,
-          "return2022": -5.76,
-          "detrendReturn": 18.65
+          "totalReturn": 2.79,
+          "maxDD": 9.87,
+          "returnDdRatio": 0.28,
+          "timeExposure": 24.47,
+          "capitalExposure": 1.96,
+          "trades": 265,
+          "return2022": -2.56,
+          "detrendReturn": 6.09
         },
         "S1LS": {
-          "totalReturn": 3.21,
-          "maxDD": 27.77,
+          "totalReturn": 1.47,
+          "maxDD": 12.04,
           "returnDdRatio": 0.12,
-          "timeExposure": 73.82,
-          "capitalExposure": 13.71,
-          "trades": 434,
-          "return2022": 15.51,
-          "detrendReturn": 5.48
+          "timeExposure": 63.74,
+          "capitalExposure": 5.32,
+          "trades": 537,
+          "return2022": 5.2,
+          "detrendReturn": 3.17
         }
       }
     },
@@ -903,24 +903,24 @@
           "detrendReturn": 125.89
         },
         "S1L": {
-          "totalReturn": 43.91,
-          "maxDD": 20.02,
-          "returnDdRatio": 2.19,
-          "timeExposure": 20.18,
-          "capitalExposure": 4.23,
-          "trades": 85,
-          "return2022": 0.09,
-          "detrendReturn": 1.25
+          "totalReturn": 15.99,
+          "maxDD": 10.29,
+          "returnDdRatio": 1.55,
+          "timeExposure": 18.53,
+          "capitalExposure": 1.54,
+          "trades": 95,
+          "return2022": 0.12,
+          "detrendReturn": -1.69
         },
         "S1LS": {
-          "totalReturn": 22.36,
-          "maxDD": 26.13,
-          "returnDdRatio": 0.86,
-          "timeExposure": 50.83,
-          "capitalExposure": 7.32,
-          "trades": 199,
-          "return2022": 10.52,
-          "detrendReturn": -13.52
+          "totalReturn": 10.68,
+          "maxDD": 11.03,
+          "returnDdRatio": 0.97,
+          "timeExposure": 32.37,
+          "capitalExposure": 2.16,
+          "trades": 196,
+          "return2022": 0.34,
+          "detrendReturn": -4.33
         }
       }
     }
@@ -967,35 +967,35 @@
       "detrendReturn": 46.19
     },
     "S1L": {
-      "totalReturn": 41.93,
-      "maxDD": 22.48,
-      "returnDdRatio": 1.79,
-      "timeExposure": 40.86,
-      "capitalExposure": 9.6,
-      "trades": 129,
-      "return2022": -11.42,
-      "detrendReturn": 6.27
+      "totalReturn": 18,
+      "maxDD": 11.89,
+      "returnDdRatio": 1.35,
+      "timeExposure": 38.57,
+      "capitalExposure": 5.34,
+      "trades": 213,
+      "return2022": -4.66,
+      "detrendReturn": 4.33
     },
     "S1LS": {
-      "totalReturn": 20.15,
-      "maxDD": 27.8,
-      "returnDdRatio": 0.77,
-      "timeExposure": 66.5,
-      "capitalExposure": 14,
-      "trades": 262,
-      "return2022": 3.82,
-      "detrendReturn": -9.34
+      "totalReturn": 10.72,
+      "maxDD": 13.36,
+      "returnDdRatio": 0.71,
+      "timeExposure": 63.79,
+      "capitalExposure": 7.48,
+      "trades": 388,
+      "return2022": -0.38,
+      "detrendReturn": -1.1
     }
   },
   "comparisons": [
     {
       "benchmark": "B1",
       "strategy": "S1L",
-      "primaryWins": 1,
+      "primaryWins": 0,
       "oosWins": 2,
       "primaryPass": false,
       "oosPass": false,
-      "detrendAvgDiff": 6.91,
+      "detrendAvgDiff": 4.97,
       "detrendPass": true,
       "overallPass": false
     },
@@ -1003,21 +1003,21 @@
       "benchmark": "B2",
       "strategy": "S1L",
       "primaryWins": 4,
-      "oosWins": 7,
+      "oosWins": 6,
       "primaryPass": true,
       "oosPass": true,
-      "detrendAvgDiff": 20.53,
+      "detrendAvgDiff": 18.59,
       "detrendPass": true,
       "overallPass": true
     },
     {
       "benchmark": "B3",
       "strategy": "S1L",
-      "primaryWins": 4,
-      "oosWins": 7,
+      "primaryWins": 6,
+      "oosWins": 6,
       "primaryPass": true,
       "oosPass": true,
-      "detrendAvgDiff": 32.11,
+      "detrendAvgDiff": 30.17,
       "detrendPass": true,
       "overallPass": true
     },
@@ -1028,7 +1028,7 @@
       "oosWins": 0,
       "primaryPass": true,
       "oosPass": false,
-      "detrendAvgDiff": -39.92,
+      "detrendAvgDiff": -41.86,
       "detrendPass": false,
       "overallPass": false
     },
@@ -1039,7 +1039,7 @@
       "oosWins": 2,
       "primaryPass": false,
       "oosPass": false,
-      "detrendAvgDiff": -8.7,
+      "detrendAvgDiff": -0.46,
       "detrendPass": false,
       "overallPass": false
     },
@@ -1047,21 +1047,21 @@
       "benchmark": "B2",
       "strategy": "S1LS",
       "primaryWins": 3,
-      "oosWins": 4,
+      "oosWins": 6,
       "primaryPass": false,
-      "oosPass": false,
-      "detrendAvgDiff": 4.92,
+      "oosPass": true,
+      "detrendAvgDiff": 13.16,
       "detrendPass": true,
       "overallPass": false
     },
     {
       "benchmark": "B3",
       "strategy": "S1LS",
-      "primaryWins": 4,
-      "oosWins": 5,
+      "primaryWins": 6,
+      "oosWins": 6,
       "primaryPass": true,
       "oosPass": true,
-      "detrendAvgDiff": 16.5,
+      "detrendAvgDiff": 24.74,
       "detrendPass": true,
       "overallPass": true
     },
@@ -1072,7 +1072,7 @@
       "oosWins": 0,
       "primaryPass": false,
       "oosPass": false,
-      "detrendAvgDiff": -55.53,
+      "detrendAvgDiff": -47.29,
       "detrendPass": false,
       "overallPass": false
     }

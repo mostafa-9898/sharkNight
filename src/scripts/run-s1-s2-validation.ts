@@ -6,6 +6,7 @@ import type { Trade, TradeMode } from '../backtest/types';
 import type { Strategy } from '../strategies/types';
 import { MultiTimeframeStrategy, type FisherMode, type FisherKind } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
+import { runS1StandardBacktest, createS1StandardStrategy, getS1StandardConfig } from '../backtest/s1-unified-runner';
 import { roundTo } from '../utils/math';
 import {
   DEFAULT_FISHER_MODE,
@@ -295,22 +296,14 @@ export async function runValidation() {
       const c1h = candleStore[m.sym]['1h'];
       const c4h = candleStore[m.sym]['4h'];
 
-      const strategy = new MultiTimeframeStrategy({
-        htfMode: 'strict',
-        entryMode: 'cross',
-        fisherMode: winningFisherMode,
-        fisherKind: winningFisherKind,
-        fisherGate: winningFisherGate,
+      const strategy = createS1StandardStrategy({
         htf1hCandles: c1h,
         htf4hCandles: c4h,
-        kijunSlopeFilter: true,
-        structureFilter: true,
       });
 
-      const simCfg = {
-        ...baseConfig,
+      const simCfg = getS1StandardConfig({
         tradeMode: cfgDef.tradeMode,
-      };
+      });
 
       const res = engine.run({
         ...simCfg,

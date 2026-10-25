@@ -5,6 +5,7 @@ import type { Candle } from '../data/models';
 import type { Trade, BacktestConfig } from '../backtest/types';
 import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { BacktestEngine } from '../backtest/engine';
+import { runS1StandardBacktest } from '../backtest/s1-unified-runner';
 import { roundTo } from '../utils/math';
 import { detrendCandlesByYear } from './run-rc4-detrend';
 import {
@@ -195,18 +196,6 @@ export async function runBmBaselines() {
     dailyRegimeCalcsDetrend[sym] = createDailyRegimeCalculatorFromDailyCandles(dailyDetrend);
   }
 
-  const baseEngineConfig: Partial<BacktestConfig> = {
-    initialBalance: 10000,
-    positionSizePercent: 10,
-    maxOpenPositions: 10,
-    maxTotalExposurePercent: 30,
-    minBarsBetweenEntries: 0,
-    allowOppositePositions: true,
-    tradeFeePercent: 0.1,
-    exitMode: 'trailingOnly',
-    trailingStop: { initialStopPercent: 5, stepPercent: 3, raisePercent: 1.5, mode: 'stepped' },
-  };
-
   const marketOutputs: MarketRunOutput[] = [];
 
   for (let mIdx = 0; mIdx < allMarkets.length; mIdx++) {
@@ -258,38 +247,42 @@ export async function runBmBaselines() {
     const engine = new BacktestEngine();
 
     // 5. Simulate S1L (Real & Detrended)
-    const resS1LReal = engine.run({
-      ...baseEngineConfig,
+    const resS1LReal = runS1StandardBacktest({
+      engine,
       candles: cReal,
-      strategy: stratReal,
+      htf1hCandles: c1hReal,
+      htf4hCandles: c4hReal,
       tradeMode: 'long-only',
-    } as BacktestConfig);
+    });
     const expS1LReal = computeS1Exposure(cReal, resS1LReal.trades, resS1LReal.equity);
     const ret2022S1L = compute2022Return(cReal, resS1LReal.equity);
 
-    const resS1LDetrend = engine.run({
-      ...baseEngineConfig,
+    const resS1LDetrend = runS1StandardBacktest({
+      engine,
       candles: cDetrend,
-      strategy: stratDetrend,
+      htf1hCandles: c1hDetrend,
+      htf4hCandles: c4hDetrend,
       tradeMode: 'long-only',
-    } as BacktestConfig);
+    });
 
     // 6. Simulate S1LS (Real & Detrended)
-    const resS1LSReal = engine.run({
-      ...baseEngineConfig,
+    const resS1LSReal = runS1StandardBacktest({
+      engine,
       candles: cReal,
-      strategy: stratReal,
+      htf1hCandles: c1hReal,
+      htf4hCandles: c4hReal,
       tradeMode: 'long-short',
-    } as BacktestConfig);
+    });
     const expS1LSReal = computeS1Exposure(cReal, resS1LSReal.trades, resS1LSReal.equity);
     const ret2022S1LS = compute2022Return(cReal, resS1LSReal.equity);
 
-    const resS1LSDetrend = engine.run({
-      ...baseEngineConfig,
+    const resS1LSDetrend = runS1StandardBacktest({
+      engine,
       candles: cDetrend,
-      strategy: stratDetrend,
+      htf1hCandles: c1hDetrend,
+      htf4hCandles: c4hDetrend,
       tradeMode: 'long-short',
-    } as BacktestConfig);
+    });
 
     const makeMetrics = (
       real: BaselineResult | { totalReturn: number; maxDD: number; returnDdRatio: number; trades: number },
