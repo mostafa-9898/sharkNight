@@ -343,19 +343,17 @@ export async function runValidation() {
       const maxConcurrent = res.multiPositionDiagnostics?.maxConcurrentPositions ?? 0;
       const worstDay = calcWorstDay(candles, res.equity);
 
-      // Direction breakdown
-      const longTrades = res.trades.filter((t) => t.side === 'long');
-      const shortTrades = res.trades.filter((t) => t.side === 'short');
-      const lCount = longTrades.length;
-      const sCount = shortTrades.length;
-      const lWins = longTrades.filter((t) => (t.pnl || 0) > 0).length;
-      const sWins = shortTrades.filter((t) => (t.pnl || 0) > 0).length;
-      const lWinRate = lCount > 0 ? roundTo((lWins / lCount) * 100, 1) : 0;
-      const sWinRate = sCount > 0 ? roundTo((sWins / sCount) * 100, 1) : 0;
-      const lPnl = longTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
-      const sPnl = shortTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
-      const lRet = roundTo((lPnl / 10000) * 100, 2);
-      const sRet = roundTo((sPnl / 10000) * 100, 2);
+      // Direction breakdown from unified metrics
+      const lCount = res.metrics.long.totalTrades;
+      const sCount = res.metrics.short.totalTrades;
+      const lWins = res.metrics.long.winningTrades;
+      const sWins = res.metrics.short.winningTrades;
+      const lWinRate = roundTo(res.metrics.long.winRate * 100, 1);
+      const sWinRate = roundTo(res.metrics.short.winRate * 100, 1);
+      const lPnl = res.metrics.long.totalPnl;
+      const sPnl = res.metrics.short.totalPnl;
+      const lRet = res.metrics.long.totalPnlPercent;
+      const sRet = res.metrics.short.totalPnlPercent;
 
       // Random Entry Null Test: run for 6 primary markets
       let nullPercentile: number | null = null;

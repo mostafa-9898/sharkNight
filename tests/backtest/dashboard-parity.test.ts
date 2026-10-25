@@ -123,6 +123,20 @@ describe('R5: Dashboard & Route Parity Integration Test', () => {
     expect(routeResult.metrics.winRate).toBe(directResult.metrics.winRate);
     expect(routeResult.metrics.totalTrades).toBe(directResult.metrics.totalTrades);
 
+    // Comprehensive Metrics Parity
+    expect(routeResult.metrics.sharpeRatio).toBe(directResult.metrics.sharpeRatio);
+    expect(routeResult.metrics.sortinoRatio).toBe(directResult.metrics.sortinoRatio);
+    expect(routeResult.metrics.profitFactor).toBe(directResult.metrics.profitFactor);
+    expect(routeResult.metrics.expectancy).toBe(directResult.metrics.expectancy);
+    expect(routeResult.metrics.cagr).toBe(directResult.metrics.cagr);
+    expect(routeResult.metrics.percentTimeInMarket).toBe(directResult.metrics.percentTimeInMarket);
+    expect(routeResult.metrics.avgExposurePercent).toBe(directResult.metrics.avgExposurePercent);
+    expect(routeResult.metrics.long).toEqual(directResult.metrics.long);
+    expect(routeResult.metrics.short).toEqual(directResult.metrics.short);
+
+    // Funnel Parity
+    expect(routeResult.signalFunnel).toEqual(directResult.signalFunnel);
+
     // Concurrency parity
     expect(routeResult.multiPositionDiagnostics?.maxConcurrentPositions).toBe(
       directResult.multiPositionDiagnostics?.maxConcurrentPositions

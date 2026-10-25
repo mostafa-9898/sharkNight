@@ -9,7 +9,7 @@ import { MultiTimeframeStrategy } from '../strategies/multi-timeframe-strategy';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { VirtualPortfolio } from '../backtest/portfolio';
-import { computeMfeMaeAnalysis } from '../backtest/metrics';
+import { calculateMetrics, computeMfeMaeAnalysis } from '../backtest/metrics';
 import type { Trade, TrailingStopConfig } from '../backtest/types';
 import type { TradeSignal } from '../data/models/trade-signal';
 import {
@@ -19,17 +19,7 @@ import {
 } from '../data/models/candle';
 
 function computeProfitFactor(trades: readonly Trade[]): number {
-  const grossProfit = trades
-    .filter((t) => (t.pnl || 0) > 0)
-    .reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const grossLoss = Math.abs(
-    trades.filter((t) => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0)
-  );
-  return grossLoss === 0
-    ? grossProfit > 0
-      ? 99.9
-      : 1.0
-    : Math.round((grossProfit / grossLoss) * 100) / 100;
+  return calculateMetrics(trades, 10000, []).profitFactor ?? 0;
 }
 
 function computeBuyAndHold(candles: readonly Candle[]): number {
@@ -40,21 +30,7 @@ function computeBuyAndHold(candles: readonly Candle[]): number {
 }
 
 function computeMaxDrawdownDuration(equity: readonly number[]): number {
-  let peak = -Infinity;
-  let maxDuration = 0;
-  let currentDuration = 0;
-  for (const eq of equity) {
-    if (eq >= peak) {
-      peak = eq;
-      currentDuration = 0;
-    } else {
-      currentDuration++;
-      if (currentDuration > maxDuration) {
-        maxDuration = currentDuration;
-      }
-    }
-  }
-  return maxDuration;
+  return calculateMetrics([], 10000, equity).maxDrawdownDurationCandles ?? 0;
 }
 
 interface DataSummary {
