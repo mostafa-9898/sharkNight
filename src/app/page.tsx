@@ -6,7 +6,7 @@ import EquityChart from './components/EquityChart';
 import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
 import type { Candle, CandleInterval } from '@/data/models/candle';
-import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode, MultiPositionDiagnostics } from '@/backtest/types';
+import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode, MultiPositionDiagnostics, SignalFunnel } from '@/backtest/types';
 import {
   DEFAULT_TRADE_MODE,
   DEFAULT_POSITION_SIZE_PERCENT,
@@ -27,15 +27,12 @@ const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 const INTERVALS: CandleInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
 interface BacktestDiagnostics {
-  rsiBuyZoneCandles?: number;
-  rsiSellZoneCandles?: number;
-  tkCrossUpEvents: number;
-  tkCrossDownEvents: number;
-  buySetups: number;
-  sellSetups: number;
+  buySetups?: number;
+  sellSetups?: number;
   executedTradesLong: number;
   executedTradesShort: number;
   executedTradesTotal: number;
+  signalFunnel?: SignalFunnel;
 }
 
 interface BacktestResultData {
@@ -76,6 +73,7 @@ interface BacktestResultData {
   equity: number[];
   dataSource?: 'binance' | 'kucoin' | 'cache' | 'synthetic';
   diagnostics?: BacktestDiagnostics;
+  signalFunnel?: SignalFunnel;
   multiPositionDiagnostics?: MultiPositionDiagnostics;
   indicators: {
     ichimoku?: {
@@ -1887,134 +1885,243 @@ export default function DashboardPage() {
             multiPositionDiagnostics={backtestResult.multiPositionDiagnostics}
           />
 
-          {/* Signal Funnel (Diagnostics) Card - Always visible after a run */}
-          {backtestResult.diagnostics && (
-            <div
-              style={{
-                backgroundColor: '#161b22',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: '#f0f6fc',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <span>🎯</span>
-                  <span>Signal Funnel Diagnostics</span>
-                </div>
-                <span style={{ fontSize: '11px', color: '#8b949e' }}>
-                  Filter funnel explaining trade triggers across the dataset
-                </span>
-              </div>
+          {/* Signal Funnel (Diagnostics) - Two-column table with drop % */}
+          {(backtestResult.signalFunnel || backtestResult.diagnostics?.signalFunnel) && (() => {
+            const funnel = backtestResult.signalFunnel ?? backtestResult.diagnostics!.signalFunnel!;
+            const long = funnel.long;
+            const short = funnel.short;
 
+            const calcDrop = (prev: number, curr: number): string => {
+              if (prev <= 0) return '0.0%';
+              const drop = ((prev - curr) / prev) * 100;
+              return `${Math.max(0, drop).toFixed(1)}%`;
+            };
+
+            const longRejTotal = long.rejected.max_positions + long.rejected.max_exposure + long.rejected.min_bars + long.rejected.opposite_not_allowed + long.rejected.other;
+            const shortRejTotal = short.rejected.max_positions + short.rejected.max_exposure + short.rejected.min_bars + short.rejected.opposite_not_allowed + short.rejected.other;
+
+            const rows: Array<{
+              id: string;
+              name: string;
+              desc: string;
+              longCount: React.ReactNode;
+              longDrop: string;
+              shortCount: React.ReactNode;
+              shortDrop: string;
+              highlight?: boolean;
+            }> = [
+              {
+                id: 'raw',
+                name: '1. Raw Crosses (Active Triggers)',
+                desc: 'تعداد کراس خام ماشه‌های فعال (TK / Stoch / Fisher)',
+                longCount: (
+                  <span>
+                    TK: <b style={{ color: '#2ea043' }}>{long.raw?.tk ?? 0}</b> | Stoch: <b style={{ color: '#38bdf8' }}>{long.raw?.stoch ?? 0}</b> | Fisher: <b style={{ color: '#a371f7' }}>{long.raw?.fisher ?? 0}</b>
+                  </span>
+                ),
+                longDrop: '-',
+                shortCount: (
+                  <span>
+                    TK: <b style={{ color: '#f85149' }}>{short.raw?.tk ?? 0}</b> | Stoch: <b style={{ color: '#38bdf8' }}>{short.raw?.stoch ?? 0}</b> | Fisher: <b style={{ color: '#a371f7' }}>{short.raw?.fisher ?? 0}</b>
+                  </span>
+                ),
+                shortDrop: '-',
+              },
+              {
+                id: 'candidate',
+                name: '2. Candidate Candles',
+                desc: 'کندل‌هایی با حداقل یک ماشه فعال در جهت مربوطه',
+                longCount: long.candidate,
+                longDrop: '-',
+                shortCount: short.candidate,
+                shortDrop: '-',
+              },
+              {
+                id: 'passHtf',
+                name: '3. Pass HTF Strict (1h & 4h)',
+                desc: 'تطابق هم‌جهت با تایم‌فریم‌های بالاتر',
+                longCount: long.passHtf,
+                longDrop: calcDrop(long.candidate, long.passHtf),
+                shortCount: short.passHtf,
+                shortDrop: calcDrop(short.candidate, short.passHtf),
+              },
+              {
+                id: 'passKijunSlope',
+                name: '4. Pass Kijun Slope',
+                desc: 'شیب کیجون در جهت ورود',
+                longCount: long.passKijunSlope,
+                longDrop: calcDrop(long.passHtf, long.passKijunSlope),
+                shortCount: short.passKijunSlope,
+                shortDrop: calcDrop(short.passHtf, short.passKijunSlope),
+              },
+              {
+                id: 'passStructure',
+                name: '5. Pass Structure Filter',
+                desc: 'فیلتر شکست سقف/کف یا فیلتر ابر ایچیموکو',
+                longCount: long.passStructure,
+                longDrop: calcDrop(long.passKijunSlope, long.passStructure),
+                shortCount: short.passStructure,
+                shortDrop: calcDrop(short.passKijunSlope, short.passStructure),
+              },
+              {
+                id: 'passOppositeBlock',
+                name: '6. Pass Opposite Block',
+                desc: 'عدم وجود کراس متضاد در همان کندل',
+                longCount: long.passOppositeBlock,
+                longDrop: calcDrop(long.passStructure, long.passOppositeBlock),
+                shortCount: short.passOppositeBlock,
+                shortDrop: calcDrop(short.passStructure, short.passOppositeBlock),
+              },
+              {
+                id: 'passFisherConfirm',
+                name: '7. Pass Fisher Confirm',
+                desc: 'تاییدیه فیشر (در صورت فعال بودن حالت confirm)',
+                longCount: long.passFisherConfirm,
+                longDrop: calcDrop(long.passOppositeBlock, long.passFisherConfirm),
+                shortCount: short.passFisherConfirm,
+                shortDrop: calcDrop(short.passOppositeBlock, short.passFisherConfirm),
+              },
+              {
+                id: 'signalEmitted',
+                name: '8. Signal Emitted',
+                desc: 'سیگنال معتبر تولیدشده توسط استراتژی',
+                longCount: long.signalEmitted,
+                longDrop: calcDrop(long.passFisherConfirm, long.signalEmitted),
+                shortCount: short.signalEmitted,
+                shortDrop: calcDrop(short.passFisherConfirm, short.signalEmitted),
+                highlight: true,
+              },
+              {
+                id: 'entryAttempted',
+                name: '9. Entry Attempted',
+                desc: 'تلاش ورود به معامله توسط موتور بک‌تست',
+                longCount: long.entryAttempted,
+                longDrop: calcDrop(long.signalEmitted, long.entryAttempted),
+                shortCount: short.entryAttempted,
+                shortDrop: calcDrop(short.signalEmitted, short.entryAttempted),
+                highlight: true,
+              },
+              {
+                id: 'rejected',
+                name: '10. Rejected by Engine (Breakdown)',
+                desc: 'ردشده به تفکیک دلیل',
+                longCount: (
+                  <div>
+                    <span style={{ color: '#f85149', fontWeight: 600 }}>Total: {longRejTotal}</span>
+                    <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '2px', lineHeight: 1.4 }}>
+                      max_pos: {long.rejected.max_positions} • max_exp: {long.rejected.max_exposure} • min_bars: {long.rejected.min_bars} • opp_block: {long.rejected.opposite_not_allowed} • other: {long.rejected.other}
+                    </div>
+                  </div>
+                ),
+                longDrop: calcDrop(long.entryAttempted, long.executed),
+                shortCount: (
+                  <div>
+                    <span style={{ color: '#f85149', fontWeight: 600 }}>Total: {shortRejTotal}</span>
+                    <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '2px', lineHeight: 1.4 }}>
+                      max_pos: {short.rejected.max_positions} • max_exp: {short.rejected.max_exposure} • min_bars: {short.rejected.min_bars} • opp_block: {short.rejected.opposite_not_allowed} • other: {short.rejected.other}
+                    </div>
+                  </div>
+                ),
+                shortDrop: calcDrop(short.entryAttempted, short.executed),
+              },
+              {
+                id: 'executed',
+                name: '11. Executed Trades',
+                desc: 'معاملات اجراشده نهایی (برابر با تعداد معاملات واقعی)',
+                longCount: <b style={{ color: '#2ea043', fontSize: '14px' }}>{long.executed}</b>,
+                longDrop: calcDrop(long.entryAttempted, long.executed),
+                shortCount: <b style={{ color: '#38bdf8', fontSize: '14px' }}>{short.executed}</b>,
+                shortDrop: calcDrop(short.entryAttempted, short.executed),
+                highlight: true,
+              },
+            ];
+
+            return (
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                  gap: '10px',
+                  backgroundColor: '#161b22',
+                  border: '1px solid #30363d',
+                  borderRadius: '8px',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
                 }}
               >
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    TK Cross UP
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#2ea043', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.tkCrossUpEvents}{' '}
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>events</span>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    TK Cross DOWN
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#d29922', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.tkCrossDownEvents}{' '}
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>events</span>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    BUY Setups
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#2ea043', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.buySetups}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    SELL Setups
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f85149', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.sellSetups}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#0d1117',
-                    border: '1px solid #21262d',
-                    borderRadius: '6px',
-                    padding: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>
-                    Executed Trades
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#f0f6fc', marginTop: '4px' }}>
-                    {backtestResult.diagnostics.executedTradesTotal}{' '}
-                    <span style={{ fontSize: '11px', color: '#8b949e' }}>
-                      ({backtestResult.diagnostics.executedTradesLong} Long /{' '}
-                      {backtestResult.diagnostics.executedTradesShort} Short)
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>🎯</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f6fc' }}>
+                      Signal Funnel (Long vs Short)
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        backgroundColor: 'rgba(46, 160, 67, 0.15)',
+                        border: '1px solid #2ea043',
+                        color: '#3fb950',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Reconciled Invariant: Emitted = Attempted = Rejected + Executed
                     </span>
                   </div>
+                  <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                    Total Trades Executed: {long.executed + short.executed} ({long.executed} Long / {short.executed} Short)
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      fontSize: '12px',
+                      color: '#c9d1d9',
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: '#0d1117', borderBottom: '1px solid #30363d', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 12px', color: '#8b949e', width: '36%' }}>Funnel Stage</th>
+                        <th style={{ padding: '8px 12px', color: '#2ea043', width: '22%' }}>Long Count</th>
+                        <th style={{ padding: '8px 12px', color: '#f85149', width: '10%', textAlign: 'center' }}>Long Drop %</th>
+                        <th style={{ padding: '8px 12px', color: '#38bdf8', width: '22%' }}>Short Count</th>
+                        <th style={{ padding: '8px 12px', color: '#f85149', width: '10%', textAlign: 'center' }}>Short Drop %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          style={{
+                            borderBottom: '1px solid #21262d',
+                            backgroundColor: row.highlight ? 'rgba(56, 189, 248, 0.04)' : 'transparent',
+                          }}
+                        >
+                          <td style={{ padding: '8px 12px' }}>
+                            <div style={{ fontWeight: row.highlight ? 700 : 500, color: row.highlight ? '#f0f6fc' : '#c9d1d9' }}>
+                              {row.name}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#8b949e' }}>{row.desc}</div>
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>{row.longCount}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', color: row.longDrop === '0.0%' || row.longDrop === '-' ? '#8b949e' : '#f85149', fontWeight: 600 }}>
+                            {row.longDrop}
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>{row.shortCount}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', color: row.shortDrop === '0.0%' || row.shortDrop === '-' ? '#8b949e' : '#f85149', fontWeight: 600 }}>
+                            {row.shortDrop}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Equity Curve Chart */}
           {backtestResult.equity.length > 0 && (

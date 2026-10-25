@@ -68,12 +68,75 @@ export interface IgnoredSignalTraceEvent {
     | 'cap_exposure'
     | 'max_positions'
     | 'max_exposure'
-    | 'min_bars';
+    | 'min_bars'
+    | 'other';
+}
+
+export interface FunnelRejections {
+  max_positions: number;
+  max_exposure: number;
+  min_bars: number;
+  opposite_not_allowed: number;
+  other: number;
+}
+
+export interface FunnelDirectionStageCounts {
+  raw: {
+    tk: number;
+    stoch: number;
+    fisher: number;
+  };
+  candidate: number;
+  passHtf: number;
+  passKijunSlope: number;
+  passStructure: number;
+  passOppositeBlock: number;
+  passFisherConfirm: number;
+  signalEmitted: number;
+  entryAttempted: number;
+  rejected: FunnelRejections;
+  rejectedTotal: number;
+  executed: number;
+}
+
+export interface SignalFunnel {
+  long: FunnelDirectionStageCounts;
+  short: FunnelDirectionStageCounts;
+}
+
+export interface CandleFunnelEvent {
+  index: number;
+  timestamp: number;
+  long?: {
+    rawTk: boolean;
+    rawStoch: boolean;
+    rawFisher: boolean;
+    candidate: boolean;
+    passHtf: boolean;
+    passKijunSlope: boolean;
+    passStructure: boolean;
+    passOppositeBlock: boolean;
+    passFisherConfirm: boolean;
+    signalEmitted: boolean;
+  };
+  short?: {
+    rawTk: boolean;
+    rawStoch: boolean;
+    rawFisher: boolean;
+    candidate: boolean;
+    passHtf: boolean;
+    passKijunSlope: boolean;
+    passStructure: boolean;
+    passOppositeBlock: boolean;
+    passFisherConfirm: boolean;
+    signalEmitted: boolean;
+  };
 }
 
 export interface BacktestTrace {
   tkCrossEvents: TkCrossTraceEvent[];
   ignoredSignals: IgnoredSignalTraceEvent[];
+  signalFunnel?: SignalFunnel;
 }
 
 export interface BacktestConfig {
@@ -239,6 +302,7 @@ export interface BacktestResult {
   equity: number[];               // Equity curve over time
   activePosition?: ActivePosition | null;
   trace?: BacktestTrace;
+  signalFunnel?: SignalFunnel;
   multiPositionDiagnostics?: MultiPositionDiagnostics;
   stopUpdates?: StopUpdateEvent[];
 }

@@ -1,6 +1,6 @@
 import type { Candle, TradeSignal } from '../data/models';
 import type { Strategy } from './types';
-import type { ExitMode, TkCrossTraceEvent } from '../backtest/types';
+import type { ExitMode, TkCrossTraceEvent, CandleFunnelEvent } from '../backtest/types';
 import { calculateIchimoku, type IchimokuResult } from '../indicators/ichimoku';
 import { calculateStochastic, type StochasticResult } from '../indicators/stochastic';
 import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../indicators/fisher-rsi';
@@ -253,9 +253,15 @@ export class MultiTimeframeStrategy implements Strategy {
   private cached1dIchimoku?: IchimokuResult;
 
   private indicatorCache = new WeakMap<readonly Candle[], CachedIndicators>();
-  private traceCollector?: { onTkCross?: (event: TkCrossTraceEvent) => void };
+  private traceCollector?: {
+    onTkCross?: (event: TkCrossTraceEvent) => void;
+    onCandleFunnel?: (event: CandleFunnelEvent) => void;
+  };
 
-  setTraceCollector(collector?: { onTkCross?: (event: TkCrossTraceEvent) => void }): void {
+  setTraceCollector(collector?: {
+    onTkCross?: (event: TkCrossTraceEvent) => void;
+    onCandleFunnel?: (event: CandleFunnelEvent) => void;
+  }): void {
     this.traceCollector = collector;
   }
 
@@ -451,6 +457,90 @@ export class MultiTimeframeStrategy implements Strategy {
     return { bullish, bearish, htf4hIdx, htf1hIdx };
   }
 
+  private passesKijunSlope(
+    currentIndex: number,
+    side: 'long' | 'short',
+    ltfKijun: number[]
+  ): boolean {
+    if (!this.kijunSlopeFilter) return true;
+    if (currentIndex < 5) return false;
+    const kijunNow = ltfKijun[currentIndex];
+    const kijunPast = ltfKijun[currentIndex - 5];
+    if (!Number.isFinite(kijunNow) || !Number.isFinite(kijunPast)) return false;
+
+    // long فقط اگر kijun[i] > kijun[i-5]؛ short فقط اگر kijun[i] < kijun[i-5]
+    if (side === 'long' && !(kijunNow > kijunPast)) {
+      return false;
+    }
+    if (side === 'short' && !(kijunNow < kijunPast)) {
+      return false;
+    }
+    return true;
+  }
+
+  private passesStructure(
+    candles: readonly Candle[],
+    currentIndex: number,
+    side: 'long' | 'short',
+    cachedSwings?: ConfirmedSwingsResult
+  ): boolean {
+    if (!this.structureFilter) return true;
+    const swings = cachedSwings || confirmedSwings(candles, 3, currentIndex);
+    const highs = swings.highs;
+    const lows = swings.lows;
+
+    let hLast: SwingPoint | undefined;
+    let hPrev: SwingPoint | undefined;
+    for (let idx = highs.length - 1; idx >= 0; idx--) {
+      if (highs[idx].confirmedIndex <= currentIndex) {
+        if (!hLast) {
+          hLast = highs[idx];
+        } else if (!hPrev) {
+          hPrev = highs[idx];
+          break;
+        }
+      }
+    }
+
+    let lLast: SwingPoint | undefined;
+    let lPrev: SwingPoint | undefined;
+    for (let idx = lows.length - 1; idx >= 0; idx--) {
+      if (lows[idx].confirmedIndex <= currentIndex) {
+        if (!lLast) {
+          lLast = lows[idx];
+        } else if (!lPrev) {
+          lPrev = lows[idx];
+          break;
+        }
+      }
+    }
+
+    // اگر کمتر از دو pivot داریم، سیگنال نده
+    if (!hLast || !hPrev || !lLast || !lPrev) {
+      return false;
+    }
+
+    // long فقط اگر HH و HL باشد
+    if (side === 'long') {
+      const isHH = hLast.price > hPrev.price;
+      const isHL = lLast.price > lPrev.price;
+      if (!isHH || !isHL) {
+        return false;
+      }
+    }
+
+    // short فقط اگر LH و LL باشد
+    if (side === 'short') {
+      const isLH = hLast.price < hPrev.price;
+      const isLL = lLast.price < lPrev.price;
+      if (!isLH || !isLL) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   private passesFilters(
     candles: readonly Candle[],
     currentIndex: number,
@@ -458,77 +548,10 @@ export class MultiTimeframeStrategy implements Strategy {
     ltfKijun: number[],
     cachedSwings?: ConfirmedSwingsResult
   ): boolean {
-    if (this.kijunSlopeFilter) {
-      if (currentIndex < 5) return false;
-      const kijunNow = ltfKijun[currentIndex];
-      const kijunPast = ltfKijun[currentIndex - 5];
-      if (!Number.isFinite(kijunNow) || !Number.isFinite(kijunPast)) return false;
-
-      // long فقط اگر kijun[i] > kijun[i-5]؛ short فقط اگر kijun[i] < kijun[i-5]
-      if (side === 'long' && !(kijunNow > kijunPast)) {
-        return false;
-      }
-      if (side === 'short' && !(kijunNow < kijunPast)) {
-        return false;
-      }
-    }
-
-    if (this.structureFilter) {
-      const swings = cachedSwings || confirmedSwings(candles, 3, currentIndex);
-      const highs = swings.highs;
-      const lows = swings.lows;
-
-      let hLast: SwingPoint | undefined;
-      let hPrev: SwingPoint | undefined;
-      for (let idx = highs.length - 1; idx >= 0; idx--) {
-        if (highs[idx].confirmedIndex <= currentIndex) {
-          if (!hLast) {
-            hLast = highs[idx];
-          } else if (!hPrev) {
-            hPrev = highs[idx];
-            break;
-          }
-        }
-      }
-
-      let lLast: SwingPoint | undefined;
-      let lPrev: SwingPoint | undefined;
-      for (let idx = lows.length - 1; idx >= 0; idx--) {
-        if (lows[idx].confirmedIndex <= currentIndex) {
-          if (!lLast) {
-            lLast = lows[idx];
-          } else if (!lPrev) {
-            lPrev = lows[idx];
-            break;
-          }
-        }
-      }
-
-      // اگر کمتر از دو pivot داریم، سیگنال نده
-      if (!hLast || !hPrev || !lLast || !lPrev) {
-        return false;
-      }
-
-      // long فقط اگر HH و HL باشد
-      if (side === 'long') {
-        const isHH = hLast.price > hPrev.price;
-        const isHL = lLast.price > lPrev.price;
-        if (!isHH || !isHL) {
-          return false;
-        }
-      }
-
-      // short فقط اگر LH و LL باشد
-      if (side === 'short') {
-        const isLH = hLast.price < hPrev.price;
-        const isLL = lLast.price < lPrev.price;
-        if (!isLH || !isLL) {
-          return false;
-        }
-      }
-    }
-
-    return true;
+    return (
+      this.passesKijunSlope(currentIndex, side, ltfKijun) &&
+      this.passesStructure(candles, currentIndex, side, cachedSwings)
+    );
   }
 
   private hadKijunTouchRecent(
@@ -1001,6 +1024,121 @@ export class MultiTimeframeStrategy implements Strategy {
       bearBlockedByOpposite = tkBullCross || stochBullCross;
     }
 
+    const isTkActive = !isA2Active;
+    const isStochActive =
+      this.attributionLayer === 'L1' ? false : this.fisherMode === 'replace-stoch' ? false : true;
+    const isFisherActive =
+      this.attributionLayer === 'L1' || this.attributionLayer === 'L2' || isA2Active
+        ? false
+        : this.fisherMode === 'replace-stoch' ||
+          this.fisherMode === 'extra-trigger' ||
+          this.fisherMode === 'cross-confirm' ||
+          this.fisherMode === 'f4';
+
+    const rawTkLong = isTkActive && tkBullCross;
+    const rawStochLong = isStochActive && stochBullCross;
+    const rawFisherLong = isFisherActive && fisherEventBull;
+
+    const rawTkShort = isTkActive && tkBearCross;
+    const rawStochShort = isStochActive && stochBearCross;
+    const rawFisherShort = isFisherActive && fisherEventBear;
+
+    const bullCandidate =
+      isA2Active
+        ? Boolean(bullTrigger)
+        : this.attributionLayer === 'L1'
+        ? tkBullCross
+        : this.attributionLayer === 'L2'
+        ? tkBullCross || stochBullCross
+        : this.fisherMode === 'off'
+        ? tkBullCross || stochBullCross
+        : this.fisherMode === 'extra-trigger'
+        ? tkBullCross || stochBullCross || fisherEventBull
+        : this.fisherMode === 'replace-stoch'
+        ? tkBullCross || fisherEventBull
+        : this.fisherMode === 'confirm'
+        ? tkBullCross || stochBullCross
+        : (tkBullCross || stochBullCross) && fisherEventBull;
+
+    const bearCandidate =
+      isA2Active
+        ? Boolean(bearTrigger)
+        : this.attributionLayer === 'L1'
+        ? tkBearCross
+        : this.attributionLayer === 'L2'
+        ? tkBearCross || stochBearCross
+        : this.fisherMode === 'off'
+        ? tkBearCross || stochBearCross
+        : this.fisherMode === 'extra-trigger'
+        ? tkBearCross || stochBearCross || fisherEventBear
+        : this.fisherMode === 'replace-stoch'
+        ? tkBearCross || fisherEventBear
+        : this.fisherMode === 'confirm'
+        ? tkBearCross || stochBearCross
+        : (tkBearCross || stochBearCross) && fisherEventBear;
+
+    const passHtfLong = bullCandidate && Boolean(effectiveHtfBullish);
+    const passKijunSlopeLong = passHtfLong && this.passesKijunSlope(currentIndex, 'long', ltfIchimoku.kijun);
+    const passStructureLong = passKijunSlopeLong && this.passesStructure(candles, currentIndex, 'long', cached.ltfSwings);
+    const passOppositeBlockLong = passStructureLong && !bullBlockedByOpposite;
+    const passFisherConfirmLong = passOppositeBlockLong && (this.fisherMode === 'confirm' ? fisherBullConfirmed : true);
+
+    const passHtfShort = bearCandidate && Boolean(effectiveHtfBearish);
+    const passKijunSlopeShort = passHtfShort && this.passesKijunSlope(currentIndex, 'short', ltfIchimoku.kijun);
+    const passStructureShort = passKijunSlopeShort && this.passesStructure(candles, currentIndex, 'short', cached.ltfSwings);
+    const passOppositeBlockShort = passStructureShort && !bearBlockedByOpposite;
+    const passFisherConfirmShort = passOppositeBlockShort && (this.fisherMode === 'confirm' ? fisherBearConfirmed : true);
+
+    const macroRegime = this.regimeVariant ? this.getMacroRegimeAt(candles, currentIndex) : undefined;
+
+    let signalEmittedLong = false;
+    let tdrStopPercentLong = 0;
+    let atrLong = 0;
+    const maxStopPercent = 5.0;
+
+    if (passFisherConfirmLong) {
+      let allowed = true;
+      if (this.regimeVariant && macroRegime !== 'Bull') allowed = false;
+      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) allowed = false;
+      if (isA4Active && !this.is1dBullish(candle.timestamp, cached)) allowed = false;
+      atrLong = ltfAtr[currentIndex] || candle.close * 0.02;
+      tdrStopPercentLong = roundTo(((atrLong * this.tdrMultiplier) / candle.close) * 100, 2);
+      if (this.useTdrStop && tdrStopPercentLong > maxStopPercent) allowed = false;
+      if (allowed) {
+        signalEmittedLong = true;
+      }
+    }
+
+    let signalEmittedShort = false;
+    let tdrStopPercentShort = 0;
+    let atrShort = 0;
+
+    if (passFisherConfirmShort) {
+      let allowed = true;
+      if (this.regimeVariant === 'G3') allowed = false;
+      if (this.regimeVariant && macroRegime !== 'Bear') allowed = false;
+      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) allowed = false;
+      if (isA4Active && !this.is1dBearish(candle.timestamp, cached)) allowed = false;
+      if (this.shortEntryFilter === 'v1_1dBearish') {
+        if (!this.is1dBearish(candle.timestamp, cached)) allowed = false;
+      } else if (this.shortEntryFilter === 'v2_ltfBelowCloud') {
+        const spanA = ltfIchimoku.senkouA[currentIndex];
+        const spanB = ltfIchimoku.senkouB[currentIndex];
+        const cloudBottom = Math.min(spanA, spanB);
+        if (!Number.isFinite(cloudBottom) || !(candle.close < cloudBottom)) allowed = false;
+      } else if (this.shortEntryFilter === 'v3_bearRegime') {
+        if (this.dailyRegimeCalculator && this.dailyRegimeCalculator.getRegimeAt(candle.timestamp) !== 'bear') allowed = false;
+      } else if (this.shortEntryFilter === 'v4_consecutiveHtf') {
+        if (!this.has3ConsecutiveHtfBearish(candle.timestamp, cached, ltfMs)) allowed = false;
+      }
+      atrShort = ltfAtr[currentIndex] || candle.close * 0.02;
+      tdrStopPercentShort = roundTo(((atrShort * this.tdrMultiplier) / candle.close) * 100, 2);
+      if (this.useTdrStop && tdrStopPercentShort > maxStopPercent) allowed = false;
+      if (allowed) {
+        signalEmittedShort = true;
+      }
+    }
+
     if (this.traceCollector?.onTkCross) {
       if (tkBullCross) {
         const passes = this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings);
@@ -1045,38 +1183,43 @@ export class MultiTimeframeStrategy implements Strategy {
       }
     }
 
-    const macroRegime = this.regimeVariant ? this.getMacroRegimeAt(candles, currentIndex) : undefined;
+    if (this.traceCollector?.onCandleFunnel) {
+      this.traceCollector.onCandleFunnel({
+        index: currentIndex,
+        timestamp: candle.timestamp,
+        long: {
+          rawTk: rawTkLong,
+          rawStoch: rawStochLong,
+          rawFisher: rawFisherLong,
+          candidate: bullCandidate,
+          passHtf: passHtfLong,
+          passKijunSlope: passKijunSlopeLong,
+          passStructure: passStructureLong,
+          passOppositeBlock: passOppositeBlockLong,
+          passFisherConfirm: passFisherConfirmLong,
+          signalEmitted: signalEmittedLong,
+        },
+        short: {
+          rawTk: rawTkShort,
+          rawStoch: rawStochShort,
+          rawFisher: rawFisherShort,
+          candidate: bearCandidate,
+          passHtf: passHtfShort,
+          passKijunSlope: passKijunSlopeShort,
+          passStructure: passStructureShort,
+          passOppositeBlock: passOppositeBlockShort,
+          passFisherConfirm: passFisherConfirmShort,
+          signalEmitted: signalEmittedShort,
+        },
+      });
+    }
 
-    if (effectiveHtfBullish && !bullBlockedByOpposite && bullTrigger) {
-      if (this.regimeVariant && macroRegime !== 'Bull') {
-        return defaultSignal;
-      }
-
-      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
-        return defaultSignal;
-      }
-
-      if (isA4Active && !this.is1dBullish(candle.timestamp, cached)) {
-        return defaultSignal;
-      }
-
-      if (!this.passesFilters(candles, currentIndex, 'long', ltfIchimoku.kijun, cached.ltfSwings)) {
-        return defaultSignal;
-      }
-
-      const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-      const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-      const maxStopPercent = 5.0;
-
-      if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-        return defaultSignal;
-      }
-
+    if (signalEmittedLong) {
       let atrTrailingMeta: Record<string, unknown> = {};
       if (isA1Active) {
-        const initialStopPercent = roundTo(((2.5 * atr) / candle.close) * 100, 2);
-        const trailingStepPercent = roundTo(((2.0 * atr) / candle.close) * 100, 2);
-        const trailingRaisePercent = roundTo(((1.0 * atr) / candle.close) * 100, 2);
+        const initialStopPercent = roundTo(((2.5 * atrLong) / candle.close) * 100, 2);
+        const trailingStepPercent = roundTo(((2.0 * atrLong) / candle.close) * 100, 2);
+        const trailingRaisePercent = roundTo(((1.0 * atrLong) / candle.close) * 100, 2);
         atrTrailingMeta = {
           useAtrTrailing: true,
           initialStopPercent,
@@ -1089,25 +1232,25 @@ export class MultiTimeframeStrategy implements Strategy {
       const stopMetadata: Record<string, unknown> = this.useTdrStop
         ? {
             useTdrStop: true,
-            tdrStopPercent,
-            stopPrice: roundTo(candle.close * (1 - Math.min(tdrStopPercent, maxStopPercent) / 100), 8),
-            initialStopPercent: Math.min(tdrStopPercent, maxStopPercent),
+            tdrStopPercent: tdrStopPercentLong,
+            stopPrice: roundTo(candle.close * (1 - Math.min(tdrStopPercentLong, maxStopPercent) / 100), 8),
+            initialStopPercent: Math.min(tdrStopPercentLong, maxStopPercent),
           }
         : {
-            atrStopEstimatePercent: tdrStopPercent,
+            atrStopEstimatePercent: tdrStopPercentLong,
           };
 
       return {
         action: 'BUY',
         timestamp: candle.timestamp,
         price: candle.close,
-        reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercent, maxStopPercent)}%` : ''}`,
+        reason: `MTF Bullish (strict): 4h/1h aligned + LTF Cross (tk=${tkBullCross}, stoch=${stochBullCross}, fisher=${fisherEventBull})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercentLong, maxStopPercent)}%` : ''}`,
         metadata: {
           stochK: k,
           stochD: d,
           tenkan,
           kijun,
-          atr,
+          atr: atrLong,
           confirmations: (tkBullCross ? 1 : 0) + (stochBullCross ? 1 : 0) + (fisherEventBull ? 1 : 0),
           ichiCross: tkBullCross,
           stochCross: stochBullCross,
@@ -1121,61 +1264,12 @@ export class MultiTimeframeStrategy implements Strategy {
       };
     }
 
-    if (effectiveHtfBearish && !bearBlockedByOpposite && bearTrigger) {
-      if (this.regimeVariant === 'G3') {
-        return defaultSignal;
-      }
-      if (this.regimeVariant && macroRegime !== 'Bear') {
-        return defaultSignal;
-      }
-
-      if (isA3Active && !this.isAtrAboveMedian(candles, ltfAtr, currentIndex, 100)) {
-        return defaultSignal;
-      }
-
-      if (isA4Active && !this.is1dBearish(candle.timestamp, cached)) {
-        return defaultSignal;
-      }
-
-      // Check short entry filter (SH4)
-      if (this.shortEntryFilter === 'v1_1dBearish') {
-        if (!this.is1dBearish(candle.timestamp, cached)) {
-          return defaultSignal;
-        }
-      } else if (this.shortEntryFilter === 'v2_ltfBelowCloud') {
-        const spanA = ltfIchimoku.senkouA[currentIndex];
-        const spanB = ltfIchimoku.senkouB[currentIndex];
-        const cloudBottom = Math.min(spanA, spanB);
-        if (!Number.isFinite(cloudBottom) || !(candle.close < cloudBottom)) {
-          return defaultSignal;
-        }
-      } else if (this.shortEntryFilter === 'v3_bearRegime') {
-        if (this.dailyRegimeCalculator && this.dailyRegimeCalculator.getRegimeAt(candle.timestamp) !== 'bear') {
-          return defaultSignal;
-        }
-      } else if (this.shortEntryFilter === 'v4_consecutiveHtf') {
-        if (!this.has3ConsecutiveHtfBearish(candle.timestamp, cached, ltfMs)) {
-          return defaultSignal;
-        }
-      }
-
-      if (!this.passesFilters(candles, currentIndex, 'short', ltfIchimoku.kijun, cached.ltfSwings)) {
-        return defaultSignal;
-      }
-
-      const atr = ltfAtr[currentIndex] || candle.close * 0.02;
-      const tdrStopPercent = roundTo(((atr * this.tdrMultiplier) / candle.close) * 100, 2);
-      const maxStopPercent = 5.0;
-
-      if (this.useTdrStop && tdrStopPercent > maxStopPercent) {
-        return defaultSignal;
-      }
-
+    if (signalEmittedShort) {
       let atrTrailingMeta: Record<string, unknown> = {};
       if (isA1Active) {
-        const initialStopPercent = roundTo(((2.5 * atr) / candle.close) * 100, 2);
-        const trailingStepPercent = roundTo(((2.0 * atr) / candle.close) * 100, 2);
-        const trailingRaisePercent = roundTo(((1.0 * atr) / candle.close) * 100, 2);
+        const initialStopPercent = roundTo(((2.5 * atrShort) / candle.close) * 100, 2);
+        const trailingStepPercent = roundTo(((2.0 * atrShort) / candle.close) * 100, 2);
+        const trailingRaisePercent = roundTo(((1.0 * atrShort) / candle.close) * 100, 2);
         atrTrailingMeta = {
           useAtrTrailing: true,
           initialStopPercent,
@@ -1188,25 +1282,25 @@ export class MultiTimeframeStrategy implements Strategy {
       const stopMetadata: Record<string, unknown> = this.useTdrStop
         ? {
             useTdrStop: true,
-            tdrStopPercent,
-            stopPrice: roundTo(candle.close * (1 + Math.min(tdrStopPercent, maxStopPercent) / 100), 8),
-            initialStopPercent: Math.min(tdrStopPercent, maxStopPercent),
+            tdrStopPercent: tdrStopPercentShort,
+            stopPrice: roundTo(candle.close * (1 + Math.min(tdrStopPercentShort, maxStopPercent) / 100), 8),
+            initialStopPercent: Math.min(tdrStopPercentShort, maxStopPercent),
           }
         : {
-            atrStopEstimatePercent: tdrStopPercent,
+            atrStopEstimatePercent: tdrStopPercentShort,
           };
 
       return {
         action: 'SELL',
         timestamp: candle.timestamp,
         price: candle.close,
-        reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercent, maxStopPercent)}%` : ''}`,
+        reason: `MTF Bearish (strict): 4h/1h aligned + LTF Cross (tk=${tkBearCross}, stoch=${stochBearCross}, fisher=${fisherEventBear})${this.useTdrStop ? ` + Stop ${Math.min(tdrStopPercentShort, maxStopPercent)}%` : ''}`,
         metadata: {
           stochK: k,
           stochD: d,
           tenkan,
           kijun,
-          atr,
+          atr: atrShort,
           confirmations: (tkBearCross ? 1 : 0) + (stochBearCross ? 1 : 0) + (fisherEventBear ? 1 : 0),
           ichiCross: tkBearCross,
           stochCross: stochBearCross,

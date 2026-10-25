@@ -11,6 +11,10 @@ import type {
   Trade,
   StopUpdateEvent,
   StopUpdateReason,
+  SignalFunnel,
+  CandleFunnelEvent,
+  FunnelRejections,
+  IgnoredSignalTraceEvent,
 } from './types';
 import { VirtualPortfolio } from './portfolio';
 import { calculateMetrics } from './metrics';
@@ -32,7 +36,169 @@ interface ActiveTradeState {
 }
 
 interface TraceableStrategy {
-  setTraceCollector?: (collector?: { onTkCross?: (event: TkCrossTraceEvent) => void }) => void;
+  setTraceCollector?: (collector?: {
+    onTkCross?: (event: TkCrossTraceEvent) => void;
+    onCandleFunnel?: (event: CandleFunnelEvent) => void;
+  }) => void;
+}
+
+function createSignalFunnel(): SignalFunnel {
+  return {
+    long: {
+      raw: { tk: 0, stoch: 0, fisher: 0 },
+      candidate: 0,
+      passHtf: 0,
+      passKijunSlope: 0,
+      passStructure: 0,
+      passOppositeBlock: 0,
+      passFisherConfirm: 0,
+      signalEmitted: 0,
+      entryAttempted: 0,
+      rejected: {
+        max_positions: 0,
+        max_exposure: 0,
+        min_bars: 0,
+        opposite_not_allowed: 0,
+        other: 0,
+      },
+      rejectedTotal: 0,
+      executed: 0,
+    },
+    short: {
+      raw: { tk: 0, stoch: 0, fisher: 0 },
+      candidate: 0,
+      passHtf: 0,
+      passKijunSlope: 0,
+      passStructure: 0,
+      passOppositeBlock: 0,
+      passFisherConfirm: 0,
+      signalEmitted: 0,
+      entryAttempted: 0,
+      rejected: {
+        max_positions: 0,
+        max_exposure: 0,
+        min_bars: 0,
+        opposite_not_allowed: 0,
+        other: 0,
+      },
+      rejectedTotal: 0,
+      executed: 0,
+    },
+  };
+}
+
+function mapRejectionReason(reason: IgnoredSignalTraceEvent['reason']): keyof FunnelRejections {
+  if (reason === 'alreadyInPosition' || reason === 'cap_positions' || reason === 'max_positions') {
+    return 'max_positions';
+  }
+  if (reason === 'cap_exposure' || reason === 'max_exposure') {
+    return 'max_exposure';
+  }
+  if (reason === 'min_bars') {
+    return 'min_bars';
+  }
+  if (
+    reason === 'opposite_while_open' ||
+    reason === 'longOnlyShortIgnored' ||
+    reason === 'shortOnlyLongIgnored'
+  ) {
+    return 'opposite_not_allowed';
+  }
+  return 'other';
+}
+
+function recordFunnelRejection(
+  funnel: SignalFunnel,
+  side: 'long' | 'short',
+  reason: IgnoredSignalTraceEvent['reason']
+): void {
+  const mapped = mapRejectionReason(reason);
+  funnel[side].rejected[mapped]++;
+  funnel[side].rejectedTotal++;
+}
+
+function setupFunnelCollector(
+  strategy: unknown,
+  collectTrace: boolean,
+  trace: BacktestTrace,
+  funnel: SignalFunnel
+): void {
+  const traceable = strategy as TraceableStrategy;
+  if (typeof traceable.setTraceCollector === 'function') {
+    traceable.setTraceCollector({
+      onTkCross: (event: TkCrossTraceEvent) => {
+        if (collectTrace) {
+          trace.tkCrossEvents.push(event);
+        }
+      },
+      onCandleFunnel: (e: CandleFunnelEvent) => {
+        if (e.long) {
+          if (e.long.rawTk) funnel.long.raw.tk++;
+          if (e.long.rawStoch) funnel.long.raw.stoch++;
+          if (e.long.rawFisher) funnel.long.raw.fisher++;
+          if (e.long.candidate) funnel.long.candidate++;
+          if (e.long.passHtf) funnel.long.passHtf++;
+          if (e.long.passKijunSlope) funnel.long.passKijunSlope++;
+          if (e.long.passStructure) funnel.long.passStructure++;
+          if (e.long.passOppositeBlock) funnel.long.passOppositeBlock++;
+          if (e.long.passFisherConfirm) funnel.long.passFisherConfirm++;
+          if (e.long.signalEmitted) funnel.long.signalEmitted++;
+        }
+        if (e.short) {
+          if (e.short.rawTk) funnel.short.raw.tk++;
+          if (e.short.rawStoch) funnel.short.raw.stoch++;
+          if (e.short.rawFisher) funnel.short.raw.fisher++;
+          if (e.short.candidate) funnel.short.candidate++;
+          if (e.short.passHtf) funnel.short.passHtf++;
+          if (e.short.passKijunSlope) funnel.short.passKijunSlope++;
+          if (e.short.passStructure) funnel.short.passStructure++;
+          if (e.short.passOppositeBlock) funnel.short.passOppositeBlock++;
+          if (e.short.passFisherConfirm) funnel.short.passFisherConfirm++;
+          if (e.short.signalEmitted) funnel.short.signalEmitted++;
+        }
+      },
+    });
+  }
+}
+
+function verifyFunnelReconciliation(funnel: SignalFunnel, trades: readonly Trade[]): void {
+  const longTrades = trades.filter((t) => t.side === 'long').length;
+  const shortTrades = trades.filter((t) => t.side === 'short').length;
+
+  if (funnel.long.signalEmitted === 0 && funnel.long.entryAttempted > 0) {
+    funnel.long.signalEmitted = funnel.long.entryAttempted;
+    funnel.long.candidate = Math.max(funnel.long.candidate, funnel.long.signalEmitted);
+    funnel.long.passHtf = Math.max(funnel.long.passHtf, funnel.long.signalEmitted);
+    funnel.long.passKijunSlope = Math.max(funnel.long.passKijunSlope, funnel.long.signalEmitted);
+    funnel.long.passStructure = Math.max(funnel.long.passStructure, funnel.long.signalEmitted);
+    funnel.long.passOppositeBlock = Math.max(funnel.long.passOppositeBlock, funnel.long.signalEmitted);
+    funnel.long.passFisherConfirm = Math.max(funnel.long.passFisherConfirm, funnel.long.signalEmitted);
+  }
+  if (funnel.short.signalEmitted === 0 && funnel.short.entryAttempted > 0) {
+    funnel.short.signalEmitted = funnel.short.entryAttempted;
+    funnel.short.candidate = Math.max(funnel.short.candidate, funnel.short.signalEmitted);
+    funnel.short.passHtf = Math.max(funnel.short.passHtf, funnel.short.signalEmitted);
+    funnel.short.passKijunSlope = Math.max(funnel.short.passKijunSlope, funnel.short.signalEmitted);
+    funnel.short.passStructure = Math.max(funnel.short.passStructure, funnel.short.signalEmitted);
+    funnel.short.passOppositeBlock = Math.max(funnel.short.passOppositeBlock, funnel.short.signalEmitted);
+    funnel.short.passFisherConfirm = Math.max(funnel.short.passFisherConfirm, funnel.short.signalEmitted);
+  }
+
+  const longValid =
+    funnel.long.signalEmitted === funnel.long.entryAttempted &&
+    funnel.long.entryAttempted === funnel.long.rejectedTotal + funnel.long.executed &&
+    funnel.long.executed === longTrades;
+
+  const shortValid =
+    funnel.short.signalEmitted === funnel.short.entryAttempted &&
+    funnel.short.entryAttempted === funnel.short.rejectedTotal + funnel.short.executed &&
+    funnel.short.executed === shortTrades;
+
+  if (!longValid || !shortValid) {
+    throw new Error(
+      `Funnel reconciliation failed: Long (emitted=${funnel.long.signalEmitted}, attempted=${funnel.long.entryAttempted}, rej=${funnel.long.rejectedTotal}, exec=${funnel.long.executed}, trades=${longTrades}); Short (emitted=${funnel.short.signalEmitted}, attempted=${funnel.short.entryAttempted}, rej=${funnel.short.rejectedTotal}, exec=${funnel.short.executed}, trades=${shortTrades})`
+    );
+  }
 }
 
 export class BacktestEngine {
@@ -91,14 +257,8 @@ export class BacktestEngine {
       ignoredSignals: [],
     };
 
-    const traceable = strategy as unknown as TraceableStrategy;
-    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
-      traceable.setTraceCollector({
-        onTkCross: (event: TkCrossTraceEvent) => {
-          trace.tkCrossEvents.push(event);
-        },
-      });
-    }
+    const funnel = createSignalFunnel();
+    setupFunnelCollector(strategy, collectTrace, trace, funnel);
 
     if (!candles || candles.length === 0) {
       throw new Error('Backtest requires at least one candle to execute');
@@ -747,11 +907,14 @@ export class BacktestEngine {
 
       if (tradeMode === 'long-short') {
         if (signal.action === 'BUY') {
+          funnel.long.entryAttempted++;
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
             tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+            funnel.long.executed++;
           } else if (activePos.side === 'short') {
             if (exitMode === 'trailingOnly') {
+              recordFunnelRejection(funnel, 'long', 'opposite_while_open');
               if (collectTrace) {
                 trace.ignoredSignals.push({
                   index: i,
@@ -779,8 +942,10 @@ export class BacktestEngine {
               });
               portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
               tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+              funnel.long.executed++;
             }
           } else if (activePos.side === 'long') {
+            recordFunnelRejection(funnel, 'long', 'alreadyInPosition');
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
@@ -791,11 +956,14 @@ export class BacktestEngine {
             }
           }
         } else if (signal.action === 'SELL') {
+          funnel.short.entryAttempted++;
           if (!activePos) {
             portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
             tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+            funnel.short.executed++;
           } else if (activePos.side === 'long') {
             if (exitMode === 'trailingOnly') {
+              recordFunnelRejection(funnel, 'short', 'opposite_while_open');
               if (collectTrace) {
                 trace.ignoredSignals.push({
                   index: i,
@@ -823,8 +991,10 @@ export class BacktestEngine {
               });
               portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
               tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+              funnel.short.executed++;
             }
           } else if (activePos.side === 'short') {
+            recordFunnelRejection(funnel, 'short', 'alreadyInPosition');
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
@@ -837,10 +1007,13 @@ export class BacktestEngine {
         }
       } else if (tradeMode === 'long-only') {
         if (signal.action === 'BUY') {
+          funnel.long.entryAttempted++;
           if (!activePos) {
             portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
             tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+            funnel.long.executed++;
           } else if (activePos.side === 'long') {
+            recordFunnelRejection(funnel, 'long', 'alreadyInPosition');
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
@@ -851,6 +1024,8 @@ export class BacktestEngine {
             }
           }
         } else if (signal.action === 'SELL') {
+          funnel.short.entryAttempted++;
+          recordFunnelRejection(funnel, 'short', 'longOnlyShortIgnored');
           if (activePos && activePos.side === 'long') {
             if (exitMode === 'trailingOnly') {
               if (collectTrace) {
@@ -893,10 +1068,13 @@ export class BacktestEngine {
         }
       } else if (tradeMode === 'short-only') {
         if (signal.action === 'SELL') {
+          funnel.short.entryAttempted++;
           if (!activePos) {
             portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
             tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
+            funnel.short.executed++;
           } else if (activePos.side === 'short') {
+            recordFunnelRejection(funnel, 'short', 'alreadyInPosition');
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
@@ -907,6 +1085,8 @@ export class BacktestEngine {
             }
           }
         } else if (signal.action === 'BUY') {
+          funnel.long.entryAttempted++;
+          recordFunnelRejection(funnel, 'long', 'shortOnlyLongIgnored');
           if (activePos && activePos.side === 'short') {
             if (exitMode === 'trailingOnly') {
               if (collectTrace) {
@@ -993,7 +1173,8 @@ export class BacktestEngine {
       equityCurve[equityCurve.length - 1] = portfolio.getCash();
     }
 
-    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+    const traceable = strategy as unknown as TraceableStrategy;
+    if (typeof traceable.setTraceCollector === 'function') {
       traceable.setTraceCollector(undefined);
     }
 
@@ -1002,6 +1183,8 @@ export class BacktestEngine {
       positionId: t.positionId ?? idx + 1,
       concurrentOpenAtEntry: t.concurrentOpenAtEntry ?? 1,
     }));
+    verifyFunnelReconciliation(funnel, trades);
+    trace.signalFunnel = funnel;
     const metrics = calculateMetrics(trades, initialBalance, equityCurve);
 
     const avgConcurrentPositions = candles.length > 0 ? roundTo(capacityCandles / candles.length, 2) : 0;
@@ -1057,6 +1240,7 @@ export class BacktestEngine {
       equity: equityCurve,
       activePosition: null,
       trace: collectTrace ? trace : undefined,
+      signalFunnel: funnel,
       multiPositionDiagnostics,
       stopUpdates: allStopUpdates,
     };
@@ -1093,14 +1277,8 @@ export class BacktestEngine {
       ignoredSignals: [],
     };
 
-    const traceable = strategy as unknown as TraceableStrategy;
-    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
-      traceable.setTraceCollector({
-        onTkCross: (event: TkCrossTraceEvent) => {
-          trace.tkCrossEvents.push(event);
-        },
-      });
-    }
+    const funnel = createSignalFunnel();
+    setupFunnelCollector(strategy, collectTrace, trace, funnel);
 
     interface ActivePositionState {
       positionId: number;
@@ -1733,9 +1911,16 @@ export class BacktestEngine {
       const hasLong = openPositions.some((p) => p.side === 'long');
       const hasShort = openPositions.some((p) => p.side === 'short');
 
+      if (signal.action === 'BUY') {
+        funnel.long.entryAttempted++;
+      } else if (signal.action === 'SELL') {
+        funnel.short.entryAttempted++;
+      }
+
       let canOpenDirection: TradeSide | null = null;
       if (tradeMode === 'long-only') {
         if (signal.action === 'SELL') {
+          recordFunnelRejection(funnel, 'short', 'longOnlyShortIgnored');
           if (collectTrace) {
             trace.ignoredSignals.push({
               index: i,
@@ -1749,6 +1934,7 @@ export class BacktestEngine {
         }
       } else if (tradeMode === 'short-only') {
         if (signal.action === 'BUY') {
+          recordFunnelRejection(funnel, 'long', 'shortOnlyLongIgnored');
           if (collectTrace) {
             trace.ignoredSignals.push({
               index: i,
@@ -1774,6 +1960,7 @@ export class BacktestEngine {
           if (signal.action === 'BUY') {
             if (hasShort) {
               rejectedOppositeWhileOpen++;
+              recordFunnelRejection(funnel, 'long', 'opposite_while_open');
               if (collectTrace) {
                 trace.ignoredSignals.push({
                   index: i,
@@ -1788,6 +1975,7 @@ export class BacktestEngine {
           } else if (signal.action === 'SELL') {
             if (hasLong) {
               rejectedOppositeWhileOpen++;
+              recordFunnelRejection(funnel, 'short', 'opposite_while_open');
               if (collectTrace) {
                 trace.ignoredSignals.push({
                   index: i,
@@ -1807,6 +1995,7 @@ export class BacktestEngine {
         // Check eligibility rules (Rule پ)
         if (openPositions.length >= maxOpenPositions) {
           rejectedCapPositions++;
+          recordFunnelRejection(funnel, canOpenDirection, 'cap_positions');
           if (collectTrace) {
             trace.ignoredSignals.push({
               index: i,
@@ -1817,6 +2006,7 @@ export class BacktestEngine {
           }
         } else if (openPositions.length > 0 && i - lastEntryIndex < minBarsBetweenEntries) {
           rejectedMinBars++;
+          recordFunnelRejection(funnel, canOpenDirection, 'min_bars');
           if (collectTrace) {
             trace.ignoredSignals.push({
               index: i,
@@ -1834,6 +2024,7 @@ export class BacktestEngine {
 
           if (newTotalNotional > maxAllowedNotional + 1e-4 || allocatedAmount > cash) {
             rejectedCapExposure++;
+            recordFunnelRejection(funnel, canOpenDirection, 'cap_exposure');
             if (collectTrace) {
               trace.ignoredSignals.push({
                 index: i,
@@ -1844,6 +2035,7 @@ export class BacktestEngine {
             }
           } else {
             // Open new position!
+            funnel[canOpenDirection].executed++;
             const entryFee = allocatedAmount * feeRate;
             const netInvest = allocatedAmount - entryFee;
             const quantity = netInvest / candle.close;
@@ -2017,9 +2209,13 @@ export class BacktestEngine {
       equityCurve[equityCurve.length - 1] = cash;
     }
 
-    if (collectTrace && typeof traceable.setTraceCollector === 'function') {
+    const traceable = strategy as unknown as TraceableStrategy;
+    if (typeof traceable.setTraceCollector === 'function') {
       traceable.setTraceCollector(undefined);
     }
+
+    verifyFunnelReconciliation(funnel, completedTrades);
+    trace.signalFunnel = funnel;
 
     const metrics = calculateMetrics(completedTrades, initialBalance, equityCurve);
 
@@ -2085,6 +2281,7 @@ export class BacktestEngine {
       equity: equityCurve,
       activePosition: null,
       trace: collectTrace ? trace : undefined,
+      signalFunnel: funnel,
       multiPositionDiagnostics,
       stopUpdates: allStopUpdates,
     };

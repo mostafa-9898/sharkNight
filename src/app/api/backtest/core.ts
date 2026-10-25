@@ -459,24 +459,24 @@ export async function executeBacktestCore(
     }
   }
 
-  const buySetups = backtestResult.trace
-    ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length
-    : buySignalsFallback;
-  const sellSetups = backtestResult.trace
-    ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length
-    : sellSignalsFallback;
+  const buySetups = backtestResult.signalFunnel
+    ? backtestResult.signalFunnel.long.signalEmitted
+    : (backtestResult.trace
+      ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length
+      : buySignalsFallback);
+  const sellSetups = backtestResult.signalFunnel
+    ? backtestResult.signalFunnel.short.signalEmitted
+    : (backtestResult.trace
+      ? backtestResult.trace.tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length
+      : sellSignalsFallback);
 
   const diagnostics = {
-    rsiBuyZoneCandles: rsiBuyZoneCount,
-    rsiSellZoneCandles: rsiSellZoneCount,
-    tkCrossUpEvents: tkCrossUpCount,
-    tkCrossDownEvents: tkCrossDownCount,
-    tkCrossEqualityStartCount,
     buySetups,
     sellSetups,
     executedTradesLong,
     executedTradesShort,
     executedTradesTotal: backtestResult.trades.length,
+    signalFunnel: backtestResult.signalFunnel,
   };
 
   const firstCandle = candles[0];
