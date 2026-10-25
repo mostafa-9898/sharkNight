@@ -7,7 +7,8 @@ import { calculateSMA } from '../indicators/sma';
 export interface DailyRegimeCalculator {
   getRegimeAt(timestamp: number): 'bull' | 'bear';
   getDailyTrendAt(timestamp: number): 1 | -1 | 0;
-  getDailyDataAt(timestamp: number): { close: number; sma200: number } | null;
+  getDailyDataAt(timestamp: number): { close: number; sma200: number; sma50?: number } | null;
+  getDailyGoldenCrossAt?(timestamp: number): 1 | -1 | 0;
 }
 
 function loadGzCandles(filePath: string): Candle[] {
@@ -101,21 +102,24 @@ export function createDailyRegimeCalculatorFromDailyCandles(
   const sorted = [...dailyCandles].sort((a, b) => a.timestamp - b.timestamp);
   const closes = sorted.map((c) => c.close);
   const sma200Values = calculateSMA(closes, 200);
+  const sma50Values = calculateSMA(closes, 50);
 
-  const dayMap = new Map<number, { close: number; sma200: number }>();
+  const dayMap = new Map<number, { close: number; sma200: number; sma50?: number }>();
   for (let i = 0; i < sorted.length; i++) {
-    const sma = sma200Values[i];
-    if (sma !== null && !isNaN(sma)) {
+    const sma200 = sma200Values[i];
+    const sma50 = sma50Values[i];
+    if (sma200 !== null && !isNaN(sma200)) {
       dayMap.set(sorted[i].timestamp, {
         close: sorted[i].close,
-        sma200: sma,
+        sma200,
+        sma50: sma50 !== null && !isNaN(sma50) ? sma50 : undefined,
       });
     }
   }
 
   const timestamps = sorted.map((c) => c.timestamp);
 
-  const getDailyDataAt = (timestamp: number): { close: number; sma200: number } | null => {
+  const getDailyDataAt = (timestamp: number): { close: number; sma200: number; sma50?: number } | null => {
     const currentDayStart = Math.floor(timestamp / 86400000) * 86400000;
     let low = 0;
     let high = timestamps.length - 1;
@@ -151,6 +155,13 @@ export function createDailyRegimeCalculatorFromDailyCandles(
       const data = getDailyDataAt(timestamp);
       if (!data) return 'bear';
       return data.close > data.sma200 ? 'bull' : 'bear';
+    },
+    getDailyGoldenCrossAt(timestamp: number): 1 | -1 | 0 {
+      const data = getDailyDataAt(timestamp);
+      if (!data || data.sma50 === undefined || data.sma200 === undefined) return 0;
+      if (data.sma50 > data.sma200) return 1;
+      if (data.sma50 < data.sma200) return -1;
+      return 0;
     },
   };
 }
