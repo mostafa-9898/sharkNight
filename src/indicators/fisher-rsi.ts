@@ -149,12 +149,22 @@ export function fisherCrossEvents(
   const events: FisherCrossEvent[] = new Array<FisherCrossEvent>(length);
 
   for (let i = 0; i < length; i++) {
+    const fCurr = fisherResult.fisher[i];
+    const sCurr = fisherResult.signal[i];
+    const fPrev = i > 0 ? fisherResult.fisher[i - 1] : NaN;
+    const sPrev =
+      i > 0
+        ? Number.isNaN(fisherResult.signal[i - 1]) && Number.isFinite(fPrev)
+          ? 0.0
+          : fisherResult.signal[i - 1]
+        : NaN;
+
     if (
       i === 0 ||
-      Number.isNaN(fisherResult.fisher[i]) ||
-      Number.isNaN(fisherResult.signal[i]) ||
-      Number.isNaN(fisherResult.fisher[i - 1]) ||
-      Number.isNaN(fisherResult.signal[i - 1])
+      Number.isNaN(fCurr) ||
+      Number.isNaN(sCurr) ||
+      Number.isNaN(fPrev) ||
+      Number.isNaN(sPrev)
     ) {
       events[i] = {
         anyCrossUp: false,
@@ -164,11 +174,6 @@ export function fisherCrossEvents(
       };
       continue;
     }
-
-    const fCurr = fisherResult.fisher[i];
-    const sCurr = fisherResult.signal[i];
-    const fPrev = fisherResult.fisher[i - 1];
-    const sPrev = fisherResult.signal[i - 1];
 
     const anyCrossUp = fCurr > sCurr && fPrev <= sPrev;
     const anyCrossDown = fCurr < sCurr && fPrev >= sPrev;

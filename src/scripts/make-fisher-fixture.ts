@@ -33,10 +33,22 @@ export function parsePineCsv(csvContent: string): {
   const timeIdx = headers.findIndex((h) => h === 'time' || h === 'timestamp' || h === 'date');
   const closeIdx = headers.findIndex((h) => h === 'close' || h === 'price');
   const fisherIdx = headers.findIndex(
-    (h) => h === 'fisher' || h === 'fisherscaled' || h === 'fisher_scaled' || h.includes('fisher transform')
+    (h) =>
+      h === 'fisher' ||
+      h === 'fisherscaled' ||
+      h === 'fisher_scaled' ||
+      h === 'fisher transform (rsi)' ||
+      h.includes('fisher transform (rsi)') ||
+      h.includes('fisher transform')
   );
   const signalIdx = headers.findIndex(
-    (h) => h === 'signal' || h === 'signalscaled' || h === 'signal_scaled' || h.includes('signal')
+    (h) =>
+      h === 'signal' ||
+      h === 'signalscaled' ||
+      h === 'signal_scaled' ||
+      h === 'fisher signal' ||
+      h.includes('fisher signal') ||
+      h.includes('signal')
   );
 
   if (closeIdx === -1) {
