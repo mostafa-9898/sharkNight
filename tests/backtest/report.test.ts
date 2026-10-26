@@ -970,8 +970,8 @@ describe('Backtest Report Builder & Tracing', () => {
       expect(funnel.rejections.rsiRecoveryCap).toBe(rsiCapRejections);
 
       // Invariant 4: Markdown includes the counts
-      expect(output.markdown).toContain(`**TK Crossover Events** | `);
-      expect(output.markdown).toContain(`- **Rejected Crosses (Did Not Become Signals):** ${rejectedCrosses.length}`);
+      expect(output.markdown).toContain(`1. Raw Crosses (Active Triggers)`);
+      expect(output.markdown).toContain(`11. Executed Trades`);
     });
 
     it('should clearly indicate missing trace when collectTrace is false without distorting report', () => {
@@ -1234,11 +1234,9 @@ describe('Backtest Report Builder & Tracing', () => {
 
       expect(output.markdown).toContain('Diagnostic Semantics:');
       expect(output.markdown).toContain(
-        '**Crosses with RSI in Zone** reflects independent RSI lookback qualification across all candidate TK crossovers'
+        '11 sequential validation gates across both Bullish (BUY) and Bearish (SELL)'
       );
-      expect(output.markdown).toContain(
-        '"Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order'
-      );
+      expect(output.markdown).not.toContain('Crosses with RSI in Zone');
     });
   });
 

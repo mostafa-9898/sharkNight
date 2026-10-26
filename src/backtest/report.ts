@@ -11,6 +11,7 @@ import type {
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
 import { roundTo } from '../utils/math';
+import { formatFunnelMarkdownTable, getFunnelStages } from './funnel';
 
 export interface SaveReportPaths {
   latestMdPath: string;
@@ -170,13 +171,18 @@ export function computeDatasetFingerprint(candles: readonly Candle[]): string {
   return hash.digest('hex').slice(0, 16);
 }
 
+export function formatFisherConfigString(config: BacktestReportConfig): string {
+  const mode = config.fisherMode ?? 'confirm';
+  if (mode === 'off') return 'off';
+  const kind = config.fisherKind ?? 'fisher';
+  const gate = config.fisherGate ?? 'none';
+  return `${mode}/${kind}/${gate}`;
+}
+
 export function formatStrategyDisplayName(config: BacktestReportConfig): string {
   const htf = config.htfMode ?? 'strict';
   const entry = config.entryMode ?? 'cross';
-  const fisher =
-    config.fisherMode === 'off'
-      ? 'off'
-      : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'fisher'}`;
+  const fisher = formatFisherConfigString(config);
   const kijunStatus = config.kijunSlopeFilter ? 'enabled' : 'disabled';
   const structStatus = config.structureFilter ? 'enabled' : 'disabled';
 
@@ -1107,8 +1113,14 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   lines.push(`|---|---|---|`);
   lines.push(`| Ichimoku | Tenkan / Kijun / SenkouB / Displacement | \`${tenkan}\` / \`${kijun}\` / \`${senkouB}\` / \`${displacement}\` |`);
   lines.push(`| MTF Settings | HTF / Entry Mode | \`${config.htfMode ?? 'strict'}\` / \`${config.entryMode ?? 'cross'}\` |`);
-  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'} (${config.fisherKind ?? 'fisher'})`;
-  lines.push(`| Fisher Oscillator | Mode / Kind | \`${fisherStr}\` |`);
+  const fisherMode = config.fisherMode ?? 'confirm';
+  const fisherKind = config.fisherKind ?? 'fisher';
+  const fisherGate = config.fisherGate ?? 'none';
+  const fisherStr =
+    fisherMode === 'off'
+      ? 'off'
+      : `${fisherMode} (kind=${fisherKind}, gate=${fisherGate})`;
+  lines.push(`| Fisher Oscillator | Mode / Kind / Gate | \`${fisherStr}\` |`);
   lines.push(`| Kijun Slope Filter | Status | \`${config.kijunSlopeFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Structure Filter | Status | \`${config.structureFilter ? 'enabled' : 'disabled'}\` |`);
   lines.push(`| Execution | Trade Mode / Exit Mode | \`${config.tradeMode ?? 'long-short'}\` / \`${config.exitMode ?? 'reverse'}\` |`);
@@ -1189,61 +1201,25 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
     );
     lines.push(``);
   } else {
-    lines.push(
-      `> ℹ️ **Diagnostic Semantics:** **Crosses with RSI in Zone** reflects independent RSI lookback qualification across all candidate TK crossovers, regardless of upstream filter rejections. In contrast, "Signal Attrition & Rejections" reflects exclusive first-rejection attribution in execution order (Cloud Filter → Kijun Slope Filter → RSI Zone → RSI Recovery Cap). Crosses that qualify for RSI may still be rejected earlier by Cloud or Kijun Slope filters.`
-    );
-    lines.push(``);
-    lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
-    lines.push(`|---|---|---|---|`);
-    lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
-    lines.push(`| **Crosses with RSI in Zone** | ${crossUpInZone} | ${crossDownInZone} | ${crossUpInZone + crossDownInZone} |`);
-    lines.push(`| **Signals Emitted** | ${buySignalsEmitted} | ${sellSignalsEmitted} | ${buySignalsEmitted + sellSignalsEmitted} |`);
-    lines.push(`| **Signals Executed (Trades)** | ${metrics.long.totalTrades} | ${metrics.short.totalTrades} | ${metrics.totalTrades} |`);
-    lines.push(``);
-
-    lines.push(`### Signal Attrition & Rejections`);
-    lines.push(`- **Rejected Crosses (Did Not Become Signals):** ${rejectedCrosses.length}`);
-    lines.push(`  - RSI out of zone within lookback: **${rsiOutOfZoneRejections}**`);
-    lines.push(`  - Rejected by Cloud Filter: **${cloudFilterRejections}**`);
-    lines.push(`  - Rejected by RSI Recovery Cap: **${rsiRecoveryCapRejections}**`);
-    lines.push(`  - Rejected by Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
-    lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
-    lines.push(`  - Position already open in same direction: **${ignoredAlreadyInPos}**`);
-    if (ignoredOppositeWhileOpen > 0) {
-      lines.push(`  - Opposite signal while position open (opposite_while_open): **${ignoredOppositeWhileOpen}**`);
-    }
-    lines.push(`  - Long-only mode rejected short signal: **${ignoredLongOnlyShort}**`);
-    if (ignoredCapPositions > 0) {
-      lines.push(`  - Multi-position cap reached (cap_positions): **${ignoredCapPositions}**`);
-    }
-    if (ignoredCapExposure > 0) {
-      lines.push(`  - Maximum exposure cap reached (cap_exposure): **${ignoredCapExposure}**`);
-    }
-    if (ignoredMinBars > 0) {
-      lines.push(`  - Minimum bars between entries not met (min_bars): **${ignoredMinBars}**`);
-    }
-    if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
+    const funnel = trace.signalFunnel ?? backtestResult.signalFunnel;
+    if (funnel) {
+      lines.push(
+        `> ℹ️ **Diagnostic Semantics:** The Signal Funnel tracks every candidate bar through 11 sequential validation gates across both Bullish (BUY) and Bearish (SELL) directions, ensuring non-increasing counts and strict accounting reconciliation with final executed trades.`
+      );
       lines.push(``);
-      lines.push(`### Multi-Position Concurrency`);
-      lines.push(`- **Average Concurrent Positions:** ${multiPosDiag.avgConcurrentPositions}`);
-      lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions} (Long: ${multiPosDiag.maxConcurrentLong}, Short: ${multiPosDiag.maxConcurrentShort})`);
-      lines.push(`- **Dual-Direction Concurrency Time (% of bars):** ${multiPosDiag.dualDirectionTimePercent}%`);
-      lines.push(`- **Time at Capacity (% of bars):** ${multiPosDiag.percentTimeAtCapacity}%`);
-      lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}, opposite_while_open=${multiPosDiag.rejectedSignals.opposite_while_open ?? 0}`);
-    }
-    lines.push(``);
-
-    if (rejectedCrosses.length > 0) {
-      lines.push(`#### Sample of Rejected TK Crosses (First 8 Events)`);
-      lines.push(`| Time (UTC) | Direction | Price | RSI at Cross | Reason Rejected |`);
-      lines.push(`|---|---|---|---|---|`);
-      for (const r of rejectedCrosses.slice(0, 8)) {
-        lines.push(
-          `| ${formatDate(r.timestamp)} | \`${r.direction.toUpperCase()}\` | $${r.price.toFixed(2)} | ${r.rsi.toFixed(1)} | \`${r.filterRejection ?? 'rsiOutOfZone'}\` |`
-        );
-      }
+      lines.push(formatFunnelMarkdownTable(funnel));
       lines.push(``);
     }
+  }
+
+  if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
+    lines.push(`### Multi-Position Concurrency`);
+    lines.push(`- **Average Concurrent Positions:** ${multiPosDiag.avgConcurrentPositions}`);
+    lines.push(`- **Max Concurrent Positions:** ${multiPosDiag.maxConcurrentPositions} (Long: ${multiPosDiag.maxConcurrentLong}, Short: ${multiPosDiag.maxConcurrentShort})`);
+    lines.push(`- **Dual-Direction Concurrency Time (% of bars):** ${multiPosDiag.dualDirectionTimePercent}%`);
+    lines.push(`- **Time at Capacity (% of bars):** ${multiPosDiag.percentTimeAtCapacity}%`);
+    lines.push(`- **Signals Rejected Breakdown:** cap_positions=${multiPosDiag.rejectedSignals.cap_positions}, cap_exposure=${multiPosDiag.rejectedSignals.cap_exposure}, min_bars=${multiPosDiag.rejectedSignals.min_bars}, opposite_while_open=${multiPosDiag.rejectedSignals.opposite_while_open ?? 0}`);
+    lines.push(``);
   }
 
   // Section E: Compact Trades Table
@@ -1581,6 +1557,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
           multiPositionDiagnostics: multiPosDiag ?? null,
         }
       : null,
+    signalFunnel: trace?.signalFunnel ?? backtestResult.signalFunnel ?? null,
     trades: trades.map((t, i) => ({
       index: i + 1,
       ...t,
@@ -1754,7 +1731,7 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   lines.push(
     `| **Candle Dataset** | **${candles.length.toLocaleString()}** candles | Fingerprint: \`${datasetFingerprint}\` |`
   );
-  const fisherStr = config.fisherMode === 'off' ? 'off' : `${config.fisherMode ?? 'confirm'}/${config.fisherKind ?? 'fisher'}`;
+  const fisherStr = formatFisherConfigString(config);
   lines.push(
     `| **Strategy Indicators** | Ichimoku (${config.tenkan ?? 9}, ${config.kijun ?? 26}, ${config.senkouB ?? 52}, ${config.displacement ?? 26}) | MTF (${config.htfMode ?? 'strict'}, ${config.entryMode ?? 'cross'}, Fisher: ${fisherStr}) |`
   );
@@ -1788,20 +1765,28 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   const maxDd = metrics.maxDrawdownPercent;
   const winRateStr = metrics.totalTrades > 0 ? `${(metrics.winRate * 100).toFixed(1)}%` : 'N/A';
   const pfStr =
-    metrics.losingTrades === 0
-      ? metrics.winningTrades > 0
-        ? '∞'
-        : 'N/A'
-      : (
-          Math.abs(metrics.averageWin * metrics.winningTrades) /
-          Math.abs(metrics.averageLoss * metrics.losingTrades || 1)
-        ).toFixed(2);
+    metrics.totalTrades === 0
+      ? 'N/A'
+      : metrics.profitFactor !== undefined
+        ? metrics.profitFactor === 999.99
+          ? '∞'
+          : metrics.profitFactor.toFixed(2)
+        : metrics.losingTrades === 0
+          ? metrics.winningTrades > 0
+            ? '∞'
+            : 'N/A'
+          : (
+              Math.abs(metrics.averageWin * metrics.winningTrades) /
+              Math.abs(metrics.averageLoss * metrics.losingTrades || 1)
+            ).toFixed(2);
   const expectancy =
-    metrics.totalTrades > 0 ? roundTo(metrics.totalPnlPercent / metrics.totalTrades, 2) : 0;
+    metrics.expectancyPercent !== undefined
+      ? metrics.expectancyPercent
+      : (metrics.totalTrades > 0 ? roundTo(metrics.totalPnlPercent / metrics.totalTrades, 2) : 0);
   const winLossRatio =
-    metrics.averageLoss !== 0
-      ? Math.abs(metrics.averageWin / metrics.averageLoss).toFixed(2)
-      : 'N/A';
+    metrics.payoffRatio !== undefined
+      ? metrics.payoffRatio.toFixed(2)
+      : (metrics.averageLoss !== 0 ? Math.abs(metrics.averageWin / metrics.averageLoss).toFixed(2) : 'N/A');
 
   lines.push(`| Performance Metric | Recorded Value | Capital Preservation & Risk Metric | Recorded Value |`);
   lines.push(`|---|---|---|---|`);
@@ -2051,67 +2036,11 @@ export function buildTradeDiagnosticsReport(params: TradeDiagnosticsInput): stri
   // Section 5: Decision & Signal Funnel Diagnostics
   lines.push(`## Section 5: Decision & Signal Funnel Diagnostics`);
   const trace = backtestResult.trace;
-  if (!trace) {
+  const funnel = trace?.signalFunnel ?? backtestResult.signalFunnel;
+  if (!funnel) {
     lines.push(`> ℹ️ Passive signal tracing was not enabled for this backtest run (\`collectTrace: false\`).`);
   } else {
-    const tkCrossEvents = trace.tkCrossEvents ?? [];
-    const ignoredSignals = trace.ignoredSignals ?? [];
-
-    const tkCrossUpCount = tkCrossEvents.filter((e) => e.direction === 'up').length;
-    const tkCrossDownCount = tkCrossEvents.filter((e) => e.direction === 'down').length;
-    const crossUpInZone = tkCrossEvents.filter((e) => e.direction === 'up' && e.inRsiZone).length;
-    const crossDownInZone = tkCrossEvents.filter((e) => e.direction === 'down' && e.inRsiZone).length;
-    const buySignalsEmitted = tkCrossEvents.filter((e) => e.direction === 'up' && e.signalEmitted).length;
-    const sellSignalsEmitted = tkCrossEvents.filter((e) => e.direction === 'down' && e.signalEmitted).length;
-
-    const rejectedCrosses = tkCrossEvents.filter((e) => !e.signalEmitted);
-    const cloudFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'cloudFilter').length;
-    const rsiOutOfZoneRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiOutOfZone').length;
-    const rsiRecoveryCapRejections = rejectedCrosses.filter((e) => e.filterRejection === 'rsiRecoveryCap').length;
-    const kijunSlopeFilterRejections = rejectedCrosses.filter((e) => e.filterRejection === 'kijunSlopeFilter').length;
-
-    const ignoredAlreadyInPos = ignoredSignals.filter((e) => e.reason === 'alreadyInPosition').length;
-    const ignoredOppositeWhileOpen = ignoredSignals.filter((e) => e.reason === 'opposite_while_open').length;
-    const ignoredLongOnlyShort = ignoredSignals.filter((e) => e.reason === 'longOnlyShortIgnored').length;
-    const ignoredCapPositions = ignoredSignals.filter((e) => e.reason === 'cap_positions').length;
-    const ignoredCapExposure = ignoredSignals.filter((e) => e.reason === 'cap_exposure').length;
-    const ignoredMinBars = ignoredSignals.filter((e) => e.reason === 'min_bars').length;
-    const multiPosDiag = backtestResult.multiPositionDiagnostics;
-
-    lines.push(`### 1. Signal Funnel`);
-    lines.push(`| Stage | Bullish (BUY) | Bearish (SELL) | Combined |`);
-    lines.push(`|---|---|---|---|`);
-    lines.push(`| **TK Crossover Events** | ${tkCrossUpCount} | ${tkCrossDownCount} | ${tkCrossUpCount + tkCrossDownCount} |`);
-    lines.push(`| **Crosses with RSI in Zone** | ${crossUpInZone} | ${crossDownInZone} | ${crossUpInZone + crossDownInZone} |`);
-    lines.push(`| **Signals Emitted by Strategy** | ${buySignalsEmitted} | ${sellSignalsEmitted} | ${buySignalsEmitted + sellSignalsEmitted} |`);
-    lines.push(`| **Signals Executed into Trades** | ${metrics.long.totalTrades} | ${metrics.short.totalTrades} | ${metrics.totalTrades} |`);
-    lines.push(``);
-
-    lines.push(`### 2. Filter Rejection Attribution`);
-    lines.push(`- **Rejected Crossovers (Did Not Emit Signal):** ${rejectedCrosses.length}`);
-    lines.push(`  - Cloud Trend Filter (\`close vs Cloud\`): **${cloudFilterRejections}**`);
-    lines.push(`  - RSI Out of Zone at Cross & Lookback: **${rsiOutOfZoneRejections}**`);
-    lines.push(`  - RSI Recovery Cap Exceeded: **${rsiRecoveryCapRejections}**`);
-    lines.push(`  - Kijun Slope Filter: **${kijunSlopeFilterRejections}**`);
-    lines.push(`- **Ignored Signals (Strategy Emitted but Engine Skipped):** ${ignoredSignals.length}`);
-    lines.push(`  - Position Already Open in Same Direction: **${ignoredAlreadyInPos}**`);
-    const totalOppositeWhileOpen = ignoredOppositeWhileOpen || (multiPosDiag?.rejectedSignals?.opposite_while_open ?? 0);
-    if (totalOppositeWhileOpen > 0) {
-      lines.push(`  - Opposite Signal While Position Open (opposite_while_open): **${totalOppositeWhileOpen}**`);
-    }
-    lines.push(`  - Long-Only Filter Ignored Short: **${ignoredLongOnlyShort}**`);
-    if (ignoredCapPositions > 0) {
-      lines.push(`  - Multi-position Cap Reached: **${ignoredCapPositions}**`);
-    }
-    if (ignoredCapExposure > 0) {
-      lines.push(`  - Max Total Exposure Reached: **${ignoredCapExposure}**`);
-    }
-    if (ignoredMinBars > 0) {
-      lines.push(`  - Min Bars Between Entries Not Met: **${ignoredMinBars}**`);
-    }
-    if (multiPosDiag && (multiPosDiag.maxConcurrentPositions > 1 || multiPosDiag.percentTimeAtCapacity > 0)) {
-      lines.push(`  - Avg / Max Concurrency: **${multiPosDiag.avgConcurrentPositions} / ${multiPosDiag.maxConcurrentPositions}** (Long: **${multiPosDiag.maxConcurrentLong}**, Short: **${multiPosDiag.maxConcurrentShort}**, Dual-Direction Time: **${multiPosDiag.dualDirectionTimePercent}%**, Time at cap: **${multiPosDiag.percentTimeAtCapacity}%**)`);
-    }
+    lines.push(formatFunnelMarkdownTable(funnel));
     lines.push(``);
   }
 

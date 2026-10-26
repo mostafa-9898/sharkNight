@@ -7,6 +7,7 @@ import MetricsCards from './components/MetricsCards';
 import TradesTable from './components/TradesTable';
 import type { Candle, CandleInterval } from '@/data/models/candle';
 import type { BacktestMetrics, Trade, TradeMode, StopCheckMode, ExitMode, MultiPositionDiagnostics, SignalFunnel } from '@/backtest/types';
+import { calcDrop, getFunnelStages } from '@/backtest/funnel';
 import {
   DEFAULT_TRADE_MODE,
   DEFAULT_POSITION_SIZE_PERCENT,
@@ -1933,12 +1934,6 @@ export default function DashboardPage() {
             const funnel = backtestResult.signalFunnel ?? backtestResult.diagnostics!.signalFunnel!;
             const long = funnel.long;
             const short = funnel.short;
-
-            const calcDrop = (prev: number, curr: number): string => {
-              if (prev <= 0) return '0.0%';
-              const drop = ((prev - curr) / prev) * 100;
-              return `${Math.max(0, drop).toFixed(1)}%`;
-            };
 
             const longRejTotal = long.rejected.max_positions + long.rejected.max_exposure + long.rejected.min_bars + long.rejected.opposite_not_allowed + long.rejected.other;
             const shortRejTotal = short.rejected.max_positions + short.rejected.max_exposure + short.rejected.min_bars + short.rejected.opposite_not_allowed + short.rejected.other;
