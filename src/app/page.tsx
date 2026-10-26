@@ -900,25 +900,25 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Cloud Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Cloud Filter:</label>
+            {/* Cloud Filter (Disabled: Incorporated in HTF strict) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.6 }} title="در استراتژی مولتی‌تایم‌فریم فعلی فیلتر ابر روی تایم‌فریم‌های ۴h و ۱h به صورت اکید (Strict) اعمال می‌شود و فیلتر جداگانه در تایم پایین غیرفعال است">
+              <label style={{ fontSize: '12px', color: '#6e7681', fontWeight: 600 }}>Cloud Filter:</label>
               <select
+                disabled
                 value={cloudFilter}
                 onChange={(e) => setCloudFilter(e.target.value as 'off' | 'trend' | 'strongCross')}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#38bdf8',
-                  border: '1px solid #30363d',
+                  color: '#6e7681',
+                  border: '1px solid #21262d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   fontWeight: 600,
+                  cursor: 'not-allowed',
                 }}
               >
-                <option value="off">Off (Default)</option>
-                <option value="trend">Trend (Close vs Cloud)</option>
-                <option value="strongCross">Strong Cross (TK vs Cloud)</option>
+                <option value="off">غیرفعال در استراتژی فعلی (در فیلتر HTF لحاظ شده است)</option>
               </select>
             </div>
 
@@ -1092,67 +1092,68 @@ export default function DashboardPage() {
                 paddingLeft: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>Lookback:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.6 }} title="در استراتژی فعلی ماشه‌ها به صورت لحظه‌ای (کندل جاری) بررسی می‌شوند">
+                <label style={{ fontSize: '12px', color: '#6e7681', fontWeight: 600 }}>Lookback:</label>
                 <input
                   type="number"
+                  disabled
                   min={1}
                   max={10}
                   value={lookbackBars}
                   onChange={(e) => setLookbackBars(Number(e.target.value))}
                   style={{
                     backgroundColor: '#0d1117',
-                    color: '#a78bfa',
+                    color: '#6e7681',
                     fontWeight: 600,
-                    border: '1px solid #30363d',
+                    border: '1px solid #21262d',
                     borderRadius: '6px',
                     padding: '5px 8px',
                     fontSize: '12px',
                     width: '45px',
+                    cursor: 'not-allowed',
                   }}
                 />
-                <span style={{ fontSize: '11px', color: '#8b949e' }}>bars</span>
+                <span style={{ fontSize: '10px', color: '#6e7681' }}>(غیرفعال)</span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>Confluence:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.6 }} title="استراتژی از معماری ماشه + فیلتر استفاده می‌کند، نه رای‌گیری ۲ از ۳">
+                <label style={{ fontSize: '12px', color: '#6e7681', fontWeight: 600 }}>Confluence:</label>
                 <select
+                  disabled
                   value={minConfirmations}
                   onChange={(e) => setMinConfirmations(Number(e.target.value))}
                   style={{
                     backgroundColor: '#0d1117',
-                    color: '#a78bfa',
+                    color: '#6e7681',
                     fontWeight: 600,
-                    border: '1px solid #30363d',
+                    border: '1px solid #21262d',
                     borderRadius: '6px',
                     padding: '5px 8px',
                     fontSize: '12px',
+                    cursor: 'not-allowed',
                   }}
                 >
-                  <option value={2}>2 of 3 Confirmations</option>
-                  <option value={3}>3 of 3 (Strict All)</option>
-                  <option value={1}>1 of 3 (Aggressive)</option>
+                  <option value={2}>غیرفعال در استراتژی فعلی (ماشه + فیلتر)</option>
                 </select>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>HTF Trend:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.6 }} title="در استراتژی فعلی روند به صورت اکید در هر دو تایم‌فریم ۱h و ۴h اجباری است">
+                <label style={{ fontSize: '12px', color: '#6e7681', fontWeight: 600 }}>HTF Trend:</label>
                 <select
-                  value={trendRequirement}
-                  onChange={(e) => setTrendRequirement(e.target.value as 'either' | '4h_and_1h' | '4h_only')}
+                  disabled
+                  value="4h_and_1h"
                   style={{
                     backgroundColor: '#0d1117',
-                    color: '#38bdf8',
+                    color: '#6e7681',
                     fontWeight: 600,
-                    border: '1px solid #30363d',
+                    border: '1px solid #21262d',
                     borderRadius: '6px',
                     padding: '5px 8px',
                     fontSize: '12px',
+                    cursor: 'not-allowed',
                   }}
                 >
-                  <option value="either">1H or 4H (Responsive)</option>
-                  <option value="4h_and_1h">1H & 4H (Strict Both)</option>
-                  <option value="4h_only">4H Only (Macro)</option>
+                  <option value="4h_and_1h">1H & 4H (ثابت روی Strict Both)</option>
                 </select>
               </div>
 
@@ -1230,8 +1231,8 @@ export default function DashboardPage() {
 
               {/* Chart Oscillator Display Selection */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#e879f9', fontWeight: 600 }} title="Controls which oscillator is plotted in the chart sub-chart (does not affect backtest entry signals)">
-                  Oscillator Display:
+                <label style={{ fontSize: '12px', color: '#e879f9', fontWeight: 600 }} title="تنظیم نمایش زیرنمودار (صرفاً بصری - بدون اثر بر نتایج بک‌تست یا سیگنال‌ها)">
+                  نمایش در نمودار (فقط بصری):
                 </label>
                 <select
                   value={oscillatorDisplay}
@@ -1245,7 +1246,7 @@ export default function DashboardPage() {
                     padding: '5px 8px',
                     fontSize: '12px',
                   }}
-                  title="Controls which oscillator is plotted in the chart sub-chart (does not affect backtest entry signals)"
+                  title="تنظیم نمایش زیرنمودار (صرفاً بصری - بدون اثر بر نتایج بک‌تست یا سیگنال‌ها)"
                 >
                   <option value="rsi">Standard RSI (0–100)</option>
                   <option value="fisher">Fisher RSI (Oscillator + Signal)</option>
@@ -1388,28 +1389,66 @@ export default function DashboardPage() {
               <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
             </div>
 
+            {/* Effective Size Indicator (PN1-e) */}
+            {(() => {
+              const effectiveStop = trailingStopEnabled ? initialStopPercent : (stopLossPercent || 5);
+              const calculatedRiskSize = effectiveStop > 0 ? (riskPerTradePercent / effectiveStop) * 100 : positionSizePercent;
+              const isCapBinding = positionSizePercent <= calculatedRiskSize;
+              const effectiveSizePercent = isCapBinding ? positionSizePercent : Math.round(calculatedRiskSize * 100) / 100;
+              const governingConstraint = isCapBinding ? 'سقف' : 'ریسک';
+              return (
+                <div
+                  id="effective-size-display"
+                  title={`سایز نهایی معامله: کمترین مقدار بین سقف سایز (${positionSizePercent}٪) و اندازه ریسک محاسبه‌شده (${calculatedRiskSize.toFixed(1)}٪)`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    fontSize: '11.5px',
+                    color: '#38bdf8',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>سایز موثر: {effectiveSizePercent}% ({governingConstraint})</span>
+                </div>
+              );
+            })()}
+
             {/* Stop Loss % */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600 }}>Stop Loss:</span>
+              <span style={{ fontSize: '12px', color: trailingStopEnabled ? '#8b949e' : '#ef4444', fontWeight: 600 }}>Stop Loss:</span>
               <input
                 type="number"
                 min={0.1}
                 max={50}
                 step={0.5}
+                disabled={trailingStopEnabled}
                 value={stopLossPercent}
                 onChange={(e) => setStopLossPercent(Number(e.target.value))}
+                title={trailingStopEnabled ? 'initial استاپ از Trailing می‌آید' : 'حد ضرر ثابت (بدون تریلینگ)'}
                 style={{
                   backgroundColor: '#0d1117',
-                  color: '#ef4444',
+                  color: trailingStopEnabled ? '#6e7681' : '#ef4444',
                   fontWeight: 700,
                   border: '1px solid #30363d',
                   borderRadius: '6px',
                   padding: '5px 8px',
                   fontSize: '12px',
                   width: '55px',
+                  cursor: trailingStopEnabled ? 'not-allowed' : 'text',
+                  opacity: trailingStopEnabled ? 0.6 : 1,
                 }}
               />
               <span style={{ fontSize: '12px', color: '#8b949e' }}>%</span>
+              {trailingStopEnabled && (
+                <span style={{ fontSize: '11px', color: '#e3b341', whiteSpace: 'nowrap' }} title="در صورت فعال بودن Trailing Stop، حد ضرر اولیه از Initial Trailing Stop خوانده می‌شود">
+                  (initial استاپ از Trailing می‌آید)
+                </span>
+              )}
             </div>
 
             {/* TDR Dynamic Stop Loss */}
@@ -1629,11 +1668,15 @@ export default function DashboardPage() {
                 }}
               >
                 <div style={{ marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px dashed #30363d' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a78bfa', fontWeight: 700, marginBottom: '2px' }}>
-                    <span>🎯 سیگنال ورود مولتی تایم‌فریم (۲ تایید از ۳ در ۳ کندل اخیر):</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 700, marginBottom: '2px' }}>
+                    <span>🎯 منطق واقعی ورود مولتی تایم‌فریم (HTF Strict + LTF Cross Trigger + فیلترها):</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#8b949e' }}>
-                    روند ماکرو در تایم‌فریم ۴h و ۱h با ایچیموکو، استوکستیک و RSI تشخیص داده می‌شود. در تایم ۱۵ دقیقه، با وقوع حداقل ۲ تایید از ۳ شرط (کراس ایچیموکو، کراس استوکستیک، شیب رو به بالا/پایین RSI) در نهایتاً ۳ کندل بسته شده اخیر، پوزیشن ورود صادر می‌گردد.
+                  <div style={{ fontSize: '11px', color: '#c9d1d9', lineHeight: '1.7' }}>
+                    • <strong>جهت ماکرو (HTF Strict):</strong> هر دو تایم‌فریم ۱h و ۴h باید هم‌جهت و اکیداً صعودی (لانگ) یا اکیداً نزولی (شورت) باشند (قیمت بالای ابر و Tenkan &gt; Kijun).
+                    <br />
+                    • <strong>ماشه ورود (LTF Trigger):</strong> وقوع کراس در تایم‌فریم اجرایی (کراس TK ایچیموکو، کراس %K/%D استوکستیک، یا کراس فیشر بر اساس Fisher Mode انتخابی).
+                    <br />
+                    • <strong>فیلترهای فعال:</strong> شیب کیجون (Kijun Slope) و ساختار سووینگ (Structure Filter) در صورت فعال بودن بررسی می‌شوند؛ در حالت Fisher Confirm، کراس فیشر به عنوان شرط تایید فیلتر می‌کند.
                   </div>
                 </div>
 

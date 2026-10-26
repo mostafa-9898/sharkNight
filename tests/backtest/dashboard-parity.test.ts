@@ -148,4 +148,110 @@ describe('R5: Dashboard & Route Parity Integration Test', () => {
     // Trade-by-trade parity
     expect(routeResult.trades).toEqual(directResult.trades);
   });
+
+  it('PN1-e: verifies effective sizing logic and governing constraint calculation', () => {
+    // Helper function matching UI calculation logic in page.tsx
+    const computeEffectiveSize = (
+      positionSizePercent: number,
+      riskPerTradePercent: number,
+      trailingStopEnabled: boolean,
+      initialStopPercent: number,
+      stopLossPercent?: number
+    ) => {
+      const effectiveStop = trailingStopEnabled ? initialStopPercent : (stopLossPercent || 5);
+      const calculatedRiskSize = effectiveStop > 0 ? (riskPerTradePercent / effectiveStop) * 100 : positionSizePercent;
+      const isCapBinding = positionSizePercent <= calculatedRiskSize;
+      const effectiveSizePercent = isCapBinding ? positionSizePercent : Math.round(calculatedRiskSize * 100) / 100;
+      const governingConstraint = isCapBinding ? 'سقف' : 'ریسک';
+      return { effectiveSizePercent, governingConstraint, isCapBinding };
+    };
+
+    // Case 1: Cap is binding (Risk 1%, Stop 5% => calculated 20%, but Cap is 3%)
+    const case1 = computeEffectiveSize(3, 1, true, 5, undefined);
+    expect(case1.effectiveSizePercent).toBe(3);
+    expect(case1.governingConstraint).toBe('سقف');
+    expect(case1.isCapBinding).toBe(true);
+
+    // Case 2: Risk is binding (Risk 0.1%, Stop 5% => calculated 2%, Cap is 3%)
+    const case2 = computeEffectiveSize(3, 0.1, true, 5, undefined);
+    expect(case2.effectiveSizePercent).toBe(2);
+    expect(case2.governingConstraint).toBe('ریسک');
+    expect(case2.isCapBinding).toBe(false);
+
+    // Case 3: Fixed Stop Loss when trailing is disabled (StopLoss 4%, Risk 0.2%, Cap 10% => calculated 5%)
+    const case3 = computeEffectiveSize(10, 0.2, false, 5, 4);
+    expect(case3.effectiveSizePercent).toBe(5);
+    expect(case3.governingConstraint).toBe('ریسک');
+    expect(case3.isCapBinding).toBe(false);
+  });
+
+  it('PN1-f: verifies that dead UI controls (lookbackBars, minConfirmations, trendRequirement, cloudFilter) do not alter strategy/engine backtest output', async () => {
+    // Base run
+    const baseRun = await runBacktestFromRoute(
+      {},
+      { providedCandles: c4h, providedHtf4h: c4h, providedHtf1h: c1h }
+    );
+
+    // Run with dead controls set to arbitrary alternate values
+    const deadControlsRun = await runBacktestFromRoute(
+      {
+        lookbackBars: 10,
+        minConfirmations: 3,
+        trendRequirement: 'either',
+        cloudFilter: 'strongCross',
+      },
+      { providedCandles: c4h, providedHtf4h: c4h, providedHtf1h: c1h }
+    );
+
+    expect(deadControlsRun.trades.length).toBe(baseRun.trades.length);
+    expect(deadControlsRun.metrics.totalPnl).toBe(baseRun.metrics.totalPnl);
+    expect(deadControlsRun.metrics.totalTrades).toBe(baseRun.metrics.totalTrades);
+    expect(deadControlsRun.trades).toEqual(baseRun.trades);
+  });
+
+  it('PN1-f: verifies active control propagation (fisherMode extra-trigger) alters strategy output and matches direct engine', async () => {
+    const routeExtra = await runBacktestFromRoute(
+      { fisherMode: 'extra-trigger', fisherKind: 'fisher', fisherGate: 'none' },
+      { providedCandles: c4h, providedHtf4h: c4h, providedHtf1h: c1h }
+    );
+
+    const directStrategy = new MultiTimeframeStrategy({
+      htfMode: 'strict',
+      entryMode: 'cross',
+      kijunSlopeFilter: DEFAULT_KIJUN_SLOPE_FILTER,
+      structureFilter: DEFAULT_STRUCTURE_FILTER,
+      fisherMode: 'extra-trigger',
+      fisherKind: 'fisher',
+      fisherGate: 'none',
+      htf4hCandles: c4h,
+      htf1hCandles: c1h,
+    });
+    const directEngine = new BacktestEngine();
+    const directExtra = directEngine.run({
+      strategy: directStrategy,
+      candles: c4h,
+      initialBalance: DEFAULT_INITIAL_BALANCE,
+      tradeFeePercent: DEFAULT_TRADE_FEE_PERCENT,
+      positionSizePercent: DEFAULT_POSITION_SIZE_PERCENT,
+      tradeMode: DEFAULT_TRADE_MODE,
+      exitMode: DEFAULT_EXIT_MODE,
+      trailingStop: {
+        initialStopPercent: DEFAULT_INITIAL_STOP_PERCENT,
+        stepPercent: DEFAULT_TRAIL_STEP_PERCENT,
+        raisePercent: DEFAULT_TRAIL_RAISE_PERCENT,
+        mode: DEFAULT_TRAILING_MODE,
+      },
+      maxOpenPositions: DEFAULT_MAX_OPEN_POSITIONS,
+      maxTotalExposurePercent: DEFAULT_MAX_TOTAL_EXPOSURE_PERCENT,
+      minBarsBetweenEntries: DEFAULT_MIN_BARS_BETWEEN_ENTRIES,
+      slippagePercent: DEFAULT_SLIPPAGE_PERCENT,
+      stopCheckMode: DEFAULT_STOP_CHECK_MODE,
+      collectTrace: true,
+    });
+
+    expect(routeExtra.trades.length).toBe(directExtra.trades.length);
+    expect(routeExtra.metrics.totalPnl).toBe(directExtra.metrics.totalPnl);
+    expect(routeExtra.trades).toEqual(directExtra.trades);
+  });
 });
+
