@@ -269,3 +269,4 @@ describe('PaperDataFeed (PT1)', () => {
     await expect(fs.access(feed.getFilePath('BTCUSDT', '1d'))).resolves.toBeUndefined();
   });
 });
+

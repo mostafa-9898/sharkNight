@@ -123,3 +123,4 @@ describe('PaperReporter (PT3)', () => {
     expect(btc1hReplay?.pnlDifference).toBe(0);
   });
 });
+
