@@ -42,6 +42,24 @@ export const DEFAULT_STOP_CHECK_MODE: StopCheckMode = 'intrabar';
 export const DEFAULT_KIJUN_SLOPE_FILTER = true;
 export const DEFAULT_STRUCTURE_FILTER = true;
 
+// Ichimoku defaults
+export const DEFAULT_ICHIMOKU_TENKAN = 9;
+export const DEFAULT_ICHIMOKU_KIJUN = 26;
+export const DEFAULT_ICHIMOKU_SENKOU_B = 52;
+export const DEFAULT_ICHIMOKU_DISPLACEMENT = 26;
+
+// RSI & Stochastic defaults
+export const DEFAULT_RSI_PERIOD = 14;
+export const DEFAULT_STOCH_K_PERIOD = 14;
+export const DEFAULT_STOCH_D_PERIOD = 3;
+export const DEFAULT_STOCH_SMOOTH = 3;
+export const DEFAULT_STOCH_OVERSOLD = 30;
+export const DEFAULT_STOCH_OVERBOUGHT = 70;
+
+// Dynamic TDR Stop defaults
+export const DEFAULT_USE_TDR_STOP = false;
+export const DEFAULT_TDR_MULTIPLIER = 1.5;
+
 export const DEFAULT_SYMBOL = 'BTCUSDT';
 export const DEFAULT_INTERVAL = '4h';
 export const DEFAULT_PERIOD = '6y';

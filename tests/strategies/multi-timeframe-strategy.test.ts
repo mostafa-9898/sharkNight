@@ -2,6 +2,7 @@ import { MultiTimeframeStrategy, aggregateCandles, calculateATR } from '../../sr
 import { confirmedSwings } from '../../src/indicators/swing';
 import { BacktestEngine } from '../../src/backtest/engine';
 import type { Candle } from '../../src/data/models';
+import * as defaults from '../../src/config/defaults';
 
 function createMockCandles(count: number, intervalMinutes = 15, basePrice = 100): Candle[] {
   const candles: Candle[] = [];
@@ -28,6 +29,28 @@ function createMockCandles(count: number, intervalMinutes = 15, basePrice = 100)
 }
 
 describe('MultiTimeframeStrategy', () => {
+  it('instantiates with no arguments and strictly matches defaults.ts configuration (symmetry between the two sources)', () => {
+    const sDefault = new MultiTimeframeStrategy();
+    expect(sDefault.fisherMode).toBe(defaults.DEFAULT_FISHER_MODE);
+    expect(sDefault.fisherKind).toBe(defaults.DEFAULT_FISHER_KIND);
+    expect(sDefault.fisherGate).toBe(defaults.DEFAULT_FISHER_GATE);
+    expect(sDefault.kijunSlopeFilter).toBe(defaults.DEFAULT_KIJUN_SLOPE_FILTER);
+    expect(sDefault.structureFilter).toBe(defaults.DEFAULT_STRUCTURE_FILTER);
+    expect(sDefault.initialStopPercent).toBe(defaults.DEFAULT_INITIAL_STOP_PERCENT);
+    expect(sDefault.tenkan).toBe(defaults.DEFAULT_ICHIMOKU_TENKAN);
+    expect(sDefault.kijun).toBe(defaults.DEFAULT_ICHIMOKU_KIJUN);
+    expect(sDefault.senkouB).toBe(defaults.DEFAULT_ICHIMOKU_SENKOU_B);
+    expect(sDefault.displacement).toBe(defaults.DEFAULT_ICHIMOKU_DISPLACEMENT);
+    expect(sDefault.rsiPeriod).toBe(defaults.DEFAULT_RSI_PERIOD);
+    expect(sDefault.stochKPeriod).toBe(defaults.DEFAULT_STOCH_K_PERIOD);
+    expect(sDefault.stochDPeriod).toBe(defaults.DEFAULT_STOCH_D_PERIOD);
+    expect(sDefault.stochSmooth).toBe(defaults.DEFAULT_STOCH_SMOOTH);
+    expect(sDefault.stochOversold).toBe(defaults.DEFAULT_STOCH_OVERSOLD);
+    expect(sDefault.stochOverbought).toBe(defaults.DEFAULT_STOCH_OVERBOUGHT);
+    expect(sDefault.useTdrStop).toBe(defaults.DEFAULT_USE_TDR_STOP);
+    expect(sDefault.tdrMultiplier).toBe(defaults.DEFAULT_TDR_MULTIPLIER);
+  });
+
   it('instantiates with default and custom configurations', () => {
     const sDefault = new MultiTimeframeStrategy();
     expect(sDefault.name).toContain('MTF_Ichimoku');
@@ -429,6 +452,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      structureFilter: false,
       fisherMode: 'off',
     });
 
@@ -480,6 +504,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      structureFilter: false,
       fisherMode: 'off',
     });
 
@@ -504,7 +529,7 @@ describe('MultiTimeframeStrategy', () => {
       volume: 100,
     }));
 
-    const strategy = new MultiTimeframeStrategy({ structureFilter: true });
+    const strategy = new MultiTimeframeStrategy({ structureFilter: true, kijunSlopeFilter: false });
     // Structure filter should pass for long because H2 (161) > H1 (141) and L2 (89) > L1 (51)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const passes = (strategy as any).passesFilters(ltfCandles, 59, 'long', []);
@@ -530,7 +555,7 @@ describe('MultiTimeframeStrategy', () => {
       volume: 100,
     }));
 
-    const strategy = new MultiTimeframeStrategy({ structureFilter: true });
+    const strategy = new MultiTimeframeStrategy({ structureFilter: true, kijunSlopeFilter: false });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const passesLH = (strategy as any).passesFilters(ltfCandlesLH, 59, 'long', []);
     expect(passesLH).toBe(false);
@@ -591,6 +616,7 @@ describe('MultiTimeframeStrategy', () => {
       stochDPeriod: 3,
       stochSmooth: 3,
       kijunSlopeFilter: true,
+      structureFilter: false,
       fisherMode: 'off',
     });
 

@@ -7,6 +7,26 @@ import { calculateFisherRsi, calculateIftRsi, type FisherRsiResult } from '../in
 import { confirmedSwings, type ConfirmedSwingsResult, type SwingPoint } from '../indicators/swing';
 import { roundTo } from '../utils/math';
 import type { DailyRegimeCalculator } from '../utils/market-regime';
+import {
+  DEFAULT_FISHER_MODE,
+  DEFAULT_FISHER_KIND,
+  DEFAULT_FISHER_GATE,
+  DEFAULT_KIJUN_SLOPE_FILTER,
+  DEFAULT_STRUCTURE_FILTER,
+  DEFAULT_INITIAL_STOP_PERCENT,
+  DEFAULT_ICHIMOKU_TENKAN,
+  DEFAULT_ICHIMOKU_KIJUN,
+  DEFAULT_ICHIMOKU_SENKOU_B,
+  DEFAULT_ICHIMOKU_DISPLACEMENT,
+  DEFAULT_RSI_PERIOD,
+  DEFAULT_STOCH_K_PERIOD,
+  DEFAULT_STOCH_D_PERIOD,
+  DEFAULT_STOCH_SMOOTH,
+  DEFAULT_STOCH_OVERSOLD,
+  DEFAULT_STOCH_OVERBOUGHT,
+  DEFAULT_USE_TDR_STOP,
+  DEFAULT_TDR_MULTIPLIER,
+} from '../config/defaults';
 
 export type FisherMode = 'off' | 'extra-trigger' | 'replace-stoch' | 'confirm' | 'cross-confirm' | 'f4';
 export type FisherKind = 'fisher' | 'ift';
@@ -268,48 +288,48 @@ export class MultiTimeframeStrategy implements Strategy {
   }
 
   constructor(config?: MultiTimeframeConfig) {
-    this.kijunSlopeFilter = config?.kijunSlopeFilter ?? false;
-    this.structureFilter = config?.structureFilter ?? false;
+    this.kijunSlopeFilter = config?.kijunSlopeFilter ?? DEFAULT_KIJUN_SLOPE_FILTER;
+    this.structureFilter = config?.structureFilter ?? DEFAULT_STRUCTURE_FILTER;
     this.shortEntryFilter = config?.shortEntryFilter ?? 'none';
     this.attributionLayer = config?.attributionLayer;
     this.edgeCandidate = config?.edgeCandidate;
     this.a6Components = config?.a6Components;
     this.regimeVariant = config?.regimeVariant;
     this.ltfIntervalMs = config?.ltfIntervalMs;
-    this.fisherMode = config?.fisherMode ?? 'replace-stoch';
-    this.fisherKind = config?.fisherKind ?? 'fisher';
-    this.fisherGate = config?.fisherGate ?? 'none';
+    this.fisherMode = config?.fisherMode ?? DEFAULT_FISHER_MODE;
+    this.fisherKind = config?.fisherKind ?? DEFAULT_FISHER_KIND;
+    this.fisherGate = config?.fisherGate ?? DEFAULT_FISHER_GATE;
 
     this.explicitHtf4h = config?.htf4hCandles;
     this.explicitHtf1h = config?.htf1hCandles;
     this.explicitDaily1d = config?.daily1dCandles;
     this.dailyRegimeCalculator = config?.dailyRegimeCalculator;
 
+    this.tenkan = config?.tenkan ?? DEFAULT_ICHIMOKU_TENKAN;
+    this.kijun = config?.kijun ?? DEFAULT_ICHIMOKU_KIJUN;
+    this.senkouB = config?.senkouB ?? DEFAULT_ICHIMOKU_SENKOU_B;
+    this.displacement = config?.displacement ?? DEFAULT_ICHIMOKU_DISPLACEMENT;
+
     if (this.explicitDaily1d && this.explicitDaily1d.length > 0) {
       this.cached1dIchimoku = calculateIchimoku(this.explicitDaily1d, {
-        tenkan: config?.tenkan ?? 9,
-        kijun: config?.kijun ?? 26,
-        senkouB: config?.senkouB ?? 52,
-        displacement: config?.displacement ?? 26,
+        tenkan: this.tenkan,
+        kijun: this.kijun,
+        senkouB: this.senkouB,
+        displacement: this.displacement,
       });
     }
 
-    this.tenkan = config?.tenkan ?? 9;
-    this.kijun = config?.kijun ?? 26;
-    this.senkouB = config?.senkouB ?? 52;
-    this.displacement = config?.displacement ?? 26;
+    this.rsiPeriod = config?.rsiPeriod ?? DEFAULT_RSI_PERIOD;
 
-    this.rsiPeriod = config?.rsiPeriod ?? 14;
+    this.stochKPeriod = config?.stochKPeriod ?? DEFAULT_STOCH_K_PERIOD;
+    this.stochDPeriod = config?.stochDPeriod ?? DEFAULT_STOCH_D_PERIOD;
+    this.stochSmooth = config?.stochSmooth ?? DEFAULT_STOCH_SMOOTH;
+    this.stochOversold = config?.stochOversold ?? DEFAULT_STOCH_OVERSOLD;
+    this.stochOverbought = config?.stochOverbought ?? DEFAULT_STOCH_OVERBOUGHT;
 
-    this.stochKPeriod = config?.stochKPeriod ?? 14;
-    this.stochDPeriod = config?.stochDPeriod ?? 3;
-    this.stochSmooth = config?.stochSmooth ?? 3;
-    this.stochOversold = config?.stochOversold ?? 30;
-    this.stochOverbought = config?.stochOverbought ?? 70;
-
-    this.initialStopPercent = config?.initialStopPercent ?? 5;
-    this.useTdrStop = config?.useTdrStop ?? false;
-    this.tdrMultiplier = config?.tdrMultiplier ?? 1.5;
+    this.initialStopPercent = config?.initialStopPercent ?? DEFAULT_INITIAL_STOP_PERCENT;
+    this.useTdrStop = config?.useTdrStop ?? DEFAULT_USE_TDR_STOP;
+    this.tdrMultiplier = config?.tdrMultiplier ?? DEFAULT_TDR_MULTIPLIER;
 
     this.requiredCandles = Math.max(this.senkouB + this.displacement, this.rsiPeriod + 5, 50);
     this.name = `MTF_Ichimoku_${this.tenkan}_${this.kijun}_Stoch${this.stochKPeriod}`;
