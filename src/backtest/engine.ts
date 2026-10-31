@@ -236,7 +236,13 @@ export class BacktestEngine {
       collectTrace = false,
       regimeExit = false,
       getMacroRegime,
+      entryFill = 'close',
+      entrySlippagePercent = 0,
     } = config;
+
+    if (entrySlippagePercent < 0) {
+      throw new Error(`entrySlippagePercent cannot be negative, got ${entrySlippagePercent}`);
+    }
 
     if (!Number.isInteger(maxOpenPositions) || maxOpenPositions < 1) {
       throw new Error(`maxOpenPositions must be an integer >= 1, got ${maxOpenPositions}`);
@@ -419,8 +425,95 @@ export class BacktestEngine {
     const equityCurve: number[] = [];
     let capacityCandles = 0;
 
+    interface PendingSingleEntry {
+      side: TradeSide;
+      signal: TradeSignal;
+      signalStopPercent?: number;
+      entryDiag?: EntryDiagnostics;
+      signalMetadata?: Record<string, unknown>;
+    }
+    const pendingSingle: { current: PendingSingleEntry | null } = { current: null };
+
+    const executeOrQueueEntry = (
+      side: TradeSide,
+      signal: TradeSignal,
+      entryCandleIndex: number,
+      signalStopPercent?: number,
+      entryDiag?: EntryDiagnostics,
+      signalMeta?: Record<string, unknown>
+    ): void => {
+      if (entryFill === 'close') {
+        portfolio.openPosition(
+          side,
+          signal,
+          candles[entryCandleIndex].close,
+          candles[entryCandleIndex].timestamp,
+          computeEffectiveSizePercent(signalStopPercent)
+        );
+        tradeState = initTradeState(
+          side,
+          candles[entryCandleIndex].close,
+          entryCandleIndex,
+          entryDiag,
+          signalMeta
+        );
+        funnel[side].executed++;
+      } else {
+        if (entryCandleIndex === candles.length - 1) {
+          recordFunnelRejection(funnel, side, 'other');
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: entryCandleIndex,
+              timestamp: candles[entryCandleIndex].timestamp,
+              signal,
+              reason: 'other',
+            });
+          }
+        } else {
+          pendingSingle.current = {
+            side,
+            signal,
+            signalStopPercent,
+            entryDiag,
+            signalMetadata: signalMeta,
+          };
+        }
+      }
+    };
+
     for (let i = 0; i < candles.length; i++) {
       const candle = candles[i];
+
+      // 0. Execute pending nextOpen entry at open of candle i
+      if (entryFill === 'nextOpen' && pendingSingle.current) {
+        const entry = pendingSingle.current;
+        const side = entry.side;
+        const entryPrice = roundTo(
+          side === 'long'
+            ? candle.open * (1 + entrySlippagePercent / 100)
+            : candle.open * (1 - entrySlippagePercent / 100),
+          8
+        );
+        portfolio.openPosition(
+          side,
+          entry.signal,
+          entryPrice,
+          candle.timestamp,
+          computeEffectiveSizePercent(entry.signalStopPercent)
+        );
+        tradeState = initTradeState(
+          side,
+          entryPrice,
+          i,
+          entry.entryDiag,
+          entry.signalMetadata
+        );
+        tradeState.highestHigh = candle.open;
+        tradeState.lowestLow = candle.open;
+        funnel[side].executed++;
+        pendingSingle.current = null;
+      }
+
       if (portfolio.hasOpenPosition()) {
         capacityCandles++;
       }
@@ -917,9 +1010,7 @@ export class BacktestEngine {
         if (signal.action === 'BUY') {
           funnel.long.entryAttempted++;
           if (!activePos) {
-            portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-            tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-            funnel.long.executed++;
+            executeOrQueueEntry('long', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
           } else if (activePos.side === 'short') {
             if (exitMode === 'trailingOnly') {
               recordFunnelRejection(funnel, 'long', 'opposite_while_open');
@@ -948,9 +1039,7 @@ export class BacktestEngine {
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
-              portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-              tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-              funnel.long.executed++;
+              executeOrQueueEntry('long', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
             }
           } else if (activePos.side === 'long') {
             recordFunnelRejection(funnel, 'long', 'alreadyInPosition');
@@ -966,9 +1055,7 @@ export class BacktestEngine {
         } else if (signal.action === 'SELL') {
           funnel.short.entryAttempted++;
           if (!activePos) {
-            portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-            tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-            funnel.short.executed++;
+            executeOrQueueEntry('short', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
           } else if (activePos.side === 'long') {
             if (exitMode === 'trailingOnly') {
               recordFunnelRejection(funnel, 'short', 'opposite_while_open');
@@ -997,9 +1084,7 @@ export class BacktestEngine {
                 ratchetSteps: tradeState?.ratchetSteps,
                 entryDiagnostics: tradeState?.entryDiagnostics,
               });
-              portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-              tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-              funnel.short.executed++;
+              executeOrQueueEntry('short', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
             }
           } else if (activePos.side === 'short') {
             recordFunnelRejection(funnel, 'short', 'alreadyInPosition');
@@ -1017,9 +1102,7 @@ export class BacktestEngine {
         if (signal.action === 'BUY') {
           funnel.long.entryAttempted++;
           if (!activePos) {
-            portfolio.openPosition('long', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-            tradeState = initTradeState('long', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-            funnel.long.executed++;
+            executeOrQueueEntry('long', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
           } else if (activePos.side === 'long') {
             recordFunnelRejection(funnel, 'long', 'alreadyInPosition');
             if (collectTrace) {
@@ -1078,9 +1161,7 @@ export class BacktestEngine {
         if (signal.action === 'SELL') {
           funnel.short.entryAttempted++;
           if (!activePos) {
-            portfolio.openPosition('short', signal, candle.close, candle.timestamp, computeEffectiveSizePercent(signalStopPercent));
-            tradeState = initTradeState('short', candle.close, i, entryDiag, signal.metadata as Record<string, unknown> | undefined);
-            funnel.short.executed++;
+            executeOrQueueEntry('short', signal, i, signalStopPercent, entryDiag, signal.metadata as Record<string, unknown> | undefined);
           } else if (activePos.side === 'short') {
             recordFunnelRejection(funnel, 'short', 'alreadyInPosition');
             if (collectTrace) {
@@ -1245,6 +1326,8 @@ export class BacktestEngine {
       slippagePercent,
       stopCheckMode,
       collectTrace: config.collectTrace,
+      entryFill,
+      entrySlippagePercent,
     };
 
     return {
@@ -1284,7 +1367,13 @@ export class BacktestEngine {
       collectTrace = false,
       regimeExit = false,
       getMacroRegime,
+      entryFill = 'close',
+      entrySlippagePercent = 0,
     } = config;
+
+    if (entrySlippagePercent < 0) {
+      throw new Error(`entrySlippagePercent cannot be negative, got ${entrySlippagePercent}`);
+    }
 
     const trace: BacktestTrace = {
       tkCrossEvents: [],
@@ -1368,8 +1457,140 @@ export class BacktestEngine {
       return positionSizePercent;
     };
 
+    interface PendingMultiEntry {
+      direction: TradeSide;
+      signal: TradeSignal;
+      signalStopPercent?: number;
+      entryDiag?: EntryDiagnostics;
+      signalMeta?: Record<string, unknown>;
+    }
+    const pendingMulti: { current: PendingMultiEntry | null } = { current: null };
+
     for (let i = 0; i < candles.length; i++) {
       const candle = candles[i];
+
+      // 0. Execute pending nextOpen entry at open of candle i
+      if (entryFill === 'nextOpen' && pendingMulti.current) {
+        const entry = pendingMulti.current;
+        const currentEquity = computeEquity(candle.open);
+        const effectiveSize = computeEffectiveSizePercent(entry.signalStopPercent);
+        const allocatedAmount = currentEquity * (effectiveSize / 100);
+        const currentTotalNotional = openPositions.reduce((sum, p) => sum + p.quantity * candle.open, 0);
+        const newTotalNotional = currentTotalNotional + allocatedAmount;
+        const maxAllowedNotional = currentEquity * (maxTotalExposurePercent / 100);
+
+        if (newTotalNotional > maxAllowedNotional + 1e-4 || allocatedAmount > cash) {
+          rejectedCapExposure++;
+          recordFunnelRejection(funnel, entry.direction, 'cap_exposure');
+          if (collectTrace) {
+            trace.ignoredSignals.push({
+              index: i,
+              timestamp: candle.timestamp,
+              signal: entry.signal,
+              reason: 'cap_exposure',
+            });
+          }
+        } else {
+          funnel[entry.direction].executed++;
+          const entryPrice = roundTo(
+            entry.direction === 'long'
+              ? candle.open * (1 + entrySlippagePercent / 100)
+              : candle.open * (1 - entrySlippagePercent / 100),
+            8
+          );
+          const entryFee = allocatedAmount * feeRate;
+          const netInvest = allocatedAmount - entryFee;
+          const quantity = netInvest / entryPrice;
+          cash -= allocatedAmount;
+
+          const entryTrailingStop = getTrailingStopForSide(entry.direction);
+          let effectiveStopPercent = entryTrailingStop ? entryTrailingStop.initialStopPercent : stopLossPercent;
+          const signalMeta = entry.signalMeta;
+          const isDynamic = signalMeta?.useTdrStop === true || signalMeta?.useAtrTrailing === true;
+
+          if (
+            isDynamic &&
+            signalMeta?.initialStopPercent !== undefined &&
+            typeof signalMeta.initialStopPercent === 'number' &&
+            signalMeta.initialStopPercent > 0
+          ) {
+            effectiveStopPercent = signalMeta.initialStopPercent;
+          }
+
+          let initialStop: number | null = null;
+          if (
+            isDynamic &&
+            signalMeta?.stopPrice !== undefined &&
+            typeof signalMeta.stopPrice === 'number' &&
+            signalMeta.stopPrice > 0
+          ) {
+            initialStop = signalMeta.stopPrice;
+          } else if (effectiveStopPercent !== undefined && effectiveStopPercent > 0) {
+            initialStop =
+              entry.direction === 'long'
+                ? roundTo(entryPrice * (1 - effectiveStopPercent / 100), 8)
+                : roundTo(entryPrice * (1 + effectiveStopPercent / 100), 8);
+          }
+
+          const posId = nextPositionId++;
+          const posStopHistory: StopUpdateEvent[] = [];
+          const trailingMode = entryTrailingStop?.mode ?? 'stepped';
+
+          if (initialStop !== null) {
+            const initEvt: StopUpdateEvent = {
+              tradeId: posId,
+              side: entry.direction,
+              timestamp: candle.timestamp,
+              candleIndex: i,
+              stopPriceBefore: null,
+              candidateStopPrice: initialStop,
+              acceptedStopPrice: initialStop,
+              reason: isDynamic ? 'dynamicStop' : 'initialStop',
+              trailingMode: entryTrailingStop ? trailingMode : undefined,
+              ratchetSteps: 0,
+              accepted: true,
+            };
+            posStopHistory.push(initEvt);
+            allStopUpdates.push(initEvt);
+          }
+
+          const trailingStepPercent =
+            typeof signalMeta?.trailingStepPercent === 'number'
+              ? signalMeta.trailingStepPercent
+              : undefined;
+          const trailingRaisePercent =
+            typeof signalMeta?.trailingRaisePercent === 'number'
+              ? signalMeta.trailingRaisePercent
+              : undefined;
+
+          const newPos: ActivePositionState = {
+            positionId: posId,
+            side: entry.direction,
+            quantity,
+            entryPrice,
+            entrySignal: entry.signal,
+            entryCost: allocatedAmount,
+            entryFee,
+            entryTime: candle.timestamp,
+            entryIndex: i,
+            concurrentOpenAtEntry: openPositions.length + 1,
+            initialStopPercent: effectiveStopPercent,
+            initialStopPrice: initialStop,
+            stopPrice: initialStop,
+            highestHigh: candle.open,
+            lowestLow: candle.open,
+            ratchetSteps: 0,
+            trailingStepPercent,
+            trailingRaisePercent,
+            entryDiagnostics: entry.entryDiag,
+            stopHistory: posStopHistory,
+          };
+
+          openPositions.push(newPos);
+          lastEntryIndex = i;
+        }
+        pendingMulti.current = null;
+      }
 
       // 1. Check Stop Loss and Take Profit for each open position independently
       for (let pIdx = openPositions.length - 1; pIdx >= 0; pIdx--) {
@@ -2030,6 +2251,26 @@ export class BacktestEngine {
               reason: 'min_bars',
             });
           }
+        } else if (entryFill === 'nextOpen') {
+          if (i === candles.length - 1) {
+            recordFunnelRejection(funnel, canOpenDirection, 'other');
+            if (collectTrace) {
+              trace.ignoredSignals.push({
+                index: i,
+                timestamp: candle.timestamp,
+                signal,
+                reason: 'other',
+              });
+            }
+          } else {
+            pendingMulti.current = {
+              direction: canOpenDirection,
+              signal,
+              signalStopPercent,
+              entryDiag,
+              signalMeta: signal.metadata as Record<string, unknown> | undefined,
+            };
+          }
         } else {
           const effectiveSize = computeEffectiveSizePercent(signalStopPercent);
           const allocatedAmount = currentEquity * (effectiveSize / 100);
@@ -2335,6 +2576,8 @@ export class BacktestEngine {
       slippagePercent,
       stopCheckMode,
       collectTrace: config.collectTrace,
+      entryFill,
+      entrySlippagePercent,
     };
 
     return {

@@ -7,6 +7,7 @@ import type {
   BacktestResult,
   Trade,
   TrailingStopConfig,
+  EntryFillMode,
 } from './types';
 import { calculateIchimoku } from '../indicators/ichimoku';
 import { calculateRSI } from '../indicators/rsi';
@@ -73,6 +74,8 @@ export interface BacktestReportConfig {
   slippagePercent?: number;
   stopCheckMode?: string;
   initialBalance?: number;
+  entryFill?: EntryFillMode;
+  entrySlippagePercent?: number;
 }
 
 export interface BacktestReportInput {
@@ -1138,6 +1141,7 @@ export function buildBacktestReport(input: BacktestReportInput): BacktestReportO
   }
   lines.push(`| Position Sizing | Position Size % / Risk Per Trade % | \`${config.positionSizePercent ?? 100}%\` / \`${config.riskPerTradePercent ? `${config.riskPerTradePercent}%` : 'off'}\` |`);
   lines.push(`| Fees & Slippage | Fee % / Slippage % / Stop Check Mode | \`${config.tradeFeePercent ?? 0.1}%\` / \`${config.slippagePercent ?? 0}%\` / \`${config.stopCheckMode ?? 'intrabar'}\` |`);
+  lines.push(`| Entry Execution | Fill Mode / Entry Slippage % | \`${config.entryFill ?? 'close'}\` / \`${config.entrySlippagePercent ?? 0}%\` |`);
   lines.push(`| Initial Balance | Starting Capital | \`${formatCurrency(initialBalance)}\` |`);
   lines.push(``);
 

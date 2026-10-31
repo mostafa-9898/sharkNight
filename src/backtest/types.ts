@@ -16,6 +16,7 @@ export type ExitReason =
   | 'regimeFlip';
 export type ExitMode = 'reverse' | 'tkCross' | 'kijun' | 'trailingOnly';
 export type StopCheckMode = 'intrabar' | 'close';
+export type EntryFillMode = 'close' | 'nextOpen';
 
 export interface TrailingStopConfig {
   initialStopPercent: number; // e.g., 5 for 5% initial stop below/above entry
@@ -163,6 +164,8 @@ export interface BacktestConfig {
   regimeExit?: boolean;           // If true, force close open positions when macro regime flips to opposite
   getMacroRegime?: (candles: readonly Candle[], index: number) => 'Bull' | 'Bear' | 'Neutral';
   closePositionsAtEnd?: boolean;  // DEFAULT: true. Set false in paper trading to preserve live open positions.
+  entryFill?: EntryFillMode;      // DEFAULT: 'close'. 'nextOpen' executes signal on candle t at open of t+1
+  entrySlippagePercent?: number;  // DEFAULT: 0. Adverse slippage % on entry fill
 }
 
 export type StopUpdateReason =

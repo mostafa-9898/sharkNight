@@ -221,6 +221,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
   const riskPerTradePercent = parseNumArg('riskPerTradePercent', undefined, argv);
   const slippagePercent = parseNumArg('slippagePercent', DEFAULT_SLIPPAGE_PERCENT, argv)!;
   const stopCheckMode = (parseArg('stopCheckMode', DEFAULT_STOP_CHECK_MODE, argv) ?? DEFAULT_STOP_CHECK_MODE) as StopCheckMode;
+  const entryFill = (parseArg('entryFill', 'close', argv) ?? 'close') as 'close' | 'nextOpen';
+  const entrySlippagePercent = parseNumArg('entrySlippagePercent', 0, argv)!;
 
   // Multi-position CLI options (R2)
   const maxOpenPositions =
@@ -339,6 +341,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)) {
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
+    entryFill,
+    entrySlippagePercent,
   };
 }
 
@@ -542,6 +546,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     trailingStop,
     stopLossPercent,
     takeProfitPercent,
+    entryFill,
+    entrySlippagePercent,
   } = parseCliArgs(argv);
 
   console.log(`\n======================================================`);
@@ -642,6 +648,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     slippagePercent,
     stopCheckMode,
     collectTrace: true,
+    entryFill,
+    entrySlippagePercent,
   });
 
   // 3. Compute indicators for report
@@ -699,6 +707,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       slippagePercent,
       stopCheckMode,
       initialBalance,
+      entryFill,
+      entrySlippagePercent,
     },
   });
 
