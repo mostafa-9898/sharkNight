@@ -268,5 +268,42 @@ describe('PaperDataFeed (PT1)', () => {
     await expect(fs.access(feed.getFilePath('BTCUSDT', '4h'))).resolves.toBeUndefined();
     await expect(fs.access(feed.getFilePath('BTCUSDT', '1d'))).resolves.toBeUndefined();
   });
+
+  it('honors PAPER_BASE_URL environment variable and defaults to public data-api endpoint', () => {
+    const defaultFeed = new PaperDataFeed({ dataDir: tempDir });
+    expect(defaultFeed.baseUrl).toBe('https://data-api.binance.vision');
+
+    const originalEnv = process.env.PAPER_BASE_URL;
+    try {
+      process.env.PAPER_BASE_URL = 'https://api.binance.me';
+      const envFeed = new PaperDataFeed({ dataDir: tempDir });
+      expect(envFeed.baseUrl).toBe('https://api.binance.me');
+    } finally {
+      process.env.PAPER_BASE_URL = originalEnv;
+    }
+  });
+
+  it('throws clear descriptive error advising PAPER_BASE_URL on HTTP 403 / 451 geo-restriction', async () => {
+    for (const code of [403, 451]) {
+      const mockFetch = jest.fn(async () => {
+        return {
+          ok: false,
+          status: code,
+          statusText: code === 403 ? 'Forbidden' : 'Unavailable For Legal Reasons',
+          text: async () => 'Service unavailable from your jurisdiction',
+        } as Response;
+      });
+
+      const feed = new PaperDataFeed({
+        dataDir: tempDir,
+        fetchFn: mockFetch as any,
+        maxRetries: 0,
+      });
+
+      await expect(
+        feed.fetchRemoteKlines({ symbol: 'BTCUSDT', interval: '1h' })
+      ).rejects.toThrow(/Access Denied \/ Geo-restricted.*PAPER_BASE_URL/);
+    }
+  });
 });
 

@@ -1,0 +1,45 @@
+name: Hourly Paper Trading Cycle
+
+on:
+  schedule:
+    # Run hourly at minute 5
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: paper
+  cancel-in-progress: false
+
+jobs:
+  run-paper:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run paper trading cycle
+        run: npm run paper:once
+
+      - name: Commit and push paper state updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f data/paper/*.jsonl data/paper/state_*.json data/paper/forward_start.json docs/paper/PAPER_LATEST.md
+          if git diff --staged --quiet; then
+            echo "No paper trading updates to commit."
+          else
+            git commit -m "chore(paper): hourly update"
+            git push origin main
+          fi
