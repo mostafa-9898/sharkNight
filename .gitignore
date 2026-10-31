@@ -8,6 +8,10 @@ dist/
 # Data files (keep .gitkeep)
 data/*.json
 !data/.gitkeep
+data/paper/*.json
+data/paper/*.jsonl
+data/paper/HALT_*
+!data/paper/.gitkeep
 
 # Environment
 .env
