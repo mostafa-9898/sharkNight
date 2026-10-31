@@ -14,6 +14,8 @@
     "validate": "tsx src/scripts/validate.ts",
     "validate-multi": "tsx src/scripts/validate-multi.ts",
     "portfolio": "tsx src/scripts/portfolio.ts",
+    "paper:run": "tsx src/paper/cli.ts --watch",
+    "paper:once": "tsx src/paper/cli.ts --once",
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",

@@ -43,7 +43,7 @@ export class PaperDataFeed {
     this.dataDir = options?.dataDir ?? path.resolve(process.cwd(), 'data/paper');
     this.fetchFn = options?.fetchFn ?? fetch;
     this.nowFn = options?.nowFn ?? Date.now;
-    this.maxRetries = options?.maxRetries ?? 3;
+    this.maxRetries = options?.maxRetries ?? 1;
     this.retryBaseDelayMs = options?.retryBaseDelayMs ?? 200;
     this.sleepFn = options?.sleepFn ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
@@ -264,79 +264,98 @@ export class PaperDataFeed {
 
     // 1. Initial bootstrap if local storage is empty
     if (candles.length === 0) {
-      const fetched = await this.fetchRemoteKlines({
-        symbol,
-        interval,
-        limit: Math.min(targetMin, 1000),
-        endTime: now,
-      });
-      candles = deduplicateCandles(sortCandles(fetched));
+      try {
+        const fetched = await this.fetchRemoteKlines({
+          symbol,
+          interval,
+          limit: Math.min(targetMin, 1000),
+          endTime: now,
+        });
+        candles = deduplicateCandles(sortCandles(fetched));
+      } catch (err) {
+        // Fallback to local historical data cache if network is offline or blocked
+        const cleanSym = symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const fallbackPath = path.resolve(process.cwd(), 'data', `${cleanSym}_${interval}.json`);
+        try {
+          const raw = await fs.readFile(fallbackPath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            candles = deduplicateCandles(sortCandles(parsed.slice(-targetMin)));
+          }
+        } catch {
+          throw err;
+        }
+      }
     }
 
     // 2. Detect and fill any internal gaps
-    let gaps = this.findGaps(candles, interval);
-    for (const gap of gaps) {
-      let cursor = gap.start;
-      while (cursor <= gap.end) {
-        const batch = await this.fetchRemoteKlines({
-          symbol,
-          interval,
-          startTime: cursor,
-          endTime: gap.end,
-          limit: 1000,
-        });
+    try {
+      let gaps = this.findGaps(candles, interval);
+      for (const gap of gaps) {
+        let cursor = gap.start;
+        while (cursor <= gap.end) {
+          const batch = await this.fetchRemoteKlines({
+            symbol,
+            interval,
+            startTime: cursor,
+            endTime: gap.end,
+            limit: 1000,
+          });
 
-        if (batch.length === 0) {
-          break;
-        }
+          if (batch.length === 0) {
+            break;
+          }
 
-        candles = deduplicateCandles(sortCandles([...candles, ...batch]));
-        const lastBatchCandle = batch[batch.length - 1];
-        if (lastBatchCandle.timestamp + intervalMs <= cursor) {
-          break;
-        }
-        cursor = lastBatchCandle.timestamp + intervalMs;
-      }
-    }
-
-    // 3. Catch up from the latest candle to current time
-    if (candles.length > 0) {
-      const lastCandle = candles[candles.length - 1];
-      let cursor = lastCandle.timestamp + intervalMs;
-
-      // Only fetch if at least one full candle duration has elapsed
-      while (cursor + intervalMs - 1 <= now) {
-        const batch = await this.fetchRemoteKlines({
-          symbol,
-          interval,
-          startTime: cursor,
-          endTime: now,
-          limit: 1000,
-        });
-
-        if (batch.length === 0) {
-          break;
-        }
-
-        const prevLen = candles.length;
-        candles = deduplicateCandles(sortCandles([...candles, ...batch]));
-
-        // If no new candles were added, stop pagination
-        if (candles.length === prevLen) {
-          break;
-        }
-
-        const lastBatchCandle = batch[batch.length - 1];
-        const nextCursor = lastBatchCandle.timestamp + intervalMs;
-        if (nextCursor <= cursor) {
-          break;
-        }
-        cursor = nextCursor;
-
-        if (batch.length < 1000) {
-          break;
+          candles = deduplicateCandles(sortCandles([...candles, ...batch]));
+          const lastBatchCandle = batch[batch.length - 1];
+          if (lastBatchCandle.timestamp + intervalMs <= cursor) {
+            break;
+          }
+          cursor = lastBatchCandle.timestamp + intervalMs;
         }
       }
+
+      // 3. Catch up from the latest candle to current time
+      if (candles.length > 0) {
+        const lastCandle = candles[candles.length - 1];
+        let cursor = lastCandle.timestamp + intervalMs;
+
+        // Only fetch if at least one full candle duration has elapsed
+        while (cursor + intervalMs - 1 <= now) {
+          const batch = await this.fetchRemoteKlines({
+            symbol,
+            interval,
+            startTime: cursor,
+            endTime: now,
+            limit: 1000,
+          });
+
+          if (batch.length === 0) {
+            break;
+          }
+
+          const prevLen = candles.length;
+          candles = deduplicateCandles(sortCandles([...candles, ...batch]));
+
+          // If no new candles were added, stop pagination
+          if (candles.length === prevLen) {
+            break;
+          }
+
+          const lastBatchCandle = batch[batch.length - 1];
+          const nextCursor = lastBatchCandle.timestamp + intervalMs;
+          if (nextCursor <= cursor) {
+            break;
+          }
+          cursor = nextCursor;
+
+          if (batch.length < 1000) {
+            break;
+          }
+        }
+      }
+    } catch (networkErr) {
+      // When offline or firewalled, proceed with available cached/seeded candles
     }
 
     // 4. Save and return synchronized candles

@@ -13,6 +13,7 @@ import type {
   TrailingStopConfig,
   ExitMode,
   TradeSide,
+  SignalFunnel,
 } from '../backtest/types';
 import { roundTo } from '../utils/math';
 
@@ -39,6 +40,7 @@ export interface PaperMarketState {
   openPositions: ActivePosition[];
   closedTrades: Trade[];
   metrics: BacktestMetrics;
+  signalFunnel?: SignalFunnel;
   updatedAt: number;
 }
 
@@ -337,7 +339,10 @@ export class PaperRunner {
     }
 
     // 6. Compute cash balance
-    const openPos = backtestResult.openPositions ?? [];
+    const openPos = (backtestResult.openPositions ?? []).map((p) => ({
+      ...p,
+      symbol,
+    }));
     const investedCost = openPos.reduce((sum, p) => sum + p.investedCost, 0);
     const cash = roundTo(latestEquity - investedCost, 2);
 
@@ -358,6 +363,7 @@ export class PaperRunner {
       openPositions: openPos,
       closedTrades: backtestResult.trades,
       metrics: backtestResult.metrics,
+      signalFunnel: backtestResult.signalFunnel,
       updatedAt: Date.now(),
     };
 

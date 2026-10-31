@@ -201,8 +201,14 @@ export class PaperReporter {
       }
 
       // Replay backtest
+      let htf4h = candlesMap ? candlesMap[`${m.symbol}_4h`] : undefined;
+      if (!htf4h || htf4h.length === 0) {
+        htf4h = await this.feed.loadLocalCandles(m.symbol, '4h' as CandleInterval);
+      }
+
       const strat = new MultiTimeframeStrategy({
         ...spec.strategyConfig,
+        htf4hCandles: htf4h && htf4h.length > 0 ? htf4h : undefined,
       });
 
       const replayResult = engine.run({
