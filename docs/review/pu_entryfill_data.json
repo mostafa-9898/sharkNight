@@ -1,0 +1,986 @@
+{
+  "generatedAt": "2026-10-31T14:22:28.505Z",
+  "strategies": {
+    "c1l": {
+      "strategyName": "C1L (Long-Only Extra-Trigger)",
+      "markets": [
+        {
+          "market": "BTC 15m",
+          "symbol": "BTCUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": true,
+          "close": {
+            "totalReturn": 104.76,
+            "maxDD": 26.37,
+            "retDdRatio": 3.97,
+            "trades": 332
+          },
+          "nextOpen": {
+            "totalReturn": 98.91,
+            "maxDD": 24.56,
+            "retDdRatio": 4.03,
+            "trades": 336
+          },
+          "returnDropPercent": 5.58,
+          "retDdDropPercent": -1.51
+        },
+        {
+          "market": "BTC 1h",
+          "symbol": "BTCUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 53.74,
+            "maxDD": 15.56,
+            "retDdRatio": 3.45,
+            "trades": 331
+          },
+          "nextOpen": {
+            "totalReturn": 57.85,
+            "maxDD": 16.23,
+            "retDdRatio": 3.56,
+            "trades": 320
+          },
+          "returnDropPercent": -7.65,
+          "retDdDropPercent": -3.19
+        },
+        {
+          "market": "BTC 4h",
+          "symbol": "BTCUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 27,
+            "maxDD": 10.73,
+            "retDdRatio": 2.52,
+            "trades": 182
+          },
+          "nextOpen": {
+            "totalReturn": 26.86,
+            "maxDD": 10.71,
+            "retDdRatio": 2.51,
+            "trades": 182
+          },
+          "returnDropPercent": 0.52,
+          "retDdDropPercent": 0.4
+        },
+        {
+          "market": "ETH 15m",
+          "symbol": "ETHUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 63.54,
+            "maxDD": 17.86,
+            "retDdRatio": 3.56,
+            "trades": 630
+          },
+          "nextOpen": {
+            "totalReturn": 59.45,
+            "maxDD": 18.46,
+            "retDdRatio": 3.22,
+            "trades": 642
+          },
+          "returnDropPercent": 6.44,
+          "retDdDropPercent": 9.55
+        },
+        {
+          "market": "ETH 1h",
+          "symbol": "ETHUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 13.63,
+            "maxDD": 21.62,
+            "retDdRatio": 0.63,
+            "trades": 553
+          },
+          "nextOpen": {
+            "totalReturn": 12.02,
+            "maxDD": 21.97,
+            "retDdRatio": 0.55,
+            "trades": 557
+          },
+          "returnDropPercent": 11.81,
+          "retDdDropPercent": 12.7
+        },
+        {
+          "market": "ETH 4h",
+          "symbol": "ETHUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 9.06,
+            "maxDD": 12.13,
+            "retDdRatio": 0.75,
+            "trades": 231
+          },
+          "nextOpen": {
+            "totalReturn": 8.77,
+            "maxDD": 12.43,
+            "retDdRatio": 0.71,
+            "trades": 231
+          },
+          "returnDropPercent": 3.2,
+          "retDdDropPercent": 5.33
+        },
+        {
+          "market": "SOL 1h",
+          "symbol": "SOLUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 82.2,
+            "maxDD": 37.79,
+            "retDdRatio": 2.18,
+            "trades": 449
+          },
+          "nextOpen": {
+            "totalReturn": 82.62,
+            "maxDD": 37.9,
+            "retDdRatio": 2.18,
+            "trades": 449
+          },
+          "returnDropPercent": -0.51,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "SOL 4h",
+          "symbol": "SOLUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 2.76,
+            "maxDD": 14.99,
+            "retDdRatio": 0.18,
+            "trades": 202
+          },
+          "nextOpen": {
+            "totalReturn": 2.66,
+            "maxDD": 15.01,
+            "retDdRatio": 0.18,
+            "trades": 202
+          },
+          "returnDropPercent": 3.62,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "BNB 1h",
+          "symbol": "BNBUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 58.23,
+            "maxDD": 25.31,
+            "retDdRatio": 2.3,
+            "trades": 556
+          },
+          "nextOpen": {
+            "totalReturn": 58.06,
+            "maxDD": 25.75,
+            "retDdRatio": 2.25,
+            "trades": 555
+          },
+          "returnDropPercent": 0.29,
+          "retDdDropPercent": 2.17
+        },
+        {
+          "market": "BNB 4h",
+          "symbol": "BNBUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 12.16,
+            "maxDD": 11.65,
+            "retDdRatio": 1.04,
+            "trades": 215
+          },
+          "nextOpen": {
+            "totalReturn": 10.36,
+            "maxDD": 12.77,
+            "retDdRatio": 0.81,
+            "trades": 215
+          },
+          "returnDropPercent": 14.8,
+          "retDdDropPercent": 22.12
+        },
+        {
+          "market": "XRP 1h",
+          "symbol": "XRPUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 28.24,
+            "maxDD": 22.13,
+            "retDdRatio": 1.28,
+            "trades": 538
+          },
+          "nextOpen": {
+            "totalReturn": 27.83,
+            "maxDD": 22.14,
+            "retDdRatio": 1.26,
+            "trades": 538
+          },
+          "returnDropPercent": 1.45,
+          "retDdDropPercent": 1.56
+        },
+        {
+          "market": "XRP 4h",
+          "symbol": "XRPUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 11.72,
+            "maxDD": 11.05,
+            "retDdRatio": 1.06,
+            "trades": 159
+          },
+          "nextOpen": {
+            "totalReturn": 16.89,
+            "maxDD": 14.12,
+            "retDdRatio": 1.2,
+            "trades": 156
+          },
+          "returnDropPercent": -44.11,
+          "retDdDropPercent": -13.21
+        },
+        {
+          "market": "ADA 1h",
+          "symbol": "ADAUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": -0.71,
+            "maxDD": 13.3,
+            "retDdRatio": -0.05,
+            "trades": 593
+          },
+          "nextOpen": {
+            "totalReturn": -0.85,
+            "maxDD": 13.66,
+            "retDdRatio": -0.06,
+            "trades": 593
+          },
+          "returnDropPercent": 19.72,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "ADA 4h",
+          "symbol": "ADAUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 20.82,
+            "maxDD": 13.14,
+            "retDdRatio": 1.58,
+            "trades": 178
+          },
+          "nextOpen": {
+            "totalReturn": 21.74,
+            "maxDD": 13.15,
+            "retDdRatio": 1.65,
+            "trades": 177
+          },
+          "returnDropPercent": -4.42,
+          "retDdDropPercent": -4.43
+        }
+      ],
+      "allMarkets": {
+        "medianReturnDrop": 2.33,
+        "trimmedMeanReturnDrop": 2.57,
+        "medianRetDdDrop": 0.2,
+        "trimmedMeanRetDdDrop": 0.99
+      },
+      "byTimeframe": {
+        "tf15m": {
+          "medianReturnDrop": 6.01,
+          "meanReturnDrop": 6.01,
+          "medianRetDdDrop": 4.02,
+          "meanRetDdDrop": 4.02
+        },
+        "tf1h": {
+          "medianReturnDrop": 0.87,
+          "meanReturnDrop": 4.18,
+          "medianRetDdDrop": 0.78,
+          "meanRetDdDrop": 2.21
+        },
+        "tf4h": {
+          "medianReturnDrop": 1.86,
+          "meanReturnDrop": -4.4,
+          "medianRetDdDrop": 0.2,
+          "meanRetDdDrop": 1.7
+        }
+      },
+      "verdict": "مقاوم (Robust)",
+      "verdictReason": "افت بازده میانه (2.33%) <= 20% و افت Ret/DD میانه (0.2%) <= 15%"
+    },
+    "f3l": {
+      "strategyName": "F3L (Long-Only Confirm)",
+      "markets": [
+        {
+          "market": "BTC 15m",
+          "symbol": "BTCUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": true,
+          "close": {
+            "totalReturn": 55.09,
+            "maxDD": 16.78,
+            "retDdRatio": 3.28,
+            "trades": 334
+          },
+          "nextOpen": {
+            "totalReturn": 54.4,
+            "maxDD": 16.81,
+            "retDdRatio": 3.24,
+            "trades": 333
+          },
+          "returnDropPercent": 1.25,
+          "retDdDropPercent": 1.22
+        },
+        {
+          "market": "BTC 1h",
+          "symbol": "BTCUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 20.54,
+            "maxDD": 12.99,
+            "retDdRatio": 1.58,
+            "trades": 220
+          },
+          "nextOpen": {
+            "totalReturn": 23.72,
+            "maxDD": 11.88,
+            "retDdRatio": 2,
+            "trades": 200
+          },
+          "returnDropPercent": -15.48,
+          "retDdDropPercent": -26.58
+        },
+        {
+          "market": "BTC 4h",
+          "symbol": "BTCUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 13.81,
+            "maxDD": 6.67,
+            "retDdRatio": 2.07,
+            "trades": 122
+          },
+          "nextOpen": {
+            "totalReturn": 13.68,
+            "maxDD": 6.66,
+            "retDdRatio": 2.05,
+            "trades": 122
+          },
+          "returnDropPercent": 0.94,
+          "retDdDropPercent": 0.97
+        },
+        {
+          "market": "ETH 15m",
+          "symbol": "ETHUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 33.63,
+            "maxDD": 14.87,
+            "retDdRatio": 2.26,
+            "trades": 475
+          },
+          "nextOpen": {
+            "totalReturn": 31.9,
+            "maxDD": 15.09,
+            "retDdRatio": 2.11,
+            "trades": 479
+          },
+          "returnDropPercent": 5.14,
+          "retDdDropPercent": 6.64
+        },
+        {
+          "market": "ETH 1h",
+          "symbol": "ETHUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 7.46,
+            "maxDD": 10.55,
+            "retDdRatio": 0.71,
+            "trades": 296
+          },
+          "nextOpen": {
+            "totalReturn": 6.62,
+            "maxDD": 10.61,
+            "retDdRatio": 0.62,
+            "trades": 296
+          },
+          "returnDropPercent": 11.26,
+          "retDdDropPercent": 12.68
+        },
+        {
+          "market": "ETH 4h",
+          "symbol": "ETHUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 5.47,
+            "maxDD": 7.06,
+            "retDdRatio": 0.77,
+            "trades": 122
+          },
+          "nextOpen": {
+            "totalReturn": 5.57,
+            "maxDD": 7.05,
+            "retDdRatio": 0.79,
+            "trades": 122
+          },
+          "returnDropPercent": -1.83,
+          "retDdDropPercent": -2.6
+        },
+        {
+          "market": "SOL 1h",
+          "symbol": "SOLUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 44.86,
+            "maxDD": 27.33,
+            "retDdRatio": 1.64,
+            "trades": 212
+          },
+          "nextOpen": {
+            "totalReturn": 45.03,
+            "maxDD": 27.37,
+            "retDdRatio": 1.65,
+            "trades": 212
+          },
+          "returnDropPercent": -0.38,
+          "retDdDropPercent": -0.61
+        },
+        {
+          "market": "SOL 4h",
+          "symbol": "SOLUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 8.83,
+            "maxDD": 12.67,
+            "retDdRatio": 0.7,
+            "trades": 95
+          },
+          "nextOpen": {
+            "totalReturn": 8.73,
+            "maxDD": 12.69,
+            "retDdRatio": 0.69,
+            "trades": 95
+          },
+          "returnDropPercent": 1.13,
+          "retDdDropPercent": 1.43
+        },
+        {
+          "market": "BNB 1h",
+          "symbol": "BNBUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 12.98,
+            "maxDD": 10.36,
+            "retDdRatio": 1.25,
+            "trades": 308
+          },
+          "nextOpen": {
+            "totalReturn": 13.88,
+            "maxDD": 10.35,
+            "retDdRatio": 1.34,
+            "trades": 308
+          },
+          "returnDropPercent": -6.93,
+          "retDdDropPercent": -7.2
+        },
+        {
+          "market": "BNB 4h",
+          "symbol": "BNBUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 1.82,
+            "maxDD": 6.18,
+            "retDdRatio": 0.29,
+            "trades": 109
+          },
+          "nextOpen": {
+            "totalReturn": 1.76,
+            "maxDD": 6.17,
+            "retDdRatio": 0.29,
+            "trades": 109
+          },
+          "returnDropPercent": 3.3,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "XRP 1h",
+          "symbol": "XRPUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 21.73,
+            "maxDD": 13.76,
+            "retDdRatio": 1.58,
+            "trades": 262
+          },
+          "nextOpen": {
+            "totalReturn": 21.44,
+            "maxDD": 13.74,
+            "retDdRatio": 1.56,
+            "trades": 262
+          },
+          "returnDropPercent": 1.33,
+          "retDdDropPercent": 1.27
+        },
+        {
+          "market": "XRP 4h",
+          "symbol": "XRPUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 6.93,
+            "maxDD": 7.11,
+            "retDdRatio": 0.97,
+            "trades": 72
+          },
+          "nextOpen": {
+            "totalReturn": 12.04,
+            "maxDD": 10.92,
+            "retDdRatio": 1.1,
+            "trades": 72
+          },
+          "returnDropPercent": -73.74,
+          "retDdDropPercent": -13.4
+        },
+        {
+          "market": "ADA 1h",
+          "symbol": "ADAUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 2.79,
+            "maxDD": 9.87,
+            "retDdRatio": 0.28,
+            "trades": 265
+          },
+          "nextOpen": {
+            "totalReturn": 3.56,
+            "maxDD": 10.4,
+            "retDdRatio": 0.34,
+            "trades": 264
+          },
+          "returnDropPercent": -27.6,
+          "retDdDropPercent": -21.43
+        },
+        {
+          "market": "ADA 4h",
+          "symbol": "ADAUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 15.99,
+            "maxDD": 10.29,
+            "retDdRatio": 1.55,
+            "trades": 95
+          },
+          "nextOpen": {
+            "totalReturn": 15.68,
+            "maxDD": 10.29,
+            "retDdRatio": 1.52,
+            "trades": 95
+          },
+          "returnDropPercent": 1.94,
+          "retDdDropPercent": 1.94
+        }
+      ],
+      "allMarkets": {
+        "medianReturnDrop": 1.03,
+        "trimmedMeanReturnDrop": -0.32,
+        "medianRetDdDrop": 0.49,
+        "trimmedMeanRetDdDrop": -0.69
+      },
+      "byTimeframe": {
+        "tf15m": {
+          "medianReturnDrop": 3.2,
+          "meanReturnDrop": 3.2,
+          "medianRetDdDrop": 3.93,
+          "meanRetDdDrop": 3.93
+        },
+        "tf1h": {
+          "medianReturnDrop": -3.65,
+          "meanReturnDrop": -6.3,
+          "medianRetDdDrop": -3.9,
+          "meanRetDdDrop": -6.98
+        },
+        "tf4h": {
+          "medianReturnDrop": 1.03,
+          "meanReturnDrop": -11.38,
+          "medianRetDdDrop": 0.49,
+          "meanRetDdDrop": -1.94
+        }
+      },
+      "verdict": "مقاوم (Robust)",
+      "verdictReason": "افت بازده میانه (1.03%) <= 20% و افت Ret/DD میانه (0.49%) <= 15%"
+    },
+    "f0l": {
+      "strategyName": "F0L (Long-Only Off)",
+      "markets": [
+        {
+          "market": "BTC 15m",
+          "symbol": "BTCUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": true,
+          "close": {
+            "totalReturn": 98.04,
+            "maxDD": 24.13,
+            "retDdRatio": 4.06,
+            "trades": 321
+          },
+          "nextOpen": {
+            "totalReturn": 97.73,
+            "maxDD": 24.16,
+            "retDdRatio": 4.05,
+            "trades": 321
+          },
+          "returnDropPercent": 0.32,
+          "retDdDropPercent": 0.25
+        },
+        {
+          "market": "BTC 1h",
+          "symbol": "BTCUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 28.04,
+            "maxDD": 13.5,
+            "retDdRatio": 2.08,
+            "trades": 324
+          },
+          "nextOpen": {
+            "totalReturn": 31.83,
+            "maxDD": 13.3,
+            "retDdRatio": 2.39,
+            "trades": 307
+          },
+          "returnDropPercent": -13.52,
+          "retDdDropPercent": -14.9
+        },
+        {
+          "market": "BTC 4h",
+          "symbol": "BTCUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 13.55,
+            "maxDD": 8.27,
+            "retDdRatio": 1.64,
+            "trades": 163
+          },
+          "nextOpen": {
+            "totalReturn": 13.3,
+            "maxDD": 8.36,
+            "retDdRatio": 1.59,
+            "trades": 163
+          },
+          "returnDropPercent": 1.85,
+          "retDdDropPercent": 3.05
+        },
+        {
+          "market": "ETH 15m",
+          "symbol": "ETHUSDT",
+          "interval": "15m",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 45.57,
+            "maxDD": 17.17,
+            "retDdRatio": 2.65,
+            "trades": 600
+          },
+          "nextOpen": {
+            "totalReturn": 42.58,
+            "maxDD": 17.64,
+            "retDdRatio": 2.41,
+            "trades": 607
+          },
+          "returnDropPercent": 6.56,
+          "retDdDropPercent": 9.06
+        },
+        {
+          "market": "ETH 1h",
+          "symbol": "ETHUSDT",
+          "interval": "1h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 12.03,
+            "maxDD": 16.74,
+            "retDdRatio": 0.72,
+            "trades": 445
+          },
+          "nextOpen": {
+            "totalReturn": 10.72,
+            "maxDD": 17.03,
+            "retDdRatio": 0.63,
+            "trades": 445
+          },
+          "returnDropPercent": 10.89,
+          "retDdDropPercent": 12.5
+        },
+        {
+          "market": "ETH 4h",
+          "symbol": "ETHUSDT",
+          "interval": "4h",
+          "isOos": false,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 9.49,
+            "maxDD": 8.73,
+            "retDdRatio": 1.09,
+            "trades": 162
+          },
+          "nextOpen": {
+            "totalReturn": 9.15,
+            "maxDD": 9.04,
+            "retDdRatio": 1.01,
+            "trades": 162
+          },
+          "returnDropPercent": 3.58,
+          "retDdDropPercent": 7.34
+        },
+        {
+          "market": "SOL 1h",
+          "symbol": "SOLUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 75.78,
+            "maxDD": 35.56,
+            "retDdRatio": 2.13,
+            "trades": 335
+          },
+          "nextOpen": {
+            "totalReturn": 75.97,
+            "maxDD": 35.63,
+            "retDdRatio": 2.13,
+            "trades": 335
+          },
+          "returnDropPercent": -0.25,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "SOL 4h",
+          "symbol": "SOLUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 5.76,
+            "maxDD": 13.8,
+            "retDdRatio": 0.42,
+            "trades": 144
+          },
+          "nextOpen": {
+            "totalReturn": 5.66,
+            "maxDD": 13.82,
+            "retDdRatio": 0.41,
+            "trades": 144
+          },
+          "returnDropPercent": 1.74,
+          "retDdDropPercent": 2.38
+        },
+        {
+          "market": "BNB 1h",
+          "symbol": "BNBUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 46.99,
+            "maxDD": 23.76,
+            "retDdRatio": 1.98,
+            "trades": 471
+          },
+          "nextOpen": {
+            "totalReturn": 47.28,
+            "maxDD": 23.95,
+            "retDdRatio": 1.97,
+            "trades": 470
+          },
+          "returnDropPercent": -0.62,
+          "retDdDropPercent": 0.51
+        },
+        {
+          "market": "BNB 4h",
+          "symbol": "BNBUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 1.01,
+            "maxDD": 7.71,
+            "retDdRatio": 0.13,
+            "trades": 155
+          },
+          "nextOpen": {
+            "totalReturn": 0.86,
+            "maxDD": 7.58,
+            "retDdRatio": 0.11,
+            "trades": 155
+          },
+          "returnDropPercent": 14.85,
+          "retDdDropPercent": 15.38
+        },
+        {
+          "market": "XRP 1h",
+          "symbol": "XRPUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 24.99,
+            "maxDD": 17.9,
+            "retDdRatio": 1.4,
+            "trades": 415
+          },
+          "nextOpen": {
+            "totalReturn": 24.69,
+            "maxDD": 17.88,
+            "retDdRatio": 1.38,
+            "trades": 415
+          },
+          "returnDropPercent": 1.2,
+          "retDdDropPercent": 1.43
+        },
+        {
+          "market": "XRP 4h",
+          "symbol": "XRPUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 8.7,
+            "maxDD": 11.3,
+            "retDdRatio": 0.77,
+            "trades": 108
+          },
+          "nextOpen": {
+            "totalReturn": 14.29,
+            "maxDD": 14.37,
+            "retDdRatio": 0.99,
+            "trades": 105
+          },
+          "returnDropPercent": -64.25,
+          "retDdDropPercent": -28.57
+        },
+        {
+          "market": "ADA 1h",
+          "symbol": "ADAUSDT",
+          "interval": "1h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": -2.94,
+            "maxDD": 12.91,
+            "retDdRatio": -0.23,
+            "trades": 441
+          },
+          "nextOpen": {
+            "totalReturn": -2.61,
+            "maxDD": 13.09,
+            "retDdRatio": -0.2,
+            "trades": 441
+          },
+          "returnDropPercent": -11.22,
+          "retDdDropPercent": 0
+        },
+        {
+          "market": "ADA 4h",
+          "symbol": "ADAUSDT",
+          "interval": "4h",
+          "isOos": true,
+          "isSeen": false,
+          "close": {
+            "totalReturn": 16.48,
+            "maxDD": 10.49,
+            "retDdRatio": 1.57,
+            "trades": 130
+          },
+          "nextOpen": {
+            "totalReturn": 16.12,
+            "maxDD": 10.5,
+            "retDdRatio": 1.54,
+            "trades": 130
+          },
+          "returnDropPercent": 2.18,
+          "retDdDropPercent": 1.91
+        }
+      ],
+      "allMarkets": {
+        "medianReturnDrop": 1.47,
+        "trimmedMeanReturnDrop": 1.25,
+        "medianRetDdDrop": 1.67,
+        "trimmedMeanRetDdDrop": 2.11
+      },
+      "byTimeframe": {
+        "tf15m": {
+          "medianReturnDrop": 3.44,
+          "meanReturnDrop": 3.44,
+          "medianRetDdDrop": 4.66,
+          "meanRetDdDrop": 4.66
+        },
+        "tf1h": {
+          "medianReturnDrop": -0.43,
+          "meanReturnDrop": -2.25,
+          "medianRetDdDrop": 0.26,
+          "meanRetDdDrop": -0.08
+        },
+        "tf4h": {
+          "medianReturnDrop": 2.02,
+          "meanReturnDrop": -6.68,
+          "medianRetDdDrop": 2.72,
+          "meanRetDdDrop": 0.25
+        }
+      },
+      "verdict": "مقاوم (Robust)",
+      "verdictReason": "افت بازده میانه (1.47%) <= 20% و افت Ret/DD میانه (1.67%) <= 15%"
+    }
+  }
+}
