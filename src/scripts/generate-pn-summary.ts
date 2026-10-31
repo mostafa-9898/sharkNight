@@ -1,5 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  C1_CONFIG,
+  F3_CONFIG,
+  F0_CONFIG,
+  C1L_CONFIG,
+  PnFullConfig,
+} from './run-pn3-evaluation';
 
 interface ManifestEntry {
   symbol: string;
@@ -150,10 +157,45 @@ function formatDate(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
-function generateSummary() {
-  const dataPath = path.resolve('docs/review/pn_data.json');
-  const manifestPath = path.resolve('docs/review/data/MANIFEST.json');
-  const outputPath = path.resolve('docs/review/PN_SUMMARY.md');
+export function formatConfigSummary(name: string, config: PnFullConfig): string {
+  const parts = [
+    `fisherMode: '${config.fisherMode}'`,
+    `fisherKind: '${config.fisherKind}'`,
+    `fisherGate: '${config.fisherGate}'`,
+    `kijunSlopeFilter: ${config.kijunSlopeFilter}`,
+    `structureFilter: ${config.structureFilter}`,
+    `stoch: ${config.stochKPeriod}/${config.stochDPeriod}/${config.stochSmooth} (${config.stochOversold}/${config.stochOverbought})`,
+    `tradeMode: '${config.tradeMode}'`,
+    `allowOppositePositions: ${config.allowOppositePositions}`,
+    `trailing: {initialStop: ${config.trailingStop.initialStopPercent}%, step: ${config.trailingStop.stepPercent}%, raise: ${config.trailingStop.raisePercent}%, mode: '${config.trailingStop.mode}'}`,
+    `size: ${config.positionSizePercent}%, maxOpen: ${config.maxOpenPositions}, maxExposure: ${config.maxTotalExposurePercent}%`,
+  ];
+  return `- **${name}**: \`${parts.join(', ')}\``;
+}
+
+export function renderConfigSection(configs: Record<string, PnFullConfig>): string[] {
+  const lines: string[] = ['پیکربندی‌ها (مستخرج پویا از اشیاء پیکربندی موتور):'];
+  for (const [name, cfg] of Object.entries(configs)) {
+    lines.push(formatConfigSummary(name, cfg));
+  }
+  return lines;
+}
+
+export function generateSummary(options?: {
+  dataPath?: string;
+  manifestPath?: string;
+  outputPath?: string;
+  configs?: Record<string, PnFullConfig>;
+}) {
+  const dataPath = options?.dataPath ?? path.resolve('docs/review/pn_data.json');
+  const manifestPath = options?.manifestPath ?? path.resolve('docs/review/data/MANIFEST.json');
+  const outputPath = options?.outputPath ?? path.resolve('docs/review/PN_SUMMARY.md');
+  const configs = options?.configs ?? {
+    C1: C1_CONFIG,
+    F3: F3_CONFIG,
+    F0: F0_CONFIG,
+    C1L: C1L_CONFIG,
+  };
 
   const pnData: PNData = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
   const manifest: ManifestEntry[] = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
@@ -190,11 +232,7 @@ function generateSummary() {
   lines.push('');
   lines.push('## ۲. مقایسه عملکرد واقعی (C1 در برابر F3 و F0 و C1L)');
   lines.push('');
-  lines.push('پیکربندی‌ها:');
-  lines.push('- **C1**: `fisherMode: replace-stoch`, `fisherKind: fisher`, `fisherGate: none`, `kijunSlopeFilter: true`, `structureFilter: true`, `stochSmooth: 5`, `stochOversold: 20`, `stochOverbought: 80`, `allowOppositePositions: true`, `trailing: {stepPercent: 1.5, raisePercent: 0.5}`');
-  lines.push('- **F3**: استراتژی پایه با فیشر تأییدی (`fisherMode: confirm`) و استوکستیک پیش‌فرض (30/70/3) بدون فیلتر شیب و ساختار.');
-  lines.push('- **F0**: استراتژی پایه بدون فیشر (`fisherMode: off`) با استوکستیک پیش‌فرض.');
-  lines.push('- **C1L**: همان C1 با `tradeMode: long-only`.');
+  lines.push(...renderConfigSection(configs));
   lines.push('');
   lines.push('| بازار | C1 بازده | C1 افت سرمایه | C1 نسبت Ret/DD | C1 معاملات | C1 برد٪ | F3 بازده | F3 افت سرمایه | F3 نسبت Ret/DD | F0 بازده | C1L بازده |');
   lines.push('|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|');
@@ -420,4 +458,6 @@ function generateSummary() {
   console.log(`Generated ${outputPath} successfully (${lines.length} lines)`);
 }
 
-generateSummary();
+if (require.main === module) {
+  generateSummary();
+}

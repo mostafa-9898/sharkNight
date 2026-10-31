@@ -29,11 +29,11 @@
 
 ## ۲. مقایسه عملکرد واقعی (C1 در برابر F3 و F0 و C1L)
 
-پیکربندی‌ها:
-- **C1**: `fisherMode: replace-stoch`, `fisherKind: fisher`, `fisherGate: none`, `kijunSlopeFilter: true`, `structureFilter: true`, `stochSmooth: 5`, `stochOversold: 20`, `stochOverbought: 80`, `allowOppositePositions: true`, `trailing: {stepPercent: 1.5, raisePercent: 0.5}`
-- **F3**: استراتژی پایه با فیشر تأییدی (`fisherMode: confirm`) و استوکستیک پیش‌فرض (30/70/3) بدون فیلتر شیب و ساختار.
-- **F0**: استراتژی پایه بدون فیشر (`fisherMode: off`) با استوکستیک پیش‌فرض.
-- **C1L**: همان C1 با `tradeMode: long-only`.
+پیکربندی‌ها (مستخرج پویا از اشیاء پیکربندی موتور):
+- **C1**: `fisherMode: 'extra-trigger', fisherKind: 'fisher', fisherGate: 'none', kijunSlopeFilter: true, structureFilter: true, stoch: 14/3/3 (30/70), tradeMode: 'long-short', allowOppositePositions: true, trailing: {initialStop: 5%, step: 3%, raise: 1.5%, mode: 'stepped'}, size: 3%, maxOpen: 10, maxExposure: 30%`
+- **F3**: `fisherMode: 'confirm', fisherKind: 'fisher', fisherGate: 'none', kijunSlopeFilter: true, structureFilter: true, stoch: 14/3/3 (30/70), tradeMode: 'long-short', allowOppositePositions: true, trailing: {initialStop: 5%, step: 3%, raise: 1.5%, mode: 'stepped'}, size: 3%, maxOpen: 10, maxExposure: 30%`
+- **F0**: `fisherMode: 'off', fisherKind: 'fisher', fisherGate: 'none', kijunSlopeFilter: true, structureFilter: true, stoch: 14/3/3 (30/70), tradeMode: 'long-short', allowOppositePositions: true, trailing: {initialStop: 5%, step: 3%, raise: 1.5%, mode: 'stepped'}, size: 3%, maxOpen: 10, maxExposure: 30%`
+- **C1L**: `fisherMode: 'extra-trigger', fisherKind: 'fisher', fisherGate: 'none', kijunSlopeFilter: true, structureFilter: true, stoch: 14/3/3 (30/70), tradeMode: 'long-only', allowOppositePositions: true, trailing: {initialStop: 5%, step: 3%, raise: 1.5%, mode: 'stepped'}, size: 3%, maxOpen: 10, maxExposure: 30%`
 
 | بازار | C1 بازده | C1 افت سرمایه | C1 نسبت Ret/DD | C1 معاملات | C1 برد٪ | F3 بازده | F3 افت سرمایه | F3 نسبت Ret/DD | F0 بازده | C1L بازده |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
