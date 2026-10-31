@@ -57,6 +57,8 @@ export interface MultiTimeframeConfig {
   tdrMultiplier?: number;      // default 1.5
 }
 
+export type MultiTimeframeStrategyConfig = MultiTimeframeConfig;
+
 interface CachedIndicators {
   // LTF indicators
   ltfIchimoku: IchimokuResult;
