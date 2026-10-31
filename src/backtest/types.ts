@@ -162,6 +162,7 @@ export interface BacktestConfig {
   collectTrace?: boolean;         // optional passive trace collector
   regimeExit?: boolean;           // If true, force close open positions when macro regime flips to opposite
   getMacroRegime?: (candles: readonly Candle[], index: number) => 'Bull' | 'Bear' | 'Neutral';
+  closePositionsAtEnd?: boolean;  // DEFAULT: true. Set false in paper trading to preserve live open positions.
 }
 
 export type StopUpdateReason =
@@ -328,6 +329,7 @@ export interface BacktestResult {
   metrics: BacktestMetrics;
   equity: number[];               // Equity curve over time
   activePosition?: ActivePosition | null;
+  openPositions?: ActivePosition[];
   trace?: BacktestTrace;
   signalFunnel?: SignalFunnel;
   multiPositionDiagnostics?: MultiPositionDiagnostics;

@@ -9,6 +9,7 @@ import type {
   TkCrossTraceEvent,
   MultiPositionDiagnostics,
   Trade,
+  ActivePosition,
   StopUpdateEvent,
   StopUpdateReason,
   SignalFunnel,
@@ -161,7 +162,14 @@ function setupFunnelCollector(
   }
 }
 
-function verifyFunnelReconciliation(funnel: SignalFunnel, trades: readonly Trade[]): void {
+function verifyFunnelReconciliation(
+  funnel: SignalFunnel,
+  trades: readonly Trade[],
+  openPositions?: readonly { side: TradeSide }[]
+): void {
+  const openLong = openPositions ? openPositions.filter((p) => p.side === 'long').length : 0;
+  const openShort = openPositions ? openPositions.filter((p) => p.side === 'short').length : 0;
+
   const longTrades = trades.filter((t) => t.side === 'long').length;
   const shortTrades = trades.filter((t) => t.side === 'short').length;
 
@@ -187,16 +195,16 @@ function verifyFunnelReconciliation(funnel: SignalFunnel, trades: readonly Trade
   const longValid =
     funnel.long.signalEmitted === funnel.long.entryAttempted &&
     funnel.long.entryAttempted === funnel.long.rejectedTotal + funnel.long.executed &&
-    funnel.long.executed === longTrades;
+    funnel.long.executed === longTrades + openLong;
 
   const shortValid =
     funnel.short.signalEmitted === funnel.short.entryAttempted &&
     funnel.short.entryAttempted === funnel.short.rejectedTotal + funnel.short.executed &&
-    funnel.short.executed === shortTrades;
+    funnel.short.executed === shortTrades + openShort;
 
   if (!longValid || !shortValid) {
     throw new Error(
-      `Funnel reconciliation failed: Long (emitted=${funnel.long.signalEmitted}, attempted=${funnel.long.entryAttempted}, rej=${funnel.long.rejectedTotal}, exec=${funnel.long.executed}, trades=${longTrades}); Short (emitted=${funnel.short.signalEmitted}, attempted=${funnel.short.entryAttempted}, rej=${funnel.short.rejectedTotal}, exec=${funnel.short.executed}, trades=${shortTrades})`
+      `Funnel reconciliation failed: Long (emitted=${funnel.long.signalEmitted}, attempted=${funnel.long.entryAttempted}, rej=${funnel.long.rejectedTotal}, exec=${funnel.long.executed}, trades=${longTrades}, open=${openLong}); Short (emitted=${funnel.short.signalEmitted}, attempted=${funnel.short.entryAttempted}, rej=${funnel.short.rejectedTotal}, exec=${funnel.short.executed}, trades=${shortTrades}, open=${openShort})`
     );
   }
 }
@@ -1133,7 +1141,7 @@ export class BacktestEngine {
     }
 
     // 4. Close any remaining open position at conclusion of backtest
-    if (portfolio.hasOpenPosition()) {
+    if (config.closePositionsAtEnd !== false && portfolio.hasOpenPosition()) {
       const finalCandle = candles[candles.length - 1];
       const pos = portfolio.getOpenPosition()!;
       const exitSignal: TradeSignal = {
@@ -1183,7 +1191,7 @@ export class BacktestEngine {
       positionId: t.positionId ?? idx + 1,
       concurrentOpenAtEntry: t.concurrentOpenAtEntry ?? 1,
     }));
-    verifyFunnelReconciliation(funnel, trades);
+    verifyFunnelReconciliation(funnel, trades, portfolio.hasOpenPosition() ? [portfolio.getOpenPosition()!] : undefined);
     trace.signalFunnel = funnel;
     const percentTimeInMarket = candles.length > 0 ? roundTo((capacityCandles / candles.length) * 100, 2) : 0;
     const avgExposurePercent = candles.length > 0 ? roundTo((capacityCandles * positionSizePercent) / candles.length, 2) : 0;
@@ -2157,7 +2165,34 @@ export class BacktestEngine {
     }
 
     // 5. Close remaining open positions at backtest conclusion
-    if (openPositions.length > 0) {
+    let activePositions: ActivePosition[] = [];
+    if (config.closePositionsAtEnd === false) {
+      const finalCandle = candles[candles.length - 1];
+      activePositions = openPositions.map((pos) => {
+        const closePrice = finalCandle.close;
+        const grossVal = pos.quantity * closePrice;
+        const exitFee = grossVal * feeRate;
+        let unrealizedPnl: number;
+        if (pos.side === 'long') {
+          unrealizedPnl = grossVal - exitFee - pos.entryCost;
+        } else {
+          unrealizedPnl = pos.quantity * (pos.entryPrice - closePrice) - exitFee - pos.entryFee;
+        }
+        return {
+          side: pos.side,
+          entrySignal: pos.entrySignal,
+          entryPrice: pos.entryPrice,
+          currentPrice: closePrice,
+          quantity: pos.quantity,
+          investedCost: pos.entryCost,
+          entryFee: pos.entryFee,
+          unrealizedPnl: roundTo(unrealizedPnl, 8),
+          unrealizedPnlPercent: roundTo((unrealizedPnl / pos.entryCost) * 100, 4),
+          entryTime: pos.entryTime,
+          duration: Math.max(0, finalCandle.timestamp - pos.entryTime),
+        };
+      });
+    } else if (openPositions.length > 0) {
       const finalCandle = candles[candles.length - 1];
       for (const pos of openPositions) {
         const mfe =
@@ -2223,7 +2258,7 @@ export class BacktestEngine {
       traceable.setTraceCollector(undefined);
     }
 
-    verifyFunnelReconciliation(funnel, completedTrades);
+    verifyFunnelReconciliation(funnel, completedTrades, activePositions);
     trace.signalFunnel = funnel;
 
     let barsWithOpenPos = 0;
@@ -2307,7 +2342,8 @@ export class BacktestEngine {
       trades: completedTrades,
       metrics,
       equity: equityCurve,
-      activePosition: null,
+      activePosition: activePositions.length > 0 ? activePositions[0] : null,
+      openPositions: activePositions,
       trace: collectTrace ? trace : undefined,
       signalFunnel: funnel,
       multiPositionDiagnostics,
