@@ -1,0 +1,2541 @@
+{
+  "records": [
+    {
+      "key": "BTC 15m",
+      "symbol": "BTC",
+      "interval": "15m",
+      "isOos": false,
+      "isSeen": true,
+      "manifestInfo": {
+        "rows": 210384,
+        "firstTimestamp": 1602959400000,
+        "lastTimestamp": 1792304100000,
+        "sha256": "9b0e78ffc0fc6e79148f18feb06871a6793ce159e2d2e6ce99616c2dde83d080"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 104.76,
+          "maxDD": 26.37,
+          "retDdRatio": 3.97,
+          "trades": 332,
+          "winRate": 26.5,
+          "profitFactor": 4.35,
+          "expectancy": 31.55,
+          "sharpeRatio": 0.77,
+          "cagr": 12.69,
+          "avgConcurrent": 4.52,
+          "percentTimeInMarket": 77.81,
+          "return2022": -7.22
+        },
+        "d2": {
+          "totalReturn": 16.34,
+          "maxDD": 31.36,
+          "retDdRatio": 0.52,
+          "trades": 501,
+          "winRate": 18.6,
+          "profitFactor": 1.42,
+          "expectancy": 3.26,
+          "sharpeRatio": 0.26,
+          "cagr": 2.55,
+          "avgConcurrent": 4.42,
+          "percentTimeInMarket": 61,
+          "return2022": -5.91
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 55.09,
+          "maxDD": 16.78,
+          "retDdRatio": 3.28,
+          "trades": 334,
+          "winRate": 28.4,
+          "profitFactor": 2.97,
+          "expectancy": 16.49,
+          "sharpeRatio": 0.64,
+          "cagr": 7.59,
+          "avgConcurrent": 4.37,
+          "percentTimeInMarket": 69.22,
+          "return2022": -6.05
+        },
+        "d2": {
+          "totalReturn": 21.02,
+          "maxDD": 29.52,
+          "retDdRatio": 0.71,
+          "trades": 344,
+          "winRate": 18.6,
+          "profitFactor": 1.73,
+          "expectancy": 6.11,
+          "sharpeRatio": 0.33,
+          "cagr": 3.23,
+          "avgConcurrent": 3.82,
+          "percentTimeInMarket": 58.45,
+          "return2022": -5.15
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 98.04,
+          "maxDD": 24.13,
+          "retDdRatio": 4.06,
+          "trades": 321,
+          "winRate": 27.1,
+          "profitFactor": 4.28,
+          "expectancy": 30.54,
+          "sharpeRatio": 0.77,
+          "cagr": 12.06,
+          "avgConcurrent": 4.5,
+          "percentTimeInMarket": 77.14,
+          "return2022": -6.87
+        },
+        "d2": {
+          "totalReturn": 17.97,
+          "maxDD": 30.29,
+          "retDdRatio": 0.59,
+          "trades": 443,
+          "winRate": 18.1,
+          "profitFactor": 1.53,
+          "expectancy": 4.06,
+          "sharpeRatio": 0.28,
+          "cagr": 2.79,
+          "avgConcurrent": 4.27,
+          "percentTimeInMarket": 60.23,
+          "return2022": -5.81
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": -10.5,
+          "maxDD": 26.54,
+          "retDdRatio": -0.4,
+          "trades": 735,
+          "return2022": -8.91
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 185.71,
+          "maxDD": 55.74,
+          "retDdRatio": 3.33,
+          "trades": 1,
+          "return2022": -40.9
+        }
+      },
+      "null1l": {
+        "meanReturn": 78.89,
+        "stdReturn": 13.41,
+        "p75": 86.64,
+        "p90": 96.63,
+        "c1lPercentile": 96.5
+      },
+      "null2l": {
+        "meanReturn": 44.31,
+        "stdReturn": 59.47,
+        "p75": 61.25,
+        "p90": 106.09,
+        "c1lPercentile": 90
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": 25.64,
+          "maxDDPercent": 5.32
+        },
+        "2021": {
+          "returnPercent": 21.75,
+          "maxDDPercent": 26.37
+        },
+        "2022": {
+          "returnPercent": -7.22,
+          "maxDDPercent": 10.16
+        },
+        "2023": {
+          "returnPercent": 17.24,
+          "maxDDPercent": 9.51
+        },
+        "2024": {
+          "returnPercent": 25.61,
+          "maxDDPercent": 16.52
+        },
+        "2025": {
+          "returnPercent": -3.6,
+          "maxDDPercent": 12.77
+        },
+        "2026": {
+          "returnPercent": 1.6,
+          "maxDDPercent": 8.69
+        }
+      }
+    },
+    {
+      "key": "BTC 1h",
+      "symbol": "BTC",
+      "interval": "1h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1602896400000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "784e3081cdeebd639c543c45524361d27ecedc57a6235b1b634bd9ce31451888"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 53.74,
+          "maxDD": 15.56,
+          "retDdRatio": 3.45,
+          "trades": 331,
+          "winRate": 26,
+          "profitFactor": 2.84,
+          "expectancy": 16.24,
+          "sharpeRatio": 0.63,
+          "cagr": 7.43,
+          "avgConcurrent": 4.3,
+          "percentTimeInMarket": 69.74,
+          "return2022": -8.26
+        },
+        "d2": {
+          "totalReturn": 24.27,
+          "maxDD": 29.49,
+          "retDdRatio": 0.82,
+          "trades": 352,
+          "winRate": 18.8,
+          "profitFactor": 1.84,
+          "expectancy": 6.89,
+          "sharpeRatio": 0.35,
+          "cagr": 3.69,
+          "avgConcurrent": 3.95,
+          "percentTimeInMarket": 58.62,
+          "return2022": -4.97
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 20.54,
+          "maxDD": 12.99,
+          "retDdRatio": 1.58,
+          "trades": 220,
+          "winRate": 24.6,
+          "profitFactor": 2.1,
+          "expectancy": 9.34,
+          "sharpeRatio": 0.41,
+          "cagr": 3.16,
+          "avgConcurrent": 3.55,
+          "percentTimeInMarket": 63.92,
+          "return2022": -4.32
+        },
+        "d2": {
+          "totalReturn": 30.33,
+          "maxDD": 26.35,
+          "retDdRatio": 1.15,
+          "trades": 185,
+          "winRate": 20.5,
+          "profitFactor": 2.82,
+          "expectancy": 16.4,
+          "sharpeRatio": 0.44,
+          "cagr": 4.51,
+          "avgConcurrent": 3.03,
+          "percentTimeInMarket": 54.13,
+          "return2022": -3.31
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 28.04,
+          "maxDD": 13.5,
+          "retDdRatio": 2.08,
+          "trades": 324,
+          "winRate": 23.8,
+          "profitFactor": 2.11,
+          "expectancy": 8.65,
+          "sharpeRatio": 0.46,
+          "cagr": 4.21,
+          "avgConcurrent": 4.08,
+          "percentTimeInMarket": 67.91,
+          "return2022": -6.56
+        },
+        "d2": {
+          "totalReturn": 27.12,
+          "maxDD": 28.62,
+          "retDdRatio": 0.95,
+          "trades": 274,
+          "winRate": 19,
+          "profitFactor": 2.15,
+          "expectancy": 9.9,
+          "sharpeRatio": 0.39,
+          "cagr": 4.08,
+          "avgConcurrent": 3.49,
+          "percentTimeInMarket": 58.03,
+          "return2022": -4.16
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": -10.5,
+          "maxDD": 26.32,
+          "retDdRatio": -0.4,
+          "trades": 735,
+          "return2022": -8.91
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 185.52,
+          "maxDD": 55.69,
+          "retDdRatio": 3.33,
+          "trades": 1,
+          "return2022": -41.17
+        }
+      },
+      "null1l": {
+        "meanReturn": 77.38,
+        "stdReturn": 13.3,
+        "p75": 85.77,
+        "p90": 94.52,
+        "c1lPercentile": 2.5
+      },
+      "null2l": {
+        "meanReturn": 28.29,
+        "stdReturn": 52.29,
+        "p75": 38.57,
+        "p90": 98.45,
+        "c1lPercentile": 83
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": 15.44,
+          "maxDDPercent": 4.48
+        },
+        "2021": {
+          "returnPercent": 10.77,
+          "maxDDPercent": 13.54
+        },
+        "2022": {
+          "returnPercent": -8.26,
+          "maxDDPercent": 8.93
+        },
+        "2023": {
+          "returnPercent": 12.01,
+          "maxDDPercent": 10.5
+        },
+        "2024": {
+          "returnPercent": 13.31,
+          "maxDDPercent": 15.56
+        },
+        "2025": {
+          "returnPercent": 0,
+          "maxDDPercent": 8.27
+        },
+        "2026": {
+          "returnPercent": 2.75,
+          "maxDDPercent": 4.45
+        }
+      }
+    },
+    {
+      "key": "BTC 4h",
+      "symbol": "BTC",
+      "interval": "4h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1602907200000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "8d89b4598271ef7698d1ca9a0170762327492088ab46dff9e939d8a5c2168d78"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 27,
+          "maxDD": 10.73,
+          "retDdRatio": 2.52,
+          "trades": 182,
+          "winRate": 29.1,
+          "profitFactor": 2.9,
+          "expectancy": 14.84,
+          "sharpeRatio": 0.53,
+          "cagr": 4.06,
+          "avgConcurrent": 3.51,
+          "percentTimeInMarket": 68.39,
+          "return2022": -2.36
+        },
+        "d2": {
+          "totalReturn": 19.08,
+          "maxDD": 17.28,
+          "retDdRatio": 1.1,
+          "trades": 144,
+          "winRate": 24.3,
+          "profitFactor": 2.59,
+          "expectancy": 13.25,
+          "sharpeRatio": 0.42,
+          "cagr": 2.95,
+          "avgConcurrent": 2.97,
+          "percentTimeInMarket": 49.38,
+          "return2022": -2.66
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 13.81,
+          "maxDD": 6.67,
+          "retDdRatio": 2.07,
+          "trades": 122,
+          "winRate": 30.3,
+          "profitFactor": 2.53,
+          "expectancy": 11.32,
+          "sharpeRatio": 0.48,
+          "cagr": 2.18,
+          "avgConcurrent": 2.83,
+          "percentTimeInMarket": 59.83,
+          "return2022": -0.95
+        },
+        "d2": {
+          "totalReturn": 9.92,
+          "maxDD": 9.09,
+          "retDdRatio": 1.09,
+          "trades": 93,
+          "winRate": 23.7,
+          "profitFactor": 2.45,
+          "expectancy": 10.67,
+          "sharpeRatio": 0.4,
+          "cagr": 1.59,
+          "avgConcurrent": 2.52,
+          "percentTimeInMarket": 45.23,
+          "return2022": -1.04
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 13.55,
+          "maxDD": 8.27,
+          "retDdRatio": 1.64,
+          "trades": 163,
+          "winRate": 28.2,
+          "profitFactor": 2.11,
+          "expectancy": 8.31,
+          "sharpeRatio": 0.41,
+          "cagr": 2.14,
+          "avgConcurrent": 3.33,
+          "percentTimeInMarket": 60.22,
+          "return2022": -1.41
+        },
+        "d2": {
+          "totalReturn": 15.2,
+          "maxDD": 12.99,
+          "retDdRatio": 1.17,
+          "trades": 120,
+          "winRate": 24.2,
+          "profitFactor": 2.71,
+          "expectancy": 12.67,
+          "sharpeRatio": 0.43,
+          "cagr": 2.39,
+          "avgConcurrent": 2.82,
+          "percentTimeInMarket": 46.92,
+          "return2022": -1.52
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": -0.17,
+          "maxDD": 19.03,
+          "retDdRatio": -0.01,
+          "trades": 538,
+          "return2022": -8.7
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 185.27,
+          "maxDD": 55.52,
+          "retDdRatio": 3.34,
+          "trades": 1,
+          "return2022": -41.28
+        }
+      },
+      "null1l": {
+        "meanReturn": 22.54,
+        "stdReturn": 8.83,
+        "p75": 28.64,
+        "p90": 35.02,
+        "c1lPercentile": 70.5
+      },
+      "null2l": {
+        "meanReturn": 5.84,
+        "stdReturn": 20.1,
+        "p75": 7.96,
+        "p90": 21.56,
+        "c1lPercentile": 93
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": 8.21,
+          "maxDDPercent": 1.78
+        },
+        "2021": {
+          "returnPercent": 0.03,
+          "maxDDPercent": 8.82
+        },
+        "2022": {
+          "returnPercent": -2.36,
+          "maxDDPercent": 3.26
+        },
+        "2023": {
+          "returnPercent": 6.83,
+          "maxDDPercent": 5.27
+        },
+        "2024": {
+          "returnPercent": 10.51,
+          "maxDDPercent": 9.85
+        },
+        "2025": {
+          "returnPercent": 0.28,
+          "maxDDPercent": 8.39
+        },
+        "2026": {
+          "returnPercent": 1.14,
+          "maxDDPercent": 3.73
+        }
+      }
+    },
+    {
+      "key": "ETH 15m",
+      "symbol": "ETH",
+      "interval": "15m",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 210384,
+        "firstTimestamp": 1602959400000,
+        "lastTimestamp": 1792304100000,
+        "sha256": "9f16b1dab8e471b8250a20319878f502fb658fad4d805e54ab7e46bd777af055"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 63.54,
+          "maxDD": 17.86,
+          "retDdRatio": 3.56,
+          "trades": 630,
+          "winRate": 29.2,
+          "profitFactor": 2.2,
+          "expectancy": 10.09,
+          "sharpeRatio": 0.6,
+          "cagr": 8.54,
+          "avgConcurrent": 4.68,
+          "percentTimeInMarket": 59.28,
+          "return2022": -3.49
+        },
+        "d2": {
+          "totalReturn": 27.09,
+          "maxDD": 20.94,
+          "retDdRatio": 1.29,
+          "trades": 616,
+          "winRate": 20.1,
+          "profitFactor": 1.62,
+          "expectancy": 4.4,
+          "sharpeRatio": 0.38,
+          "cagr": 4.08,
+          "avgConcurrent": 4.38,
+          "percentTimeInMarket": 51.25,
+          "return2022": -1.81
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 33.63,
+          "maxDD": 14.87,
+          "retDdRatio": 2.26,
+          "trades": 475,
+          "winRate": 25.9,
+          "profitFactor": 1.98,
+          "expectancy": 7.08,
+          "sharpeRatio": 0.47,
+          "cagr": 4.95,
+          "avgConcurrent": 4.08,
+          "percentTimeInMarket": 52.65,
+          "return2022": -2.69
+        },
+        "d2": {
+          "totalReturn": 27.68,
+          "maxDD": 13.22,
+          "retDdRatio": 2.09,
+          "trades": 401,
+          "winRate": 23.7,
+          "profitFactor": 1.94,
+          "expectancy": 6.9,
+          "sharpeRatio": 0.44,
+          "cagr": 4.16,
+          "avgConcurrent": 3.73,
+          "percentTimeInMarket": 46.15,
+          "return2022": -1.67
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 45.57,
+          "maxDD": 17.17,
+          "retDdRatio": 2.65,
+          "trades": 600,
+          "winRate": 25.8,
+          "profitFactor": 1.94,
+          "expectancy": 7.59,
+          "sharpeRatio": 0.51,
+          "cagr": 6.46,
+          "avgConcurrent": 4.62,
+          "percentTimeInMarket": 58.09,
+          "return2022": -3.93
+        },
+        "d2": {
+          "totalReturn": 26.53,
+          "maxDD": 17.67,
+          "retDdRatio": 1.5,
+          "trades": 530,
+          "winRate": 20.9,
+          "profitFactor": 1.68,
+          "expectancy": 5.01,
+          "sharpeRatio": 0.39,
+          "cagr": 4,
+          "avgConcurrent": 4.12,
+          "percentTimeInMarket": 49.4,
+          "return2022": -2.5
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 31.93,
+          "maxDD": 21.11,
+          "retDdRatio": 1.51,
+          "trades": 648,
+          "return2022": -3.31
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 166.8,
+          "maxDD": 69.22,
+          "retDdRatio": 2.41,
+          "trades": 1,
+          "return2022": -54.87
+        }
+      },
+      "null1l": {
+        "meanReturn": 33.59,
+        "stdReturn": 7.56,
+        "p75": 38.68,
+        "p90": 43.54,
+        "c1lPercentile": 100
+      },
+      "null2l": {
+        "meanReturn": 27.87,
+        "stdReturn": 68.48,
+        "p75": 42.38,
+        "p90": 75.02,
+        "c1lPercentile": 84
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": 4.99,
+          "maxDDPercent": 8.64
+        },
+        "2021": {
+          "returnPercent": 17.15,
+          "maxDDPercent": 12.02
+        },
+        "2022": {
+          "returnPercent": -3.49,
+          "maxDDPercent": 9.1
+        },
+        "2023": {
+          "returnPercent": 9.55,
+          "maxDDPercent": 9.67
+        },
+        "2024": {
+          "returnPercent": 8.75,
+          "maxDDPercent": 17.86
+        },
+        "2025": {
+          "returnPercent": 7.57,
+          "maxDDPercent": 12.83
+        },
+        "2026": {
+          "returnPercent": 7.5,
+          "maxDDPercent": 6.27
+        }
+      }
+    },
+    {
+      "key": "ETH 1h",
+      "symbol": "ETH",
+      "interval": "1h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1602896400000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "8823d48bb7f677816256664e34add630b117e1b93811bacc1b79d725add958b5"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 13.63,
+          "maxDD": 21.62,
+          "retDdRatio": 0.63,
+          "trades": 553,
+          "winRate": 21.7,
+          "profitFactor": 1.31,
+          "expectancy": 2.46,
+          "sharpeRatio": 0.24,
+          "cagr": 2.15,
+          "avgConcurrent": 4.01,
+          "percentTimeInMarket": 53.79,
+          "return2022": -8.33
+        },
+        "d2": {
+          "totalReturn": 29.43,
+          "maxDD": 17.62,
+          "retDdRatio": 1.67,
+          "trades": 440,
+          "winRate": 21.6,
+          "profitFactor": 1.88,
+          "expectancy": 6.69,
+          "sharpeRatio": 0.44,
+          "cagr": 4.39,
+          "avgConcurrent": 3.65,
+          "percentTimeInMarket": 48.2,
+          "return2022": -6
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 7.46,
+          "maxDD": 10.55,
+          "retDdRatio": 0.71,
+          "trades": 296,
+          "winRate": 23.3,
+          "profitFactor": 1.35,
+          "expectancy": 2.52,
+          "sharpeRatio": 0.22,
+          "cagr": 1.21,
+          "avgConcurrent": 3.01,
+          "percentTimeInMarket": 40.79,
+          "return2022": -3.93
+        },
+        "d2": {
+          "totalReturn": 22.54,
+          "maxDD": 12.2,
+          "retDdRatio": 1.85,
+          "trades": 230,
+          "winRate": 26.1,
+          "profitFactor": 2.32,
+          "expectancy": 9.8,
+          "sharpeRatio": 0.49,
+          "cagr": 3.45,
+          "avgConcurrent": 3.03,
+          "percentTimeInMarket": 40.56,
+          "return2022": -2.72
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 12.03,
+          "maxDD": 16.74,
+          "retDdRatio": 0.72,
+          "trades": 445,
+          "winRate": 22.3,
+          "profitFactor": 1.35,
+          "expectancy": 2.7,
+          "sharpeRatio": 0.25,
+          "cagr": 1.91,
+          "avgConcurrent": 3.56,
+          "percentTimeInMarket": 51.9,
+          "return2022": -5.77
+        },
+        "d2": {
+          "totalReturn": 30.08,
+          "maxDD": 13.35,
+          "retDdRatio": 2.25,
+          "trades": 335,
+          "winRate": 23.6,
+          "profitFactor": 2.16,
+          "expectancy": 8.98,
+          "sharpeRatio": 0.49,
+          "cagr": 4.48,
+          "avgConcurrent": 3.37,
+          "percentTimeInMarket": 47.06,
+          "return2022": -4.16
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 31.93,
+          "maxDD": 20.93,
+          "retDdRatio": 1.53,
+          "trades": 648,
+          "return2022": -3.31
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 168.42,
+          "maxDD": 69.11,
+          "retDdRatio": 2.44,
+          "trades": 1,
+          "return2022": -55.16
+        }
+      },
+      "null1l": {
+        "meanReturn": 31.45,
+        "stdReturn": 7.54,
+        "p75": 35.51,
+        "p90": 41.43,
+        "c1lPercentile": 0
+      },
+      "null2l": {
+        "meanReturn": 8.01,
+        "stdReturn": 43.9,
+        "p75": 14.86,
+        "p90": 39.84,
+        "c1lPercentile": 73.5
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": -2.41,
+          "maxDDPercent": 3.66
+        },
+        "2021": {
+          "returnPercent": 4.06,
+          "maxDDPercent": 14.26
+        },
+        "2022": {
+          "returnPercent": -8.33,
+          "maxDDPercent": 8.97
+        },
+        "2023": {
+          "returnPercent": 3.24,
+          "maxDDPercent": 8.14
+        },
+        "2024": {
+          "returnPercent": 7.93,
+          "maxDDPercent": 11.94
+        },
+        "2025": {
+          "returnPercent": 6.64,
+          "maxDDPercent": 11.59
+        },
+        "2026": {
+          "returnPercent": 2.65,
+          "maxDDPercent": 4.98
+        }
+      }
+    },
+    {
+      "key": "ETH 4h",
+      "symbol": "ETH",
+      "interval": "4h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1602907200000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "2f580dc90aecb91c3014c3643fc0b1aeb1a79378e40c3185a5f882198be2a378"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 9.06,
+          "maxDD": 12.13,
+          "retDdRatio": 0.75,
+          "trades": 231,
+          "winRate": 24.7,
+          "profitFactor": 1.49,
+          "expectancy": 3.92,
+          "sharpeRatio": 0.27,
+          "cagr": 1.46,
+          "avgConcurrent": 3.18,
+          "percentTimeInMarket": 39.62,
+          "return2022": -1.01
+        },
+        "d2": {
+          "totalReturn": 23.34,
+          "maxDD": 10.7,
+          "retDdRatio": 2.18,
+          "trades": 175,
+          "winRate": 29.7,
+          "profitFactor": 2.62,
+          "expectancy": 13.34,
+          "sharpeRatio": 0.52,
+          "cagr": 3.56,
+          "avgConcurrent": 2.84,
+          "percentTimeInMarket": 37.87,
+          "return2022": -0.89
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 5.47,
+          "maxDD": 7.06,
+          "retDdRatio": 0.77,
+          "trades": 122,
+          "winRate": 24.6,
+          "profitFactor": 1.56,
+          "expectancy": 4.48,
+          "sharpeRatio": 0.26,
+          "cagr": 0.89,
+          "avgConcurrent": 2.35,
+          "percentTimeInMarket": 35.03,
+          "return2022": -0.11
+        },
+        "d2": {
+          "totalReturn": 11.05,
+          "maxDD": 7.18,
+          "retDdRatio": 1.54,
+          "trades": 98,
+          "winRate": 26.5,
+          "profitFactor": 2.4,
+          "expectancy": 11.28,
+          "sharpeRatio": 0.46,
+          "cagr": 1.76,
+          "avgConcurrent": 2.36,
+          "percentTimeInMarket": 34.4,
+          "return2022": -0.01
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 9.49,
+          "maxDD": 8.73,
+          "retDdRatio": 1.09,
+          "trades": 162,
+          "winRate": 26.5,
+          "profitFactor": 1.77,
+          "expectancy": 5.86,
+          "sharpeRatio": 0.34,
+          "cagr": 1.52,
+          "avgConcurrent": 2.57,
+          "percentTimeInMarket": 37.94,
+          "return2022": -0.8
+        },
+        "d2": {
+          "totalReturn": 17.95,
+          "maxDD": 8.94,
+          "retDdRatio": 2.01,
+          "trades": 131,
+          "winRate": 29.8,
+          "profitFactor": 2.82,
+          "expectancy": 13.71,
+          "sharpeRatio": 0.51,
+          "cagr": 2.79,
+          "avgConcurrent": 2.47,
+          "percentTimeInMarket": 36.44,
+          "return2022": -0.74
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 46.92,
+          "maxDD": 15.63,
+          "retDdRatio": 3,
+          "trades": 495,
+          "return2022": -6.59
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 168.06,
+          "maxDD": 68.91,
+          "retDdRatio": 2.44,
+          "trades": 1,
+          "return2022": -55.14
+        }
+      },
+      "null1l": {
+        "meanReturn": 8.62,
+        "stdReturn": 4.85,
+        "p75": 11.76,
+        "p90": 15.55,
+        "c1lPercentile": 58
+      },
+      "null2l": {
+        "meanReturn": 3.13,
+        "stdReturn": 16.52,
+        "p75": 4.47,
+        "p90": 15.22,
+        "c1lPercentile": 84.5
+      },
+      "yearly": {
+        "2020": {
+          "returnPercent": -0.87,
+          "maxDDPercent": 1.96
+        },
+        "2021": {
+          "returnPercent": -0.84,
+          "maxDDPercent": 4.11
+        },
+        "2022": {
+          "returnPercent": -1.01,
+          "maxDDPercent": 4.12
+        },
+        "2023": {
+          "returnPercent": -0.39,
+          "maxDDPercent": 4.51
+        },
+        "2024": {
+          "returnPercent": 5.48,
+          "maxDDPercent": 10.31
+        },
+        "2025": {
+          "returnPercent": -0.66,
+          "maxDDPercent": 4.31
+        },
+        "2026": {
+          "returnPercent": 7.38,
+          "maxDDPercent": 5.42
+        }
+      }
+    },
+    {
+      "key": "SOL 1h",
+      "symbol": "SOL",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 45670,
+        "firstTimestamp": 1628071200000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "18d3c383415f9e08c6f4b08e99b0361704f14446f8ebdad363ab7aa22a02ef12"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 82.2,
+          "maxDD": 37.79,
+          "retDdRatio": 2.18,
+          "trades": 449,
+          "winRate": 22.9,
+          "profitFactor": 2.88,
+          "expectancy": 18.31,
+          "sharpeRatio": 0.68,
+          "cagr": 12.2,
+          "avgConcurrent": 3.65,
+          "percentTimeInMarket": 39.9,
+          "return2022": -4.69
+        },
+        "d2": {
+          "totalReturn": 42.28,
+          "maxDD": 28.1,
+          "retDdRatio": 1.5,
+          "trades": 413,
+          "winRate": 23.2,
+          "profitFactor": 2.21,
+          "expectancy": 10.24,
+          "sharpeRatio": 0.56,
+          "cagr": 7,
+          "avgConcurrent": 3.64,
+          "percentTimeInMarket": 35.13,
+          "return2022": -6.12
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 44.86,
+          "maxDD": 27.33,
+          "retDdRatio": 1.64,
+          "trades": 212,
+          "winRate": 23.6,
+          "profitFactor": 3.53,
+          "expectancy": 21.16,
+          "sharpeRatio": 0.63,
+          "cagr": 7.37,
+          "avgConcurrent": 2.37,
+          "percentTimeInMarket": 34.83,
+          "return2022": -2.4
+        },
+        "d2": {
+          "totalReturn": 27.6,
+          "maxDD": 19.03,
+          "retDdRatio": 1.45,
+          "trades": 209,
+          "winRate": 22.5,
+          "profitFactor": 2.56,
+          "expectancy": 13.21,
+          "sharpeRatio": 0.6,
+          "cagr": 4.79,
+          "avgConcurrent": 2.44,
+          "percentTimeInMarket": 30.11,
+          "return2022": -2.64
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 75.78,
+          "maxDD": 35.56,
+          "retDdRatio": 2.13,
+          "trades": 335,
+          "winRate": 23.3,
+          "profitFactor": 3.35,
+          "expectancy": 22.62,
+          "sharpeRatio": 0.69,
+          "cagr": 11.44,
+          "avgConcurrent": 3,
+          "percentTimeInMarket": 38.68,
+          "return2022": -2.59
+        },
+        "d2": {
+          "totalReturn": 42.36,
+          "maxDD": 25.93,
+          "retDdRatio": 1.63,
+          "trades": 324,
+          "winRate": 22.8,
+          "profitFactor": 2.54,
+          "expectancy": 13.07,
+          "sharpeRatio": 0.6,
+          "cagr": 7.01,
+          "avgConcurrent": 3.04,
+          "percentTimeInMarket": 34.63,
+          "return2022": -3.92
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 122.53,
+          "maxDD": 12.42,
+          "retDdRatio": 9.87,
+          "trades": 487,
+          "return2022": -6.58
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 61.82,
+          "maxDD": 74,
+          "retDdRatio": 0.84,
+          "trades": 1,
+          "return2022": -64.45
+        }
+      },
+      "null1l": {
+        "meanReturn": 62.67,
+        "stdReturn": 19.52,
+        "p75": 78.15,
+        "p90": 87.58,
+        "c1lPercentile": 81.5
+      },
+      "null2l": {
+        "meanReturn": 5.45,
+        "stdReturn": 38.85,
+        "p75": 11.8,
+        "p90": 36.91,
+        "c1lPercentile": 96.5
+      }
+    },
+    {
+      "key": "SOL 4h",
+      "symbol": "SOL",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 11418,
+        "firstTimestamp": 1628064000000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "71705ca1cf72f2d66006f6fe1aa0f35b757bf0255be6541aff21a15a09b8a8b2"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 2.76,
+          "maxDD": 14.99,
+          "retDdRatio": 0.18,
+          "trades": 202,
+          "winRate": 14.4,
+          "profitFactor": 1.15,
+          "expectancy": 1.37,
+          "sharpeRatio": 0.13,
+          "cagr": 0.52,
+          "avgConcurrent": 2.14,
+          "percentTimeInMarket": 27.75,
+          "return2022": -1.52
+        },
+        "d2": {
+          "totalReturn": 1.94,
+          "maxDD": 11.42,
+          "retDdRatio": 0.17,
+          "trades": 174,
+          "winRate": 17.2,
+          "profitFactor": 1.13,
+          "expectancy": 1.12,
+          "sharpeRatio": 0.11,
+          "cagr": 0.37,
+          "avgConcurrent": 2.25,
+          "percentTimeInMarket": 22.48,
+          "return2022": -1.3
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 8.83,
+          "maxDD": 12.67,
+          "retDdRatio": 0.7,
+          "trades": 95,
+          "winRate": 13.7,
+          "profitFactor": 1.97,
+          "expectancy": 9.3,
+          "sharpeRatio": 0.38,
+          "cagr": 1.64,
+          "avgConcurrent": 1.49,
+          "percentTimeInMarket": 24.4,
+          "return2022": -1.11
+        },
+        "d2": {
+          "totalReturn": 4.67,
+          "maxDD": 8.6,
+          "retDdRatio": 0.54,
+          "trades": 88,
+          "winRate": 19.3,
+          "profitFactor": 1.61,
+          "expectancy": 5.31,
+          "sharpeRatio": 0.27,
+          "cagr": 0.88,
+          "avgConcurrent": 1.57,
+          "percentTimeInMarket": 18.23,
+          "return2022": -1.11
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 5.76,
+          "maxDD": 13.8,
+          "retDdRatio": 0.42,
+          "trades": 144,
+          "winRate": 11.8,
+          "profitFactor": 1.44,
+          "expectancy": 4,
+          "sharpeRatio": 0.25,
+          "cagr": 1.08,
+          "avgConcurrent": 1.77,
+          "percentTimeInMarket": 25.97,
+          "return2022": -1.27
+        },
+        "d2": {
+          "totalReturn": 4.48,
+          "maxDD": 9.96,
+          "retDdRatio": 0.45,
+          "trades": 123,
+          "winRate": 17.1,
+          "profitFactor": 1.43,
+          "expectancy": 3.64,
+          "sharpeRatio": 0.25,
+          "cagr": 0.84,
+          "avgConcurrent": 1.77,
+          "percentTimeInMarket": 20.81,
+          "return2022": -1.27
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 70.08,
+          "maxDD": 15.88,
+          "retDdRatio": 4.41,
+          "trades": 376,
+          "return2022": -12.15
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 61.14,
+          "maxDD": 73.72,
+          "retDdRatio": 0.83,
+          "trades": 1,
+          "return2022": -64.37
+        }
+      },
+      "null1l": {
+        "meanReturn": 22.34,
+        "stdReturn": 15.68,
+        "p75": 32.35,
+        "p90": 43.76,
+        "c1lPercentile": 7
+      },
+      "null2l": {
+        "meanReturn": 0.44,
+        "stdReturn": 6.93,
+        "p75": 2.63,
+        "p90": 7.57,
+        "c1lPercentile": 76.5
+      }
+    },
+    {
+      "key": "BNB 1h",
+      "symbol": "BNB",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "75d0681231b54473a6d8f63f1637b4892fa3dd3a93ba6f8165b6653a01cea030"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 58.23,
+          "maxDD": 25.31,
+          "retDdRatio": 2.3,
+          "trades": 556,
+          "winRate": 26.8,
+          "profitFactor": 2.08,
+          "expectancy": 10.47,
+          "sharpeRatio": 0.5,
+          "cagr": 7.95,
+          "avgConcurrent": 4.23,
+          "percentTimeInMarket": 54.96,
+          "return2022": -3.55
+        },
+        "d2": {
+          "totalReturn": 23.92,
+          "maxDD": 21.45,
+          "retDdRatio": 1.12,
+          "trades": 498,
+          "winRate": 25.5,
+          "profitFactor": 1.57,
+          "expectancy": 4.8,
+          "sharpeRatio": 0.35,
+          "cagr": 3.64,
+          "avgConcurrent": 4.1,
+          "percentTimeInMarket": 51.95,
+          "return2022": -2.62
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 12.98,
+          "maxDD": 10.36,
+          "retDdRatio": 1.25,
+          "trades": 308,
+          "winRate": 25,
+          "profitFactor": 1.59,
+          "expectancy": 4.22,
+          "sharpeRatio": 0.32,
+          "cagr": 2.06,
+          "avgConcurrent": 2.94,
+          "percentTimeInMarket": 48.56,
+          "return2022": -1.97
+        },
+        "d2": {
+          "totalReturn": 16.13,
+          "maxDD": 9.36,
+          "retDdRatio": 1.72,
+          "trades": 267,
+          "winRate": 30,
+          "profitFactor": 1.88,
+          "expectancy": 6.04,
+          "sharpeRatio": 0.42,
+          "cagr": 2.52,
+          "avgConcurrent": 3.18,
+          "percentTimeInMarket": 48.37,
+          "return2022": -0.59
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 46.99,
+          "maxDD": 23.76,
+          "retDdRatio": 1.98,
+          "trades": 471,
+          "winRate": 25.3,
+          "profitFactor": 2.06,
+          "expectancy": 9.98,
+          "sharpeRatio": 0.47,
+          "cagr": 6.63,
+          "avgConcurrent": 3.89,
+          "percentTimeInMarket": 53.99,
+          "return2022": -3.22
+        },
+        "d2": {
+          "totalReturn": 18.61,
+          "maxDD": 16.56,
+          "retDdRatio": 1.12,
+          "trades": 401,
+          "winRate": 26.7,
+          "profitFactor": 1.61,
+          "expectancy": 4.64,
+          "sharpeRatio": 0.35,
+          "cagr": 2.89,
+          "avgConcurrent": 3.65,
+          "percentTimeInMarket": 51.33,
+          "return2022": -2.41
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 76.79,
+          "maxDD": 18.25,
+          "retDdRatio": 4.21,
+          "trades": 693,
+          "return2022": -5.88
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 696.91,
+          "maxDD": 65.8,
+          "retDdRatio": 10.59,
+          "trades": 1,
+          "return2022": -46.15
+        }
+      },
+      "null1l": {
+        "meanReturn": 74.6,
+        "stdReturn": 22.24,
+        "p75": 91.36,
+        "p90": 104.67,
+        "c1lPercentile": 25.5
+      },
+      "null2l": {
+        "meanReturn": 56.56,
+        "stdReturn": 146.37,
+        "p75": 55.7,
+        "p90": 118.19,
+        "c1lPercentile": 75.5
+      }
+    },
+    {
+      "key": "BNB 4h",
+      "symbol": "BNB",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "140c9689a12f141a7ea37142c39fda269eb63c363b2f91484f69bcc6cc0e68a3"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 12.16,
+          "maxDD": 11.65,
+          "retDdRatio": 1.04,
+          "trades": 215,
+          "winRate": 27.4,
+          "profitFactor": 1.73,
+          "expectancy": 5.66,
+          "sharpeRatio": 0.32,
+          "cagr": 1.93,
+          "avgConcurrent": 2.53,
+          "percentTimeInMarket": 40.89,
+          "return2022": -1.51
+        },
+        "d2": {
+          "totalReturn": -2.68,
+          "maxDD": 8.62,
+          "retDdRatio": -0.31,
+          "trades": 181,
+          "winRate": 23.2,
+          "profitFactor": 0.8,
+          "expectancy": -1.48,
+          "sharpeRatio": -0.12,
+          "cagr": -0.45,
+          "avgConcurrent": 2.7,
+          "percentTimeInMarket": 34.08,
+          "return2022": -0.93
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 1.82,
+          "maxDD": 6.18,
+          "retDdRatio": 0.29,
+          "trades": 109,
+          "winRate": 26.6,
+          "profitFactor": 1.25,
+          "expectancy": 1.67,
+          "sharpeRatio": 0.11,
+          "cagr": 0.3,
+          "avgConcurrent": 1.84,
+          "percentTimeInMarket": 25.41,
+          "return2022": -0.41
+        },
+        "d2": {
+          "totalReturn": -0.77,
+          "maxDD": 5.28,
+          "retDdRatio": -0.15,
+          "trades": 88,
+          "winRate": 22.7,
+          "profitFactor": 0.88,
+          "expectancy": -0.87,
+          "sharpeRatio": -0.06,
+          "cagr": -0.13,
+          "avgConcurrent": 1.93,
+          "percentTimeInMarket": 24.68,
+          "return2022": 0.14
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 1.01,
+          "maxDD": 7.71,
+          "retDdRatio": 0.13,
+          "trades": 155,
+          "winRate": 25.8,
+          "profitFactor": 1.09,
+          "expectancy": 0.65,
+          "sharpeRatio": 0.06,
+          "cagr": 0.17,
+          "avgConcurrent": 2.1,
+          "percentTimeInMarket": 31.04,
+          "return2022": -1.24
+        },
+        "d2": {
+          "totalReturn": -3.13,
+          "maxDD": 7.01,
+          "retDdRatio": -0.45,
+          "trades": 125,
+          "winRate": 20.8,
+          "profitFactor": 0.68,
+          "expectancy": -2.5,
+          "sharpeRatio": -0.24,
+          "cagr": -0.53,
+          "avgConcurrent": 2.05,
+          "percentTimeInMarket": 27.57,
+          "return2022": -0.42
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 93.44,
+          "maxDD": 22.85,
+          "retDdRatio": 4.09,
+          "trades": 516,
+          "return2022": -6.74
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 699,
+          "maxDD": 65.73,
+          "retDdRatio": 10.63,
+          "trades": 1,
+          "return2022": -46.23
+        }
+      },
+      "null1l": {
+        "meanReturn": 18.4,
+        "stdReturn": 10.33,
+        "p75": 25.64,
+        "p90": 32.78,
+        "c1lPercentile": 32
+      },
+      "null2l": {
+        "meanReturn": 13.85,
+        "stdReturn": 37.72,
+        "p75": 14.74,
+        "p90": 37.27,
+        "c1lPercentile": 72.5
+      }
+    },
+    {
+      "key": "XRP 1h",
+      "symbol": "XRP",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "7d6ec29112da718478c8938427fffd6180312a5c0df024886d89678d5e30a438"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 28.24,
+          "maxDD": 22.13,
+          "retDdRatio": 1.28,
+          "trades": 538,
+          "winRate": 23.1,
+          "profitFactor": 1.67,
+          "expectancy": 5.25,
+          "sharpeRatio": 0.4,
+          "cagr": 4.23,
+          "avgConcurrent": 3.48,
+          "percentTimeInMarket": 30.72,
+          "return2022": -5.43
+        },
+        "d2": {
+          "totalReturn": 8.4,
+          "maxDD": 10.62,
+          "retDdRatio": 0.79,
+          "trades": 400,
+          "winRate": 23.8,
+          "profitFactor": 1.3,
+          "expectancy": 2.1,
+          "sharpeRatio": 0.19,
+          "cagr": 1.35,
+          "avgConcurrent": 3.1,
+          "percentTimeInMarket": 30.03,
+          "return2022": -4.08
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 21.73,
+          "maxDD": 13.76,
+          "retDdRatio": 1.58,
+          "trades": 262,
+          "winRate": 25.6,
+          "profitFactor": 2.17,
+          "expectancy": 8.29,
+          "sharpeRatio": 0.45,
+          "cagr": 3.33,
+          "avgConcurrent": 2.57,
+          "percentTimeInMarket": 25.44,
+          "return2022": -1.72
+        },
+        "d2": {
+          "totalReturn": 2.55,
+          "maxDD": 6.37,
+          "retDdRatio": 0.4,
+          "trades": 189,
+          "winRate": 23.8,
+          "profitFactor": 1.18,
+          "expectancy": 1.35,
+          "sharpeRatio": 0.11,
+          "cagr": 0.42,
+          "avgConcurrent": 2.28,
+          "percentTimeInMarket": 23.33,
+          "return2022": -1.7
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 24.99,
+          "maxDD": 17.9,
+          "retDdRatio": 1.4,
+          "trades": 415,
+          "winRate": 25.1,
+          "profitFactor": 1.78,
+          "expectancy": 6.02,
+          "sharpeRatio": 0.41,
+          "cagr": 3.79,
+          "avgConcurrent": 3.06,
+          "percentTimeInMarket": 29.54,
+          "return2022": -3.5
+        },
+        "d2": {
+          "totalReturn": 5.39,
+          "maxDD": 8.37,
+          "retDdRatio": 0.64,
+          "trades": 309,
+          "winRate": 24,
+          "profitFactor": 1.24,
+          "expectancy": 1.74,
+          "sharpeRatio": 0.15,
+          "cagr": 0.88,
+          "avgConcurrent": 2.65,
+          "percentTimeInMarket": 27.62,
+          "return2022": -3.16
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 142.04,
+          "maxDD": 32.07,
+          "retDdRatio": 4.43,
+          "trades": 563,
+          "return2022": -10.34
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 127.27,
+          "maxDD": 65.36,
+          "retDdRatio": 1.95,
+          "trades": 1,
+          "return2022": -35.34
+        }
+      },
+      "null1l": {
+        "meanReturn": 37.26,
+        "stdReturn": 16.18,
+        "p75": 49.7,
+        "p90": 59.86,
+        "c1lPercentile": 33.5
+      },
+      "null2l": {
+        "meanReturn": -1.26,
+        "stdReturn": 24.25,
+        "p75": 6.98,
+        "p90": 27.03,
+        "c1lPercentile": 91
+      }
+    },
+    {
+      "key": "XRP 4h",
+      "symbol": "XRP",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "2bcea9b48414df1e76b87bc50ddbe449296c536b464b5ad24d42d48695e471d2"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 11.72,
+          "maxDD": 11.05,
+          "retDdRatio": 1.06,
+          "trades": 159,
+          "winRate": 26.4,
+          "profitFactor": 1.94,
+          "expectancy": 7.37,
+          "sharpeRatio": 0.34,
+          "cagr": 1.86,
+          "avgConcurrent": 1.89,
+          "percentTimeInMarket": 21.55,
+          "return2022": -0.5
+        },
+        "d2": {
+          "totalReturn": 5.46,
+          "maxDD": 5.52,
+          "retDdRatio": 0.99,
+          "trades": 128,
+          "winRate": 26.6,
+          "profitFactor": 1.56,
+          "expectancy": 4.27,
+          "sharpeRatio": 0.29,
+          "cagr": 0.89,
+          "avgConcurrent": 1.91,
+          "percentTimeInMarket": 22.85,
+          "return2022": -0.91
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 6.93,
+          "maxDD": 7.11,
+          "retDdRatio": 0.97,
+          "trades": 72,
+          "winRate": 23.6,
+          "profitFactor": 2.39,
+          "expectancy": 9.62,
+          "sharpeRatio": 0.35,
+          "cagr": 1.12,
+          "avgConcurrent": 1.4,
+          "percentTimeInMarket": 14.17,
+          "return2022": 0.12
+        },
+        "d2": {
+          "totalReturn": 5.09,
+          "maxDD": 2.18,
+          "retDdRatio": 2.33,
+          "trades": 60,
+          "winRate": 30,
+          "profitFactor": 2.16,
+          "expectancy": 8.49,
+          "sharpeRatio": 0.36,
+          "cagr": 0.83,
+          "avgConcurrent": 1.5,
+          "percentTimeInMarket": 16.94,
+          "return2022": 0.2
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 8.7,
+          "maxDD": 11.3,
+          "retDdRatio": 0.77,
+          "trades": 108,
+          "winRate": 21.3,
+          "profitFactor": 1.99,
+          "expectancy": 8.06,
+          "sharpeRatio": 0.3,
+          "cagr": 1.4,
+          "avgConcurrent": 1.5,
+          "percentTimeInMarket": 15.85,
+          "return2022": -0.46
+        },
+        "d2": {
+          "totalReturn": 6.85,
+          "maxDD": 4.88,
+          "retDdRatio": 1.4,
+          "trades": 87,
+          "winRate": 26.4,
+          "profitFactor": 2,
+          "expectancy": 7.87,
+          "sharpeRatio": 0.39,
+          "cagr": 1.11,
+          "avgConcurrent": 1.63,
+          "percentTimeInMarket": 20.96,
+          "return2022": -0.22
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 175.49,
+          "maxDD": 26.94,
+          "retDdRatio": 6.51,
+          "trades": 417,
+          "return2022": -3.68
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 128.02,
+          "maxDD": 64.9,
+          "retDdRatio": 1.97,
+          "trades": 1,
+          "return2022": -35.46
+        }
+      },
+      "null1l": {
+        "meanReturn": 10.8,
+        "stdReturn": 9.58,
+        "p75": 16.85,
+        "p90": 23.42,
+        "c1lPercentile": 59.5
+      },
+      "null2l": {
+        "meanReturn": 0.06,
+        "stdReturn": 7.43,
+        "p75": 2.38,
+        "p90": 7.37,
+        "c1lPercentile": 96
+      }
+    },
+    {
+      "key": "ADA 1h",
+      "symbol": "ADA",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "3b90ab66df7ca0d13254370c88ee7276ddc248df304785ed2132a2037ca96d45"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": -0.71,
+          "maxDD": 13.3,
+          "retDdRatio": -0.05,
+          "trades": 593,
+          "winRate": 21.8,
+          "profitFactor": 0.98,
+          "expectancy": -0.12,
+          "sharpeRatio": 0.03,
+          "cagr": -0.12,
+          "avgConcurrent": 3.48,
+          "percentTimeInMarket": 30.04,
+          "return2022": -6.32
+        },
+        "d2": {
+          "totalReturn": 7.13,
+          "maxDD": 10.04,
+          "retDdRatio": 0.71,
+          "trades": 259,
+          "winRate": 25.9,
+          "profitFactor": 1.36,
+          "expectancy": 2.75,
+          "sharpeRatio": 0.22,
+          "cagr": 1.15,
+          "avgConcurrent": 2.68,
+          "percentTimeInMarket": 22.75,
+          "return2022": -1.48
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 2.79,
+          "maxDD": 9.87,
+          "retDdRatio": 0.28,
+          "trades": 265,
+          "winRate": 23,
+          "profitFactor": 1.15,
+          "expectancy": 1.05,
+          "sharpeRatio": 0.12,
+          "cagr": 0.46,
+          "avgConcurrent": 2.17,
+          "percentTimeInMarket": 24.26,
+          "return2022": -2.56
+        },
+        "d2": {
+          "totalReturn": 5.66,
+          "maxDD": 6.07,
+          "retDdRatio": 0.93,
+          "trades": 116,
+          "winRate": 26.7,
+          "profitFactor": 1.69,
+          "expectancy": 4.88,
+          "sharpeRatio": 0.28,
+          "cagr": 0.92,
+          "avgConcurrent": 1.72,
+          "percentTimeInMarket": 14.84,
+          "return2022": 0.06
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": -2.94,
+          "maxDD": 12.91,
+          "retDdRatio": -0.23,
+          "trades": 441,
+          "winRate": 21.3,
+          "profitFactor": 0.91,
+          "expectancy": -0.67,
+          "sharpeRatio": -0.05,
+          "cagr": -0.5,
+          "avgConcurrent": 2.77,
+          "percentTimeInMarket": 28.89,
+          "return2022": -4.93
+        },
+        "d2": {
+          "totalReturn": 5.11,
+          "maxDD": 8.5,
+          "retDdRatio": 0.6,
+          "trades": 192,
+          "winRate": 25,
+          "profitFactor": 1.34,
+          "expectancy": 2.66,
+          "sharpeRatio": 0.2,
+          "cagr": 0.83,
+          "avgConcurrent": 2.15,
+          "percentTimeInMarket": 21.64,
+          "return2022": -0.57
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 102.88,
+          "maxDD": 17.37,
+          "retDdRatio": 5.92,
+          "trades": 574,
+          "return2022": 15.86
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 28.86,
+          "maxDD": 88.17,
+          "retDdRatio": 0.33,
+          "trades": 1,
+          "return2022": -68.29
+        }
+      },
+      "null1l": {
+        "meanReturn": 27.95,
+        "stdReturn": 10.48,
+        "p75": 34.44,
+        "p90": 41.9,
+        "c1lPercentile": 0
+      },
+      "null2l": {
+        "meanReturn": -2.71,
+        "stdReturn": 19.34,
+        "p75": 7.95,
+        "p90": 20.88,
+        "c1lPercentile": 60.5
+      }
+    },
+    {
+      "key": "ADA 4h",
+      "symbol": "ADA",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "1b0698cf91f38386dcb13656d894acea6a167409f5d792cd612e81455b8a41fc"
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 20.82,
+          "maxDD": 13.14,
+          "retDdRatio": 1.58,
+          "trades": 178,
+          "winRate": 25.8,
+          "profitFactor": 2.48,
+          "expectancy": 11.7,
+          "sharpeRatio": 0.49,
+          "cagr": 3.2,
+          "avgConcurrent": 2.51,
+          "percentTimeInMarket": 21.07,
+          "return2022": -0.72
+        },
+        "d2": {
+          "totalReturn": 4.14,
+          "maxDD": 7.87,
+          "retDdRatio": 0.53,
+          "trades": 75,
+          "winRate": 21.3,
+          "profitFactor": 1.67,
+          "expectancy": 5.52,
+          "sharpeRatio": 0.25,
+          "cagr": 0.68,
+          "avgConcurrent": 1.51,
+          "percentTimeInMarket": 8.98,
+          "return2022": -0.05
+        }
+      },
+      "f3l": {
+        "real": {
+          "totalReturn": 15.99,
+          "maxDD": 10.29,
+          "retDdRatio": 1.55,
+          "trades": 95,
+          "winRate": 28.4,
+          "profitFactor": 3.25,
+          "expectancy": 16.83,
+          "sharpeRatio": 0.55,
+          "cagr": 2.5,
+          "avgConcurrent": 1.79,
+          "percentTimeInMarket": 18.14,
+          "return2022": 0.12
+        },
+        "d2": {
+          "totalReturn": 1.54,
+          "maxDD": 4.11,
+          "retDdRatio": 0.37,
+          "trades": 41,
+          "winRate": 19.5,
+          "profitFactor": 1.49,
+          "expectancy": 3.77,
+          "sharpeRatio": 0.18,
+          "cagr": 0.26,
+          "avgConcurrent": 1.29,
+          "percentTimeInMarket": 7.18,
+          "return2022": -0.27
+        }
+      },
+      "f0l": {
+        "real": {
+          "totalReturn": 16.48,
+          "maxDD": 10.49,
+          "retDdRatio": 1.57,
+          "trades": 130,
+          "winRate": 25.4,
+          "profitFactor": 2.62,
+          "expectancy": 12.68,
+          "sharpeRatio": 0.5,
+          "cagr": 2.58,
+          "avgConcurrent": 1.97,
+          "percentTimeInMarket": 19.68,
+          "return2022": -0.62
+        },
+        "d2": {
+          "totalReturn": 1.27,
+          "maxDD": 4.8,
+          "retDdRatio": 0.26,
+          "trades": 57,
+          "winRate": 19.3,
+          "profitFactor": 1.25,
+          "expectancy": 2.22,
+          "sharpeRatio": 0.12,
+          "cagr": 0.21,
+          "avgConcurrent": 1.39,
+          "percentTimeInMarket": 8.18,
+          "return2022": -0.14
+        }
+      },
+      "b4": {
+        "real": {
+          "totalReturn": 111.53,
+          "maxDD": 15.95,
+          "retDdRatio": 6.99,
+          "trades": 431,
+          "return2022": 11.39
+        }
+      },
+      "b1": {
+        "real": {
+          "totalReturn": 29.68,
+          "maxDD": 88.03,
+          "retDdRatio": 0.34,
+          "trades": 1,
+          "return2022": -68.34
+        }
+      },
+      "null1l": {
+        "meanReturn": 6.79,
+        "stdReturn": 5.87,
+        "p75": 11.2,
+        "p90": 15.28,
+        "c1lPercentile": 99.5
+      },
+      "null2l": {
+        "meanReturn": -1.02,
+        "stdReturn": 4.93,
+        "p75": 0.84,
+        "p90": 4.04,
+        "c1lPercentile": 99.5
+      }
+    }
+  ],
+  "concurrencySensitivity": [
+    {
+      "market": "BTC 15m",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 35.55,
+      "maxDD": 15.05,
+      "retDdRatio": 2.36
+    },
+    {
+      "market": "BTC 15m",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 35.55,
+      "maxDD": 15.05,
+      "retDdRatio": 2.36
+    },
+    {
+      "market": "BTC 15m",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 55.38,
+      "maxDD": 20.69,
+      "retDdRatio": 2.68
+    },
+    {
+      "market": "BTC 15m",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 58.05,
+      "maxDD": 20.69,
+      "retDdRatio": 2.81
+    },
+    {
+      "market": "BTC 15m",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 68.57,
+      "maxDD": 22.9,
+      "retDdRatio": 2.99
+    },
+    {
+      "market": "BTC 15m",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 104.76,
+      "maxDD": 26.37,
+      "retDdRatio": 3.97
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 26.75,
+      "maxDD": 14.79,
+      "retDdRatio": 1.81
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 26.75,
+      "maxDD": 14.79,
+      "retDdRatio": 1.81
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 38.65,
+      "maxDD": 15.05,
+      "retDdRatio": 2.57
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 38.3,
+      "maxDD": 15.08,
+      "retDdRatio": 2.54
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 42.19,
+      "maxDD": 15.22,
+      "retDdRatio": 2.77
+    },
+    {
+      "market": "BTC 1h",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 53.74,
+      "maxDD": 15.56,
+      "retDdRatio": 3.45
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 20.45,
+      "maxDD": 8,
+      "retDdRatio": 2.56
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 20.45,
+      "maxDD": 8,
+      "retDdRatio": 2.56
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 28.92,
+      "maxDD": 9.69,
+      "retDdRatio": 2.98
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 27.32,
+      "maxDD": 10.28,
+      "retDdRatio": 2.66
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 28.95,
+      "maxDD": 9.83,
+      "retDdRatio": 2.95
+    },
+    {
+      "market": "BTC 4h",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 27,
+      "maxDD": 10.73,
+      "retDdRatio": 2.52
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 20.17,
+      "maxDD": 8.07,
+      "retDdRatio": 2.5
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 20.17,
+      "maxDD": 8.07,
+      "retDdRatio": 2.5
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 34.2,
+      "maxDD": 11.75,
+      "retDdRatio": 2.91
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 33.94,
+      "maxDD": 11.91,
+      "retDdRatio": 2.85
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 43.84,
+      "maxDD": 13.47,
+      "retDdRatio": 3.25
+    },
+    {
+      "market": "ETH 15m",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 63.54,
+      "maxDD": 17.86,
+      "retDdRatio": 3.56
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 7.1,
+      "maxDD": 9.33,
+      "retDdRatio": 0.76
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 7.1,
+      "maxDD": 9.33,
+      "retDdRatio": 0.76
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 8.14,
+      "maxDD": 15.75,
+      "retDdRatio": 0.52
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 7.25,
+      "maxDD": 15.75,
+      "retDdRatio": 0.46
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 9.58,
+      "maxDD": 17.54,
+      "retDdRatio": 0.55
+    },
+    {
+      "market": "ETH 1h",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 13.63,
+      "maxDD": 21.62,
+      "retDdRatio": 0.63
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 3,
+      "maxExposure": 20,
+      "totalReturn": 6.61,
+      "maxDD": 5.46,
+      "retDdRatio": 1.21
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 3,
+      "maxExposure": 30,
+      "totalReturn": 6.61,
+      "maxDD": 5.46,
+      "retDdRatio": 1.21
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 5,
+      "maxExposure": 20,
+      "totalReturn": 5,
+      "maxDD": 8.12,
+      "retDdRatio": 0.62
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 5,
+      "maxExposure": 30,
+      "totalReturn": 5,
+      "maxDD": 8.12,
+      "retDdRatio": 0.62
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 10,
+      "maxExposure": 20,
+      "totalReturn": 6.16,
+      "maxDD": 9.13,
+      "retDdRatio": 0.67
+    },
+    {
+      "market": "ETH 4h",
+      "maxOpen": 10,
+      "maxExposure": 30,
+      "totalReturn": 9.06,
+      "maxDD": 12.13,
+      "retDdRatio": 0.75
+    }
+  ],
+  "sizeSensitivity": [
+    {
+      "market": "BTC 15m",
+      "sizePercent": 1,
+      "totalReturn": 32.89,
+      "maxDD": 12.72,
+      "retDdRatio": 2.59
+    },
+    {
+      "market": "BTC 15m",
+      "sizePercent": 2,
+      "totalReturn": 73.79,
+      "maxDD": 20.37,
+      "retDdRatio": 3.62
+    },
+    {
+      "market": "BTC 15m",
+      "sizePercent": 3,
+      "totalReturn": 104.76,
+      "maxDD": 26.37,
+      "retDdRatio": 3.97
+    },
+    {
+      "market": "BTC 1h",
+      "sizePercent": 1,
+      "totalReturn": 16.26,
+      "maxDD": 6.97,
+      "retDdRatio": 2.33
+    },
+    {
+      "market": "BTC 1h",
+      "sizePercent": 2,
+      "totalReturn": 34.91,
+      "maxDD": 12.53,
+      "retDdRatio": 2.79
+    },
+    {
+      "market": "BTC 1h",
+      "sizePercent": 3,
+      "totalReturn": 53.74,
+      "maxDD": 15.56,
+      "retDdRatio": 3.45
+    },
+    {
+      "market": "BTC 4h",
+      "sizePercent": 1,
+      "totalReturn": 8.6,
+      "maxDD": 4.61,
+      "retDdRatio": 1.87
+    },
+    {
+      "market": "BTC 4h",
+      "sizePercent": 2,
+      "totalReturn": 17.53,
+      "maxDD": 8.63,
+      "retDdRatio": 2.03
+    },
+    {
+      "market": "BTC 4h",
+      "sizePercent": 3,
+      "totalReturn": 27,
+      "maxDD": 10.73,
+      "retDdRatio": 2.52
+    },
+    {
+      "market": "ETH 15m",
+      "sizePercent": 1,
+      "totalReturn": 18.76,
+      "maxDD": 8.2,
+      "retDdRatio": 2.29
+    },
+    {
+      "market": "ETH 15m",
+      "sizePercent": 2,
+      "totalReturn": 39.72,
+      "maxDD": 14.68,
+      "retDdRatio": 2.71
+    },
+    {
+      "market": "ETH 15m",
+      "sizePercent": 3,
+      "totalReturn": 63.54,
+      "maxDD": 17.86,
+      "retDdRatio": 3.56
+    },
+    {
+      "market": "ETH 1h",
+      "sizePercent": 1,
+      "totalReturn": 4.64,
+      "maxDD": 8.42,
+      "retDdRatio": 0.55
+    },
+    {
+      "market": "ETH 1h",
+      "sizePercent": 2,
+      "totalReturn": 9.03,
+      "maxDD": 15.92,
+      "retDdRatio": 0.57
+    },
+    {
+      "market": "ETH 1h",
+      "sizePercent": 3,
+      "totalReturn": 13.63,
+      "maxDD": 21.62,
+      "retDdRatio": 0.63
+    },
+    {
+      "market": "ETH 4h",
+      "sizePercent": 1,
+      "totalReturn": 3.39,
+      "maxDD": 4.69,
+      "retDdRatio": 0.72
+    },
+    {
+      "market": "ETH 4h",
+      "sizePercent": 2,
+      "totalReturn": 6.73,
+      "maxDD": 8.91,
+      "retDdRatio": 0.76
+    },
+    {
+      "market": "ETH 4h",
+      "sizePercent": 3,
+      "totalReturn": 9.06,
+      "maxDD": 12.13,
+      "retDdRatio": 0.75
+    }
+  ],
+  "baselinesComparison": {
+    "c1l": {
+      "medianRet": 23.91,
+      "trimmedRet": 28.19,
+      "medianDD": 15.28,
+      "trimmedDD": 16.34,
+      "medianRetDd": 1.43,
+      "trimmedRetDd": 1.59
+    },
+    "f3l": {
+      "medianRet": 13.4,
+      "trimmedRet": 13.53,
+      "medianDD": 10.46,
+      "trimmedDD": 10.95,
+      "medianRetDd": 1.4,
+      "trimmedRetDd": 1.26
+    },
+    "f0l": {
+      "medianRet": 15.02,
+      "trimmedRet": 19.86,
+      "medianDD": 13.65,
+      "trimmedDD": 14.23,
+      "medianRetDd": 1.49,
+      "trimmedRetDd": 1.41
+    },
+    "b4": {
+      "medianRet": 73.44,
+      "trimmedRet": 70.69,
+      "medianDD": 19.98,
+      "trimmedDD": 20.23,
+      "medianRetDd": 4.15,
+      "trimmedRetDd": 3.64
+    },
+    "b1": {
+      "medianRet": 167.43,
+      "trimmedRet": 148.9,
+      "medianDD": 67.35,
+      "trimmedDD": 67.84,
+      "medianRetDd": 2.42,
+      "trimmedRetDd": 2.34
+    }
+  },
+  "criteria": {
+    "crit1_ReturnDD": false,
+    "crit2_D2Robustness": true,
+    "crit3_NullSignificance": false,
+    "crit4_DrawdownControl": false
+  },
+  "verdict": "REJECTED"
+}
