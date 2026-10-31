@@ -10,7 +10,6 @@ import type {
   Trade,
   ActivePosition,
   BacktestMetrics,
-  TrailingStopConfig,
   ExitMode,
   TradeSide,
   SignalFunnel,
@@ -22,6 +21,12 @@ export type PaperBook = 'A' | 'B';
 export interface PaperRunnerOptions {
   dataDir?: string;
   initialBalance?: number;
+}
+
+export interface ForwardClock {
+  forwardStartTimestamp: number;
+  iso: string;
+  note: string;
 }
 
 export interface PaperMarketState {
@@ -36,6 +41,8 @@ export interface PaperMarketState {
   maxDrawdownPercent: number;
   isHalted: boolean;
   haltReason?: string | null;
+  haltedAt?: number | null;
+  forwardStartTimestamp?: number;
   lastProcessedTimestamp: number;
   openPositions: ActivePosition[];
   closedTrades: Trade[];
@@ -48,22 +55,12 @@ export interface BookSpec {
   book: PaperBook;
   name: string;
   strategyConfig: Partial<MultiTimeframeConfig>;
-  backtestConfig: {
-    positionSizePercent: number;
-    maxOpenPositions: number;
-    maxTotalExposurePercent: number;
-    trailingStop: TrailingStopConfig;
-    tradeFeePercent: number;
-    slippagePercent: number;
-    allowOppositePositions: boolean;
-    tradeMode: 'long-only';
-    exitMode: 'trailingOnly';
-  };
+  backtestConfig: Partial<BacktestConfig>;
 }
 
 export const BOOK_A_SPEC: BookSpec = {
   book: 'A',
-  name: 'F3 Long-Only',
+  name: 'F3 Active',
   strategyConfig: {
     htfMode: 'strict',
     entryMode: 'cross',
@@ -90,6 +87,8 @@ export const BOOK_A_SPEC: BookSpec = {
     },
     tradeFeePercent: 0.1,
     slippagePercent: 0.05,
+    entryFill: 'nextOpen',
+    entrySlippagePercent: 0.05,
     allowOppositePositions: true,
   },
 };
@@ -123,9 +122,63 @@ export const BOOK_B_SPEC: BookSpec = {
     },
     tradeFeePercent: 0.1,
     slippagePercent: 0.05,
+    entryFill: 'nextOpen',
+    entrySlippagePercent: 0.05,
     allowOppositePositions: true,
   },
 };
+
+/**
+ * Strategy wrapper that blocks new entry signals before the forward clock epoch,
+ * ensuring the paper trading account starts completely flat and in 100% cash
+ * at forwardStartTimestamp.
+ */
+export class StartGateStrategyWrapper implements Strategy {
+  readonly inner: Strategy;
+  readonly forwardStartTimestamp: number;
+
+  constructor(inner: Strategy, forwardStartTimestamp: number) {
+    this.inner = inner;
+    this.forwardStartTimestamp = forwardStartTimestamp;
+  }
+
+  get name(): string {
+    return `StartGate(${this.inner.name})`;
+  }
+
+  get description(): string {
+    return this.inner.description;
+  }
+
+  get requiredCandles(): number {
+    return this.inner.requiredCandles;
+  }
+
+  analyze(candles: readonly Candle[], index: number): TradeSignal {
+    const candle = candles[index];
+    if (this.forwardStartTimestamp > 0 && candle.timestamp < this.forwardStartTimestamp) {
+      return {
+        action: 'HOLD',
+        timestamp: candle.timestamp,
+        price: candle.close,
+        reason: 'StartGate active: warm-up entries suppressed',
+      };
+    }
+    return this.inner.analyze(candles, index);
+  }
+
+  exitSignal(
+    candles: readonly Candle[],
+    index: number,
+    side: TradeSide,
+    mode: ExitMode
+  ): boolean {
+    if (typeof this.inner.exitSignal === 'function') {
+      return this.inner.exitSignal(candles, index, side, mode);
+    }
+    return false;
+  }
+}
 
 /**
  * Strategy wrapper that blocks new entry signals if HALT circuit breaker is active,
@@ -198,25 +251,96 @@ export class PaperRunner {
     return path.join(this.dataDir, `HALT_${book}`);
   }
 
-  async isBookHalted(book: PaperBook): Promise<boolean> {
-    const haltPath = this.getHaltFilePath(book);
+  getForwardStartFilePath(): string {
+    return path.join(this.dataDir, 'forward_start.json');
+  }
+
+  async getForwardClock(): Promise<ForwardClock | null> {
+    const filePath = this.getForwardStartFilePath();
     try {
-      await fs.access(haltPath);
-      return true;
+      const raw = await fs.readFile(filePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (typeof parsed.forwardStartTimestamp === 'number') {
+        return parsed as ForwardClock;
+      }
+      return null;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  async triggerHalt(book: PaperBook, reason: string): Promise<void> {
+  async initForwardStart(timestamp?: number): Promise<ForwardClock> {
+    const existing = await this.getForwardClock();
+    if (existing) {
+      return existing; // Immutable: if exists, do not overwrite!
+    }
+    const ts = timestamp ?? Date.now();
+    const clock: ForwardClock = {
+      forwardStartTimestamp: ts,
+      iso: new Date(ts).toISOString(),
+      note: 'Immutable forward testing epoch',
+    };
+    const filePath = this.getForwardStartFilePath();
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(clock, null, 2) + '\n', 'utf-8');
+    return clock;
+  }
+
+  async getOrInitForwardStart(timestamp?: number): Promise<ForwardClock> {
+    const existing = await this.getForwardClock();
+    if (existing) {
+      return existing;
+    }
+    return this.initForwardStart(timestamp);
+  }
+
+  async isBookHalted(book: PaperBook): Promise<boolean> {
+    const haltInfo = await this.getHaltInfo(book);
+    return haltInfo.isHalted;
+  }
+
+  async getHaltInfo(book: PaperBook): Promise<{ isHalted: boolean; reason: string | null; haltedAt: number | null }> {
+    const haltPath = this.getHaltFilePath(book);
+    try {
+      const raw = await fs.readFile(haltPath, 'utf-8');
+      try {
+        const parsed = JSON.parse(raw);
+        return {
+          isHalted: true,
+          reason: parsed.reason ?? 'HALT circuit breaker active',
+          haltedAt: typeof parsed.haltedAt === 'number' ? parsed.haltedAt : null,
+        };
+      } catch {
+        const stat = await fs.stat(haltPath);
+        return {
+          isHalted: true,
+          reason: raw.trim() || 'HALT circuit breaker active',
+          haltedAt: stat.mtimeMs,
+        };
+      }
+    } catch {
+      return {
+        isHalted: false,
+        reason: null,
+        haltedAt: null,
+      };
+    }
+  }
+
+  async triggerHalt(book: PaperBook, reason: string, haltedAt?: number): Promise<void> {
     const haltPath = this.getHaltFilePath(book);
     await fs.mkdir(this.dataDir, { recursive: true });
-    const content = JSON.stringify({
-      book,
-      reason,
-      haltedAt: Date.now(),
-      iso: new Date().toISOString(),
-    }, null, 2);
+    const ts = haltedAt ?? Date.now();
+    const content = JSON.stringify(
+      {
+        book,
+        reason,
+        haltedAt: ts,
+        iso: new Date(ts).toISOString(),
+      },
+      null,
+      2
+    ) + '\n';
     await fs.writeFile(haltPath, content, 'utf-8');
   }
 
@@ -249,8 +373,8 @@ export class PaperRunner {
   async saveState(state: PaperMarketState): Promise<string> {
     const filePath = this.getStateFilePath(state.book, state.symbol, state.interval);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    const tempPath = `${filePath}.tmp.${Date.now()}`;
-    await fs.writeFile(tempPath, JSON.stringify(state, null, 2), 'utf-8');
+    const tempPath = `${filePath}.tmp`;
+    await fs.writeFile(tempPath, JSON.stringify(state, null, 2) + '\n', 'utf-8');
     await fs.rename(tempPath, filePath);
     return filePath;
   }
@@ -268,6 +392,7 @@ export class PaperRunner {
     htf4hCandles?: readonly Candle[];
     closePositionsAtEnd?: boolean;
     haltTimestamp?: number;
+    forwardStartTimestamp?: number;
   }): Promise<{ state: PaperMarketState; backtestResult: BacktestResult }> {
     const { book, symbol, interval, candles, htf1hCandles, htf4hCandles } = params;
     const closePositionsAtEnd = params.closePositionsAtEnd ?? false;
@@ -277,45 +402,66 @@ export class PaperRunner {
     }
 
     const spec = book === 'A' ? BOOK_A_SPEC : BOOK_B_SPEC;
-    const isHaltedOnDisk = await this.isBookHalted(book);
 
-    let haltTime = params.haltTimestamp;
-    if (isHaltedOnDisk && haltTime === undefined) {
-      try {
-        const haltStat = await fs.stat(this.getHaltFilePath(book));
-        haltTime = haltStat.mtimeMs;
-      } catch {
-        haltTime = 0;
+    // Resolve forwardStartTimestamp
+    let forwardStartTimestamp = params.forwardStartTimestamp;
+    if (forwardStartTimestamp === undefined) {
+      const clock = await this.getForwardClock();
+      if (clock) {
+        forwardStartTimestamp = clock.forwardStartTimestamp;
+      } else {
+        forwardStartTimestamp = 0;
       }
     }
 
-    // 1. Construct the shared strategy
+    // Resolve HALT status
+    let haltInfo = await this.getHaltInfo(book);
+    if (params.haltTimestamp !== undefined) {
+      haltInfo = {
+        isHalted: true,
+        reason: haltInfo.reason ?? 'Halted via parameter',
+        haltedAt: params.haltTimestamp,
+      };
+    }
+
+    // 1. Construct the raw strategy
     const rawStrategy = new MultiTimeframeStrategy({
       ...spec.strategyConfig,
       htf1hCandles,
       htf4hCandles,
     });
 
-    // 2. Wrap with HaltableStrategyWrapper if HALT applies
-    const strategy = new HaltableStrategyWrapper(rawStrategy, (t: number) => {
-      if (isHaltedOnDisk && haltTime !== undefined && t >= haltTime) {
-        return true;
+    // 2. Wrap with StartGateStrategyWrapper if forwardStartTimestamp is active
+    const startGatedStrategy =
+      forwardStartTimestamp > 0
+        ? new StartGateStrategyWrapper(rawStrategy, forwardStartTimestamp)
+        : rawStrategy;
+
+    // 3. Wrap with HaltableStrategyWrapper if HALT applies
+    const strategy = new HaltableStrategyWrapper(startGatedStrategy, (t: number) => {
+      if (haltInfo.isHalted) {
+        if (haltInfo.haltedAt === null || haltInfo.haltedAt === undefined) {
+          return true;
+        }
+        return t >= haltInfo.haltedAt;
       }
       return false;
     });
 
-    // 3. Run shared BacktestEngine
+    // 4. Run shared BacktestEngine with nextOpen entryFill
     const backtestConfig: BacktestConfig = {
       strategy,
       candles,
       initialBalance: this.initialBalance,
       closePositionsAtEnd,
       ...spec.backtestConfig,
+      entryFill: 'nextOpen',
+      entrySlippagePercent: 0.05,
     };
 
     const backtestResult = this.engine.run(backtestConfig);
 
-    // 4. Calculate peak equity and drawdown
+    // 5. Calculate peak equity and drawdown
     let peakEquity = this.initialBalance;
     for (const eq of backtestResult.equity) {
       if (eq > peakEquity) {
@@ -327,18 +473,21 @@ export class PaperRunner {
     const currentDrawdownPercent =
       peakEquity > 0 ? roundTo(((peakEquity - latestEquity) / peakEquity) * 100, 2) : 0;
 
-    // 5. Emergency circuit breaker check: DD >= 10.0%
-    let isHalted = isHaltedOnDisk;
-    let haltReason: string | null = null;
-    if (currentDrawdownPercent >= 10.0 && !isHaltedOnDisk) {
-      isHalted = true;
-      haltReason = `Drawdown reached ${currentDrawdownPercent}% >= 10.0% circuit breaker`;
-      await this.triggerHalt(book, haltReason);
-    } else if (isHaltedOnDisk) {
-      haltReason = 'Halted via HALT flag file';
+    const lastCandle = candles[candles.length - 1];
+
+    // 6. Emergency circuit breaker check: DD >= 10.0%
+    if (currentDrawdownPercent >= 10.0 && !haltInfo.isHalted) {
+      const haltReason = `Drawdown reached ${currentDrawdownPercent}% >= 10.0% circuit breaker`;
+      const haltedAt = lastCandle.timestamp;
+      haltInfo = {
+        isHalted: true,
+        reason: haltReason,
+        haltedAt,
+      };
+      await this.triggerHalt(book, haltReason, haltedAt);
     }
 
-    // 6. Compute cash balance
+    // 7. Compute cash balance
     const openPos = (backtestResult.openPositions ?? []).map((p) => ({
       ...p,
       symbol,
@@ -346,7 +495,6 @@ export class PaperRunner {
     const investedCost = openPos.reduce((sum, p) => sum + p.investedCost, 0);
     const cash = roundTo(latestEquity - investedCost, 2);
 
-    const lastCandle = candles[candles.length - 1];
     const state: PaperMarketState = {
       book,
       symbol,
@@ -357,17 +505,19 @@ export class PaperRunner {
       peakEquity: roundTo(peakEquity, 2),
       currentDrawdownPercent,
       maxDrawdownPercent: roundTo(backtestResult.metrics.maxDrawdownPercent, 2),
-      isHalted,
-      haltReason,
+      isHalted: haltInfo.isHalted,
+      haltReason: haltInfo.reason,
+      haltedAt: haltInfo.haltedAt,
+      forwardStartTimestamp: forwardStartTimestamp > 0 ? forwardStartTimestamp : undefined,
       lastProcessedTimestamp: lastCandle.timestamp,
       openPositions: openPos,
       closedTrades: backtestResult.trades,
       metrics: backtestResult.metrics,
       signalFunnel: backtestResult.signalFunnel,
-      updatedAt: Date.now(),
+      updatedAt: lastCandle.timestamp,
     };
 
-    // 7. Persist state
+    // 8. Persist state
     await this.saveState(state);
 
     return { state, backtestResult };

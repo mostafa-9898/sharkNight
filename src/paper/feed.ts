@@ -39,7 +39,7 @@ export class PaperDataFeed {
   private readonly sleepFn: (ms: number) => Promise<void>;
 
   constructor(options?: PaperFeedOptions) {
-    this.baseUrl = (options?.baseUrl ?? 'https://api.binance.com').replace(/\/+$/, '');
+    this.baseUrl = (options?.baseUrl ?? process.env.PAPER_BASE_URL ?? 'https://data-api.binance.vision').replace(/\/+$/, '');
     this.dataDir = options?.dataDir ?? path.resolve(process.cwd(), 'data/paper');
     this.fetchFn = options?.fetchFn ?? fetch;
     this.nowFn = options?.nowFn ?? Date.now;
@@ -106,7 +106,7 @@ export class PaperDataFeed {
     const lines = sorted.map((c) => JSON.stringify(c));
     const content = lines.length > 0 ? lines.join('\n') + '\n' : '';
 
-    const tempPath = `${filePath}.tmp.${Date.now()}`;
+    const tempPath = `${filePath}.tmp`;
     await fs.writeFile(tempPath, content, 'utf-8');
     await fs.rename(tempPath, filePath);
 
@@ -143,6 +143,13 @@ export class PaperDataFeed {
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         const response = await this.fetchFn(url);
+
+        if (response.status === 403 || response.status === 451) {
+          const body = await response.text().catch(() => '');
+          throw new Error(
+            `Binance HTTP ${response.status} (Access Denied / Geo-restricted): ${body || response.statusText}. Consider configuring PAPER_BASE_URL.`
+          );
+        }
 
         if (response.status === 429 || response.status >= 500) {
           const body = await response.text().catch(() => '');
@@ -258,19 +265,28 @@ export class PaperDataFeed {
   ): Promise<Candle[]> {
     const intervalMs = getIntervalMs(interval);
     const now = this.nowFn();
-    const targetMin = options?.minHistoricalCandles ?? 500;
+    const targetMin = options?.minHistoricalCandles ?? 1200;
 
     let candles = await this.loadLocalCandles(symbol, interval);
 
     // 1. Initial bootstrap if local storage is empty
     if (candles.length === 0) {
       try {
-        const fetched = await this.fetchRemoteKlines({
-          symbol,
-          interval,
-          limit: Math.min(targetMin, 1000),
-          endTime: now,
-        });
+        const fetched: Candle[] = [];
+        let beforeTime: number | undefined = now;
+        while (fetched.length < targetMin) {
+          const batchLimit = Math.min(1000, targetMin - fetched.length);
+          const batch = await this.fetchRemoteKlines({
+            symbol,
+            interval,
+            limit: batchLimit,
+            endTime: beforeTime,
+          });
+          if (batch.length === 0) break;
+          fetched.unshift(...batch);
+          beforeTime = batch[0].timestamp - 1;
+          if (batch.length < batchLimit) break;
+        }
         candles = deduplicateCandles(sortCandles(fetched));
       } catch (err) {
         // Fallback to local historical data cache if network is offline or blocked

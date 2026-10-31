@@ -47,6 +47,24 @@ export async function runPaperCycle(options?: PaperCliOptions): Promise<{
     }
   }
 
+  // Ensure immutable forward start clock exists
+  let forwardClock = await runner.getForwardClock();
+  if (!forwardClock) {
+    let latestTs = 0;
+    for (const candles of Object.values(candleMap)) {
+      if (candles.length > 0) {
+        const ts = candles[candles.length - 1].timestamp;
+        if (ts > latestTs) latestTs = ts;
+      }
+    }
+    forwardClock = await runner.initForwardStart(latestTs || Date.now());
+    if (verbose) {
+      console.log(
+        `[PaperTrading] Initialized immutable forward clock epoch at ${forwardClock.iso} (${forwardClock.forwardStartTimestamp})`
+      );
+    }
+  }
+
   // 2. Process Book A and Book B for each market
   for (const book of ['A', 'B'] as const) {
     for (const m of PAPER_MARKETS) {
