@@ -2078,7 +2078,8 @@
       "maxExposure": 20,
       "totalReturn": 35.55,
       "maxDD": 15.05,
-      "retDdRatio": 2.36
+      "retDdRatio": 2.36,
+      "avgConcurrent": 1.99
     },
     {
       "market": "BTC 15m",
@@ -2086,7 +2087,8 @@
       "maxExposure": 30,
       "totalReturn": 35.55,
       "maxDD": 15.05,
-      "retDdRatio": 2.36
+      "retDdRatio": 2.36,
+      "avgConcurrent": 1.99
     },
     {
       "market": "BTC 15m",
@@ -2094,7 +2096,8 @@
       "maxExposure": 20,
       "totalReturn": 55.38,
       "maxDD": 20.69,
-      "retDdRatio": 2.68
+      "retDdRatio": 2.68,
+      "avgConcurrent": 2.91
     },
     {
       "market": "BTC 15m",
@@ -2102,7 +2105,8 @@
       "maxExposure": 30,
       "totalReturn": 58.05,
       "maxDD": 20.69,
-      "retDdRatio": 2.81
+      "retDdRatio": 2.81,
+      "avgConcurrent": 3.04
     },
     {
       "market": "BTC 15m",
@@ -2110,7 +2114,8 @@
       "maxExposure": 20,
       "totalReturn": 68.57,
       "maxDD": 22.9,
-      "retDdRatio": 2.99
+      "retDdRatio": 2.99,
+      "avgConcurrent": 3.33
     },
     {
       "market": "BTC 15m",
@@ -2118,7 +2123,8 @@
       "maxExposure": 30,
       "totalReturn": 104.76,
       "maxDD": 26.37,
-      "retDdRatio": 3.97
+      "retDdRatio": 3.97,
+      "avgConcurrent": 4.52
     },
     {
       "market": "BTC 1h",
@@ -2126,7 +2132,8 @@
       "maxExposure": 20,
       "totalReturn": 26.75,
       "maxDD": 14.79,
-      "retDdRatio": 1.81
+      "retDdRatio": 1.81,
+      "avgConcurrent": 1.93
     },
     {
       "market": "BTC 1h",
@@ -2134,7 +2141,8 @@
       "maxExposure": 30,
       "totalReturn": 26.75,
       "maxDD": 14.79,
-      "retDdRatio": 1.81
+      "retDdRatio": 1.81,
+      "avgConcurrent": 1.93
     },
     {
       "market": "BTC 1h",
@@ -2142,7 +2150,8 @@
       "maxExposure": 20,
       "totalReturn": 38.65,
       "maxDD": 15.05,
-      "retDdRatio": 2.57
+      "retDdRatio": 2.57,
+      "avgConcurrent": 2.8
     },
     {
       "market": "BTC 1h",
@@ -2150,7 +2159,8 @@
       "maxExposure": 30,
       "totalReturn": 38.3,
       "maxDD": 15.08,
-      "retDdRatio": 2.54
+      "retDdRatio": 2.54,
+      "avgConcurrent": 2.85
     },
     {
       "market": "BTC 1h",
@@ -2158,7 +2168,8 @@
       "maxExposure": 20,
       "totalReturn": 42.19,
       "maxDD": 15.22,
-      "retDdRatio": 2.77
+      "retDdRatio": 2.77,
+      "avgConcurrent": 3.16
     },
     {
       "market": "BTC 1h",
@@ -2166,7 +2177,8 @@
       "maxExposure": 30,
       "totalReturn": 53.74,
       "maxDD": 15.56,
-      "retDdRatio": 3.45
+      "retDdRatio": 3.45,
+      "avgConcurrent": 4.3
     },
     {
       "market": "BTC 4h",
@@ -2174,7 +2186,8 @@
       "maxExposure": 20,
       "totalReturn": 20.45,
       "maxDD": 8,
-      "retDdRatio": 2.56
+      "retDdRatio": 2.56,
+      "avgConcurrent": 2.03
     },
     {
       "market": "BTC 4h",
@@ -2182,7 +2195,8 @@
       "maxExposure": 30,
       "totalReturn": 20.45,
       "maxDD": 8,
-      "retDdRatio": 2.56
+      "retDdRatio": 2.56,
+      "avgConcurrent": 2.03
     },
     {
       "market": "BTC 4h",
@@ -2190,7 +2204,8 @@
       "maxExposure": 20,
       "totalReturn": 28.92,
       "maxDD": 9.69,
-      "retDdRatio": 2.98
+      "retDdRatio": 2.98,
+      "avgConcurrent": 2.56
     },
     {
       "market": "BTC 4h",
@@ -2198,7 +2213,8 @@
       "maxExposure": 30,
       "totalReturn": 27.32,
       "maxDD": 10.28,
-      "retDdRatio": 2.66
+      "retDdRatio": 2.66,
+      "avgConcurrent": 2.79
     },
     {
       "market": "BTC 4h",
@@ -2206,7 +2222,8 @@
       "maxExposure": 20,
       "totalReturn": 28.95,
       "maxDD": 9.83,
-      "retDdRatio": 2.95
+      "retDdRatio": 2.95,
+      "avgConcurrent": 2.64
     },
     {
       "market": "BTC 4h",
@@ -2214,7 +2231,8 @@
       "maxExposure": 30,
       "totalReturn": 27,
       "maxDD": 10.73,
-      "retDdRatio": 2.52
+      "retDdRatio": 2.52,
+      "avgConcurrent": 3.51
     },
     {
       "market": "ETH 15m",
@@ -2222,7 +2240,8 @@
       "maxExposure": 20,
       "totalReturn": 20.17,
       "maxDD": 8.07,
-      "retDdRatio": 2.5
+      "retDdRatio": 2.5,
+      "avgConcurrent": 1.99
     },
     {
       "market": "ETH 15m",
@@ -2230,7 +2249,8 @@
       "maxExposure": 30,
       "totalReturn": 20.17,
       "maxDD": 8.07,
-      "retDdRatio": 2.5
+      "retDdRatio": 2.5,
+      "avgConcurrent": 1.99
     },
     {
       "market": "ETH 15m",
@@ -2238,7 +2258,8 @@
       "maxExposure": 20,
       "totalReturn": 34.2,
       "maxDD": 11.75,
-      "retDdRatio": 2.91
+      "retDdRatio": 2.91,
+      "avgConcurrent": 2.92
     },
     {
       "market": "ETH 15m",
@@ -2246,7 +2267,8 @@
       "maxExposure": 30,
       "totalReturn": 33.94,
       "maxDD": 11.91,
-      "retDdRatio": 2.85
+      "retDdRatio": 2.85,
+      "avgConcurrent": 2.95
     },
     {
       "market": "ETH 15m",
@@ -2254,7 +2276,8 @@
       "maxExposure": 20,
       "totalReturn": 43.84,
       "maxDD": 13.47,
-      "retDdRatio": 3.25
+      "retDdRatio": 3.25,
+      "avgConcurrent": 3.31
     },
     {
       "market": "ETH 15m",
@@ -2262,7 +2285,8 @@
       "maxExposure": 30,
       "totalReturn": 63.54,
       "maxDD": 17.86,
-      "retDdRatio": 3.56
+      "retDdRatio": 3.56,
+      "avgConcurrent": 4.68
     },
     {
       "market": "ETH 1h",
@@ -2270,7 +2294,8 @@
       "maxExposure": 20,
       "totalReturn": 7.1,
       "maxDD": 9.33,
-      "retDdRatio": 0.76
+      "retDdRatio": 0.76,
+      "avgConcurrent": 1.98
     },
     {
       "market": "ETH 1h",
@@ -2278,7 +2303,8 @@
       "maxExposure": 30,
       "totalReturn": 7.1,
       "maxDD": 9.33,
-      "retDdRatio": 0.76
+      "retDdRatio": 0.76,
+      "avgConcurrent": 1.98
     },
     {
       "market": "ETH 1h",
@@ -2286,7 +2312,8 @@
       "maxExposure": 20,
       "totalReturn": 8.14,
       "maxDD": 15.75,
-      "retDdRatio": 0.52
+      "retDdRatio": 0.52,
+      "avgConcurrent": 2.84
     },
     {
       "market": "ETH 1h",
@@ -2294,7 +2321,8 @@
       "maxExposure": 30,
       "totalReturn": 7.25,
       "maxDD": 15.75,
-      "retDdRatio": 0.46
+      "retDdRatio": 0.46,
+      "avgConcurrent": 2.88
     },
     {
       "market": "ETH 1h",
@@ -2302,7 +2330,8 @@
       "maxExposure": 20,
       "totalReturn": 9.58,
       "maxDD": 17.54,
-      "retDdRatio": 0.55
+      "retDdRatio": 0.55,
+      "avgConcurrent": 3.1
     },
     {
       "market": "ETH 1h",
@@ -2310,7 +2339,8 @@
       "maxExposure": 30,
       "totalReturn": 13.63,
       "maxDD": 21.62,
-      "retDdRatio": 0.63
+      "retDdRatio": 0.63,
+      "avgConcurrent": 4.01
     },
     {
       "market": "ETH 4h",
@@ -2318,7 +2348,8 @@
       "maxExposure": 20,
       "totalReturn": 6.61,
       "maxDD": 5.46,
-      "retDdRatio": 1.21
+      "retDdRatio": 1.21,
+      "avgConcurrent": 1.95
     },
     {
       "market": "ETH 4h",
@@ -2326,7 +2357,8 @@
       "maxExposure": 30,
       "totalReturn": 6.61,
       "maxDD": 5.46,
-      "retDdRatio": 1.21
+      "retDdRatio": 1.21,
+      "avgConcurrent": 1.95
     },
     {
       "market": "ETH 4h",
@@ -2334,7 +2366,8 @@
       "maxExposure": 20,
       "totalReturn": 5,
       "maxDD": 8.12,
-      "retDdRatio": 0.62
+      "retDdRatio": 0.62,
+      "avgConcurrent": 2.67
     },
     {
       "market": "ETH 4h",
@@ -2342,7 +2375,8 @@
       "maxExposure": 30,
       "totalReturn": 5,
       "maxDD": 8.12,
-      "retDdRatio": 0.62
+      "retDdRatio": 0.62,
+      "avgConcurrent": 2.67
     },
     {
       "market": "ETH 4h",
@@ -2350,7 +2384,8 @@
       "maxExposure": 20,
       "totalReturn": 6.16,
       "maxDD": 9.13,
-      "retDdRatio": 0.67
+      "retDdRatio": 0.67,
+      "avgConcurrent": 2.8
     },
     {
       "market": "ETH 4h",
@@ -2358,7 +2393,8 @@
       "maxExposure": 30,
       "totalReturn": 9.06,
       "maxDD": 12.13,
-      "retDdRatio": 0.75
+      "retDdRatio": 0.75,
+      "avgConcurrent": 3.18
     }
   ],
   "sizeSensitivity": [

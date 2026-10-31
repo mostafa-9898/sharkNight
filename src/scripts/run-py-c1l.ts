@@ -198,6 +198,7 @@ export interface ConcurrencySensitivityResult {
   totalReturn: number;
   maxDD: number;
   retDdRatio: number;
+  avgConcurrent: number;
 }
 
 export interface SizeSensitivityResult {
@@ -425,6 +426,7 @@ export async function runPyEvaluation(): Promise<{
             totalReturn: sensRes.metrics.totalReturn,
             maxDD: sensRes.metrics.maxDD,
             retDdRatio: sensRes.metrics.retDdRatio,
+            avgConcurrent: sensRes.metrics.avgConcurrent,
           });
         }
       }

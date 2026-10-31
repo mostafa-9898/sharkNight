@@ -65,28 +65,30 @@ export function generatePySummary() {
   lines.push('');
   lines.push('---');
   lines.push('');
-  lines.push('## ۲. حساسیت همزمانی و اندازه پوزیشن در ۶ بازار اصلی');
-  lines.push('');
-  lines.push('| بازار | MaxOpen=3 (Cap 20/30) | MaxOpen=5 (Cap 20/30) | MaxOpen=10 (Cap 20/30) | Size=1% Ret/DD | Size=2% Ret/DD | Size=3% Ret/DD |');
-  lines.push('|---|---|---|---|---|---|---|');
+  lines.push('## ۲. حساسیت همزمانی (MaxOpen × سقف) و اندازه پوزیشن در ۶ بازار اصلی');
+  lines.push('| بازار اصلی | MO=3, Cap=20% | MO=3, Cap=30% | MO=5, Cap=20% | MO=5, Cap=30% | MO=10, Cap=20% | MO=10, Cap=30% | Size=1% | Size=2% | Size=3% |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|');
 
   const primaryKeys = ['BTC 15m', 'BTC 1h', 'BTC 4h', 'ETH 15m', 'ETH 1h', 'ETH 4h'];
   for (const pk of primaryKeys) {
-    const seenLabel = pk === 'BTC 15m' ? ' *(دیده شده)*' : '';
-    const getConc = (mo: number, cap: number) => {
+    const seenLabel = pk === 'BTC 15m' ? ' *(دیده)*' : '';
+    const getCell = (mo: number, cap: number) => {
       const it = sensConc.find((x) => x.market === pk && x.maxOpen === mo && x.maxExposure === cap);
-      return it ? `${it.totalReturn > 0 ? '+' : ''}${it.totalReturn}%` : '-';
+      if (!it) return '-';
+      const ret = `${it.totalReturn > 0 ? '+' : ''}${it.totalReturn}%`;
+      return `${ret}/${it.maxDD}% (${it.retDdRatio}/${it.avgConcurrent})`;
     };
-    const mo3 = `${getConc(3, 20)} / ${getConc(3, 30)}`;
-    const mo5 = `${getConc(5, 20)} / ${getConc(5, 30)}`;
-    const mo10 = `${getConc(10, 20)} / ${getConc(10, 30)}`;
 
-    const getSize = (sz: number) => {
+    const getSizeCell = (sz: number) => {
       const it = sensSize.find((x) => x.market === pk && x.sizePercent === sz);
-      return it ? `${it.totalReturn > 0 ? '+' : ''}${it.totalReturn}% / ${it.maxDD}% (${it.retDdRatio})` : '-';
+      if (!it) return '-';
+      const ret = `${it.totalReturn > 0 ? '+' : ''}${it.totalReturn}%`;
+      return `${ret}/${it.maxDD}% (${it.retDdRatio})`;
     };
 
-    lines.push(`| **${pk}**${seenLabel} | ${mo3} | ${mo5} | ${mo10} | ${getSize(1)} | ${getSize(2)} | ${getSize(3)} |`);
+    lines.push(
+      `| **${pk}**${seenLabel} | ${getCell(3, 20)} | ${getCell(3, 30)} | ${getCell(5, 20)} | ${getCell(5, 30)} | ${getCell(10, 20)} | ${getCell(10, 30)} | ${getSizeCell(1)} | ${getSizeCell(2)} | ${getSizeCell(3)} |`
+    );
   }
 
   lines.push('');
