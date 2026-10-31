@@ -1,0 +1,2148 @@
+{
+  "records": [
+    {
+      "key": "BTC 15m",
+      "symbol": "BTC",
+      "interval": "15m",
+      "isOos": false,
+      "isSeen": true,
+      "manifestInfo": {
+        "rows": 210384,
+        "firstTimestamp": 1602959400000,
+        "lastTimestamp": 1792304100000,
+        "sha256": "9b0e78ffc0fc6e79148f18feb06871a6793ce159e2d2e6ce99616c2dde83d080"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 85.62,
+          "maxDD": 27.81,
+          "retDdRatio": 3.08,
+          "trades": 547,
+          "winRate": 28.2,
+          "tradesLong": 248,
+          "tradesShort": 299,
+          "returnLong": 89.77,
+          "returnShort": -4.15,
+          "winRateLong": 31.9,
+          "winRateShort": 25.1
+        },
+        "d2": {
+          "totalReturn": 6.64,
+          "maxDD": 14.32,
+          "retDdRatio": 0.46,
+          "trades": 210,
+          "winRate": 11.9,
+          "tradesLong": 89,
+          "tradesShort": 121,
+          "returnLong": -5.28,
+          "returnShort": 11.93,
+          "winRateLong": 10.1,
+          "winRateShort": 13.2
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 37.29,
+          "maxDD": 16.44,
+          "retDdRatio": 2.27,
+          "trades": 544,
+          "winRate": 27,
+          "tradesLong": 285,
+          "tradesShort": 259,
+          "returnLong": 44.74,
+          "returnShort": -7.45,
+          "winRateLong": 29.1,
+          "winRateShort": 24.7
+        },
+        "d2": {
+          "totalReturn": 8.85,
+          "maxDD": 8.32,
+          "retDdRatio": 1.06,
+          "trades": 337,
+          "winRate": 22,
+          "tradesLong": 154,
+          "tradesShort": 183,
+          "returnLong": -3.36,
+          "returnShort": 12.21,
+          "winRateLong": 17.5,
+          "winRateShort": 25.7
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 80.16,
+          "maxDD": 25.03,
+          "retDdRatio": 3.2,
+          "trades": 488,
+          "winRate": 29.1,
+          "tradesLong": 227,
+          "tradesShort": 261,
+          "returnLong": 85.8,
+          "returnShort": -5.65,
+          "winRateLong": 32.2,
+          "winRateShort": 26.4
+        },
+        "d2": {
+          "totalReturn": 9.46,
+          "maxDD": 11.31,
+          "retDdRatio": 0.84,
+          "trades": 165,
+          "winRate": 12.7,
+          "tradesLong": 73,
+          "tradesShort": 92,
+          "returnLong": -5.29,
+          "returnShort": 14.75,
+          "winRateLong": 9.6,
+          "winRateShort": 15.2
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 104.76,
+          "maxDD": 26.37,
+          "retDdRatio": 3.97,
+          "trades": 332,
+          "winRate": 26.5,
+          "tradesLong": 332,
+          "tradesShort": 0,
+          "returnLong": 104.76,
+          "returnShort": 0,
+          "winRateLong": 26.5,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 16.34,
+          "maxDD": 31.36,
+          "retDdRatio": 0.52,
+          "trades": 501,
+          "winRate": 18.6,
+          "tradesLong": 501,
+          "tradesShort": 0,
+          "returnLong": 16.34,
+          "returnShort": 0,
+          "winRateLong": 18.6,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 40.2,
+        "stdReturn": 13.08,
+        "p75": 49.27,
+        "p90": 57.08,
+        "c1Percentile": 100
+      },
+      "null2": {
+        "meanReturn": 2.8,
+        "stdReturn": 48.91,
+        "p75": 16.93,
+        "p90": 49.07,
+        "c1Percentile": 95.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 379,
+        "totalEntries": 547,
+        "clusteringRatio": 69.3
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": 25.08,
+          "maxDD": 15.85,
+          "retDdRatio": 1.58,
+          "avgConcurrent": 2.08
+        },
+        "maxOpen5": {
+          "totalReturn": 46.91,
+          "maxDD": 21.88,
+          "retDdRatio": 2.14,
+          "avgConcurrent": 3.32
+        },
+        "maxOpen10": {
+          "totalReturn": 85.62,
+          "maxDD": 27.81,
+          "retDdRatio": 3.08,
+          "avgConcurrent": 5.97
+        }
+      }
+    },
+    {
+      "key": "BTC 1h",
+      "symbol": "BTC",
+      "interval": "1h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1602896400000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "784e3081cdeebd639c543c45524361d27ecedc57a6235b1b634bd9ce31451888"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 58.12,
+          "maxDD": 14.12,
+          "retDdRatio": 4.12,
+          "trades": 432,
+          "winRate": 30.1,
+          "tradesLong": 225,
+          "tradesShort": 207,
+          "returnLong": 54.35,
+          "returnShort": 3.77,
+          "winRateLong": 31.6,
+          "winRateShort": 28.5
+        },
+        "d2": {
+          "totalReturn": 2.58,
+          "maxDD": 12.05,
+          "retDdRatio": 0.21,
+          "trades": 452,
+          "winRate": 22.1,
+          "tradesLong": 192,
+          "tradesShort": 260,
+          "returnLong": -2.67,
+          "returnShort": 5.24,
+          "winRateLong": 19.8,
+          "winRateShort": 23.8
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 15.79,
+          "maxDD": 13.21,
+          "retDdRatio": 1.2,
+          "trades": 400,
+          "winRate": 24.3,
+          "tradesLong": 215,
+          "tradesShort": 185,
+          "returnLong": 20.72,
+          "returnShort": -4.93,
+          "winRateLong": 25.1,
+          "winRateShort": 23.2
+        },
+        "d2": {
+          "totalReturn": 13.79,
+          "maxDD": 12.53,
+          "retDdRatio": 1.1,
+          "trades": 343,
+          "winRate": 25.7,
+          "tradesLong": 145,
+          "tradesShort": 198,
+          "returnLong": 5.67,
+          "returnShort": 8.12,
+          "winRateLong": 23.5,
+          "winRateShort": 27.3
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 20.59,
+          "maxDD": 13.46,
+          "retDdRatio": 1.53,
+          "trades": 539,
+          "winRate": 25.6,
+          "tradesLong": 288,
+          "tradesShort": 251,
+          "returnLong": 25.16,
+          "returnShort": -4.58,
+          "winRateLong": 26.4,
+          "winRateShort": 24.7
+        },
+        "d2": {
+          "totalReturn": 9.94,
+          "maxDD": 13.41,
+          "retDdRatio": 0.74,
+          "trades": 440,
+          "winRate": 24.1,
+          "tradesLong": 184,
+          "tradesShort": 256,
+          "returnLong": 5.94,
+          "returnShort": 4,
+          "winRateLong": 22.8,
+          "winRateShort": 25
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 53.74,
+          "maxDD": 15.56,
+          "retDdRatio": 3.45,
+          "trades": 331,
+          "winRate": 26,
+          "tradesLong": 331,
+          "tradesShort": 0,
+          "returnLong": 53.74,
+          "returnShort": 0,
+          "winRateLong": 26,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 24.27,
+          "maxDD": 29.49,
+          "retDdRatio": 0.82,
+          "trades": 352,
+          "winRate": 18.8,
+          "tradesLong": 352,
+          "tradesShort": 0,
+          "returnLong": 24.27,
+          "returnShort": 0,
+          "winRateLong": 18.8,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 22.16,
+        "stdReturn": 10.56,
+        "p75": 29.31,
+        "p90": 36.11,
+        "c1Percentile": 100
+      },
+      "null2": {
+        "meanReturn": 1.02,
+        "stdReturn": 46.03,
+        "p75": 9.61,
+        "p90": 47.79,
+        "c1Percentile": 91.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 281,
+        "totalEntries": 432,
+        "clusteringRatio": 65
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": 27.5,
+          "maxDD": 14.68,
+          "retDdRatio": 1.87,
+          "avgConcurrent": 2.11
+        },
+        "maxOpen5": {
+          "totalReturn": 39.71,
+          "maxDD": 14.66,
+          "retDdRatio": 2.71,
+          "avgConcurrent": 3.39
+        },
+        "maxOpen10": {
+          "totalReturn": 58.12,
+          "maxDD": 14.12,
+          "retDdRatio": 4.12,
+          "avgConcurrent": 5.88
+        }
+      }
+    },
+    {
+      "key": "BTC 4h",
+      "symbol": "BTC",
+      "interval": "4h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1602907200000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "8d89b4598271ef7698d1ca9a0170762327492088ab46dff9e939d8a5c2168d78"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 20.64,
+          "maxDD": 11.6,
+          "retDdRatio": 1.78,
+          "trades": 305,
+          "winRate": 27.2,
+          "tradesLong": 182,
+          "tradesShort": 123,
+          "returnLong": 26.41,
+          "returnShort": -5.76,
+          "winRateLong": 29.1,
+          "winRateShort": 24.4
+        },
+        "d2": {
+          "totalReturn": 11.4,
+          "maxDD": 19.56,
+          "retDdRatio": 0.58,
+          "trades": 291,
+          "winRate": 22.3,
+          "tradesLong": 143,
+          "tradesShort": 148,
+          "returnLong": 17.68,
+          "returnShort": -6.27,
+          "winRateLong": 23.8,
+          "winRateShort": 21
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 10.27,
+          "maxDD": 7.63,
+          "retDdRatio": 1.35,
+          "trades": 197,
+          "winRate": 28.4,
+          "tradesLong": 122,
+          "tradesShort": 75,
+          "returnLong": 13.7,
+          "returnShort": -3.43,
+          "winRateLong": 30.3,
+          "winRateShort": 25.3
+        },
+        "d2": {
+          "totalReturn": 7,
+          "maxDD": 10.5,
+          "retDdRatio": 0.67,
+          "trades": 178,
+          "winRate": 25.8,
+          "tradesLong": 93,
+          "tradesShort": 85,
+          "returnLong": 9.78,
+          "returnShort": -2.78,
+          "winRateLong": 23.7,
+          "winRateShort": 28.2
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 8.34,
+          "maxDD": 10.02,
+          "retDdRatio": 0.83,
+          "trades": 268,
+          "winRate": 26.1,
+          "tradesLong": 163,
+          "tradesShort": 105,
+          "returnLong": 13.34,
+          "returnShort": -5,
+          "winRateLong": 28.2,
+          "winRateShort": 22.9
+        },
+        "d2": {
+          "totalReturn": 10.17,
+          "maxDD": 15.2,
+          "retDdRatio": 0.67,
+          "trades": 244,
+          "winRate": 24.6,
+          "tradesLong": 120,
+          "tradesShort": 124,
+          "returnLong": 14.84,
+          "returnShort": -4.67,
+          "winRateLong": 24.2,
+          "winRateShort": 25
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 27,
+          "maxDD": 10.73,
+          "retDdRatio": 2.52,
+          "trades": 182,
+          "winRate": 29.1,
+          "tradesLong": 182,
+          "tradesShort": 0,
+          "returnLong": 27,
+          "returnShort": 0,
+          "winRateLong": 29.1,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 19.08,
+          "maxDD": 17.28,
+          "retDdRatio": 1.1,
+          "trades": 144,
+          "winRate": 24.3,
+          "tradesLong": 144,
+          "tradesShort": 0,
+          "returnLong": 19.08,
+          "returnShort": 0,
+          "winRateLong": 24.3,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 15.29,
+        "stdReturn": 9.87,
+        "p75": 21.11,
+        "p90": 29.24,
+        "c1Percentile": 73.5
+      },
+      "null2": {
+        "meanReturn": 1.68,
+        "stdReturn": 19.91,
+        "p75": 3.73,
+        "p90": 15.31,
+        "c1Percentile": 92
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 176,
+        "totalEntries": 305,
+        "clusteringRatio": 57.7
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": 11.57,
+          "maxDD": 8.28,
+          "retDdRatio": 1.4,
+          "avgConcurrent": 2.09
+        },
+        "maxOpen5": {
+          "totalReturn": 21.69,
+          "maxDD": 11.02,
+          "retDdRatio": 1.97,
+          "avgConcurrent": 2.97
+        },
+        "maxOpen10": {
+          "totalReturn": 20.64,
+          "maxDD": 11.6,
+          "retDdRatio": 1.78,
+          "avgConcurrent": 3.55
+        }
+      }
+    },
+    {
+      "key": "ETH 15m",
+      "symbol": "ETH",
+      "interval": "15m",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 210384,
+        "firstTimestamp": 1602959400000,
+        "lastTimestamp": 1792304100000,
+        "sha256": "9f16b1dab8e471b8250a20319878f502fb658fad4d805e54ab7e46bd777af055"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 10.66,
+          "maxDD": 22.78,
+          "retDdRatio": 0.47,
+          "trades": 1274,
+          "winRate": 24.3,
+          "tradesLong": 614,
+          "tradesShort": 660,
+          "returnLong": 35.71,
+          "returnShort": -25.05,
+          "winRateLong": 28.7,
+          "winRateShort": 20.2
+        },
+        "d2": {
+          "totalReturn": 5.33,
+          "maxDD": 17.01,
+          "retDdRatio": 0.31,
+          "trades": 730,
+          "winRate": 18.5,
+          "tradesLong": 339,
+          "tradesShort": 391,
+          "returnLong": -0.06,
+          "returnShort": 5.39,
+          "winRateLong": 13.6,
+          "winRateShort": 22.8
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 7.15,
+          "maxDD": 21.57,
+          "retDdRatio": 0.33,
+          "trades": 866,
+          "winRate": 23.6,
+          "tradesLong": 467,
+          "tradesShort": 399,
+          "returnLong": 22.84,
+          "returnShort": -15.69,
+          "winRateLong": 26.3,
+          "winRateShort": 20.3
+        },
+        "d2": {
+          "totalReturn": 2.51,
+          "maxDD": 17.94,
+          "retDdRatio": 0.14,
+          "trades": 717,
+          "winRate": 21.6,
+          "tradesLong": 334,
+          "tradesShort": 383,
+          "returnLong": 3.75,
+          "returnShort": -1.24,
+          "winRateLong": 18.6,
+          "winRateShort": 24.3
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 4.07,
+          "maxDD": 21.77,
+          "retDdRatio": 0.19,
+          "trades": 1151,
+          "winRate": 23.2,
+          "tradesLong": 602,
+          "tradesShort": 549,
+          "returnLong": 23.36,
+          "returnShort": -19.29,
+          "winRateLong": 25.8,
+          "winRateShort": 20.4
+        },
+        "d2": {
+          "totalReturn": 6.17,
+          "maxDD": 16.37,
+          "retDdRatio": 0.38,
+          "trades": 760,
+          "winRate": 20.4,
+          "tradesLong": 354,
+          "tradesShort": 406,
+          "returnLong": 3.84,
+          "returnShort": 2.33,
+          "winRateLong": 16.7,
+          "winRateShort": 23.7
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 63.54,
+          "maxDD": 17.86,
+          "retDdRatio": 3.56,
+          "trades": 630,
+          "winRate": 29.2,
+          "tradesLong": 630,
+          "tradesShort": 0,
+          "returnLong": 63.54,
+          "returnShort": 0,
+          "winRateLong": 29.2,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 27.09,
+          "maxDD": 20.94,
+          "retDdRatio": 1.29,
+          "trades": 616,
+          "winRate": 20.1,
+          "tradesLong": 616,
+          "tradesShort": 0,
+          "returnLong": 27.09,
+          "returnShort": 0,
+          "winRateLong": 20.1,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 2.17,
+        "stdReturn": 7.39,
+        "p75": 7.71,
+        "p90": 12.03,
+        "c1Percentile": 88.5
+      },
+      "null2": {
+        "meanReturn": -12.18,
+        "stdReturn": 44.71,
+        "p75": 1.71,
+        "p90": 25.39,
+        "c1Percentile": 80.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 885,
+        "totalEntries": 1274,
+        "clusteringRatio": 69.5
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": 4.52,
+          "maxDD": 11.04,
+          "retDdRatio": 0.41,
+          "avgConcurrent": 2.05
+        },
+        "maxOpen5": {
+          "totalReturn": 7.59,
+          "maxDD": 16.38,
+          "retDdRatio": 0.46,
+          "avgConcurrent": 3.12
+        },
+        "maxOpen10": {
+          "totalReturn": 10.66,
+          "maxDD": 22.78,
+          "retDdRatio": 0.47,
+          "avgConcurrent": 5.05
+        }
+      }
+    },
+    {
+      "key": "ETH 1h",
+      "symbol": "ETH",
+      "interval": "1h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1602896400000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "8823d48bb7f677816256664e34add630b117e1b93811bacc1b79d725add958b5"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": -6.03,
+          "maxDD": 23.74,
+          "retDdRatio": -0.25,
+          "trades": 940,
+          "winRate": 19.2,
+          "tradesLong": 531,
+          "tradesShort": 409,
+          "returnLong": 6.51,
+          "returnShort": -12.54,
+          "winRateLong": 20.5,
+          "winRateShort": 17.4
+        },
+        "d2": {
+          "totalReturn": 15,
+          "maxDD": 14.98,
+          "retDdRatio": 1,
+          "trades": 705,
+          "winRate": 22.6,
+          "tradesLong": 338,
+          "tradesShort": 367,
+          "returnLong": 12.22,
+          "returnShort": 2.77,
+          "winRateLong": 22.5,
+          "winRateShort": 22.6
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 2.44,
+          "maxDD": 13.28,
+          "retDdRatio": 0.18,
+          "trades": 519,
+          "winRate": 22.9,
+          "tradesLong": 293,
+          "tradesShort": 226,
+          "returnLong": 7.63,
+          "returnShort": -5.19,
+          "winRateLong": 23.5,
+          "winRateShort": 22.1
+        },
+        "d2": {
+          "totalReturn": 20.7,
+          "maxDD": 12.54,
+          "retDdRatio": 1.65,
+          "trades": 470,
+          "winRate": 24.9,
+          "tradesLong": 224,
+          "tradesShort": 246,
+          "returnLong": 23.31,
+          "returnShort": -2.61,
+          "winRateLong": 26.8,
+          "winRateShort": 23.2
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 1.37,
+          "maxDD": 18.59,
+          "retDdRatio": 0.07,
+          "trades": 758,
+          "winRate": 21.2,
+          "tradesLong": 433,
+          "tradesShort": 325,
+          "returnLong": 9.51,
+          "returnShort": -8.14,
+          "winRateLong": 21.9,
+          "winRateShort": 20.3
+        },
+        "d2": {
+          "totalReturn": 13.7,
+          "maxDD": 13.73,
+          "retDdRatio": 1,
+          "trades": 659,
+          "winRate": 22.3,
+          "tradesLong": 311,
+          "tradesShort": 348,
+          "returnLong": 15.94,
+          "returnShort": -2.24,
+          "winRateLong": 23.2,
+          "winRateShort": 21.6
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 13.63,
+          "maxDD": 21.62,
+          "retDdRatio": 0.63,
+          "trades": 553,
+          "winRate": 21.7,
+          "tradesLong": 553,
+          "tradesShort": 0,
+          "returnLong": 13.63,
+          "returnShort": 0,
+          "winRateLong": 21.7,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 29.43,
+          "maxDD": 17.62,
+          "retDdRatio": 1.67,
+          "trades": 440,
+          "winRate": 21.6,
+          "tradesLong": 440,
+          "tradesShort": 0,
+          "returnLong": 29.43,
+          "returnShort": 0,
+          "winRateLong": 21.6,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 3.23,
+        "stdReturn": 7.19,
+        "p75": 8.38,
+        "p90": 13.22,
+        "c1Percentile": 9
+      },
+      "null2": {
+        "meanReturn": -12.79,
+        "stdReturn": 41.94,
+        "p75": -4.85,
+        "p90": 24.52,
+        "c1Percentile": 74
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 594,
+        "totalEntries": 940,
+        "clusteringRatio": 63.2
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": -2.59,
+          "maxDD": 12.27,
+          "retDdRatio": -0.21,
+          "avgConcurrent": 2.03
+        },
+        "maxOpen5": {
+          "totalReturn": -4.78,
+          "maxDD": 18.03,
+          "retDdRatio": -0.27,
+          "avgConcurrent": 3.05
+        },
+        "maxOpen10": {
+          "totalReturn": -6.03,
+          "maxDD": 23.74,
+          "retDdRatio": -0.25,
+          "avgConcurrent": 5.01
+        }
+      }
+    },
+    {
+      "key": "ETH 4h",
+      "symbol": "ETH",
+      "interval": "4h",
+      "isOos": false,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1602907200000,
+        "lastTimestamp": 1792238400000,
+        "sha256": "2f580dc90aecb91c3014c3643fc0b1aeb1a79378e40c3185a5f882198be2a378"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 2.54,
+          "maxDD": 15.35,
+          "retDdRatio": 0.17,
+          "trades": 356,
+          "winRate": 23.3,
+          "tradesLong": 228,
+          "tradesShort": 128,
+          "returnLong": 7.75,
+          "returnShort": -5.21,
+          "winRateLong": 24.6,
+          "winRateShort": 21.1
+        },
+        "d2": {
+          "totalReturn": 16.14,
+          "maxDD": 12.04,
+          "retDdRatio": 1.34,
+          "trades": 307,
+          "winRate": 24.8,
+          "tradesLong": 175,
+          "tradesShort": 132,
+          "returnLong": 22.2,
+          "returnShort": -6.06,
+          "winRateLong": 29.7,
+          "winRateShort": 18.2
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 2.51,
+          "maxDD": 8.57,
+          "retDdRatio": 0.29,
+          "trades": 192,
+          "winRate": 23.4,
+          "tradesLong": 122,
+          "tradesShort": 70,
+          "returnLong": 5.35,
+          "returnShort": -2.84,
+          "winRateLong": 24.6,
+          "winRateShort": 21.4
+        },
+        "d2": {
+          "totalReturn": 7.89,
+          "maxDD": 8.39,
+          "retDdRatio": 0.94,
+          "trades": 179,
+          "winRate": 24.6,
+          "tradesLong": 98,
+          "tradesShort": 81,
+          "returnLong": 10.75,
+          "returnShort": -2.86,
+          "winRateLong": 26.5,
+          "winRateShort": 22.2
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 5.63,
+          "maxDD": 10.66,
+          "retDdRatio": 0.53,
+          "trades": 250,
+          "winRate": 24.8,
+          "tradesLong": 162,
+          "tradesShort": 88,
+          "returnLong": 9.21,
+          "returnShort": -3.58,
+          "winRateLong": 26.5,
+          "winRateShort": 21.6
+        },
+        "d2": {
+          "totalReturn": 14,
+          "maxDD": 9.66,
+          "retDdRatio": 1.45,
+          "trades": 226,
+          "winRate": 26.6,
+          "tradesLong": 131,
+          "tradesShort": 95,
+          "returnLong": 17.39,
+          "returnShort": -3.39,
+          "winRateLong": 29.8,
+          "winRateShort": 22.1
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 9.06,
+          "maxDD": 12.13,
+          "retDdRatio": 0.75,
+          "trades": 231,
+          "winRate": 24.7,
+          "tradesLong": 231,
+          "tradesShort": 0,
+          "returnLong": 9.06,
+          "returnShort": 0,
+          "winRateLong": 24.7,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 23.34,
+          "maxDD": 10.7,
+          "retDdRatio": 2.18,
+          "trades": 175,
+          "winRate": 29.7,
+          "tradesLong": 175,
+          "tradesShort": 0,
+          "returnLong": 23.34,
+          "returnShort": 0,
+          "winRateLong": 29.7,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 2.94,
+        "stdReturn": 5.32,
+        "p75": 6.22,
+        "p90": 9.96,
+        "c1Percentile": 47
+      },
+      "null2": {
+        "meanReturn": -0.57,
+        "stdReturn": 16.35,
+        "p75": 0.79,
+        "p90": 9.94,
+        "c1Percentile": 78
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 199,
+        "totalEntries": 356,
+        "clusteringRatio": 55.9
+      },
+      "concurrency": {
+        "maxOpen3": {
+          "totalReturn": -1.16,
+          "maxDD": 7.48,
+          "retDdRatio": -0.16,
+          "avgConcurrent": 1.86
+        },
+        "maxOpen5": {
+          "totalReturn": -1.91,
+          "maxDD": 11.49,
+          "retDdRatio": -0.17,
+          "avgConcurrent": 2.64
+        },
+        "maxOpen10": {
+          "totalReturn": 2.54,
+          "maxDD": 15.35,
+          "retDdRatio": 0.17,
+          "avgConcurrent": 3.21
+        }
+      }
+    },
+    {
+      "key": "SOL 1h",
+      "symbol": "SOL",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 45670,
+        "firstTimestamp": 1628071200000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "18d3c383415f9e08c6f4b08e99b0361704f14446f8ebdad363ab7aa22a02ef12"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 53.36,
+          "maxDD": 38.2,
+          "retDdRatio": 1.4,
+          "trades": 939,
+          "winRate": 22.7,
+          "tradesLong": 428,
+          "tradesShort": 511,
+          "returnLong": 67.53,
+          "returnShort": -14.17,
+          "winRateLong": 23.6,
+          "winRateShort": 21.9
+        },
+        "d2": {
+          "totalReturn": 29.43,
+          "maxDD": 4.95,
+          "retDdRatio": 5.95,
+          "trades": 38,
+          "winRate": 55.3,
+          "tradesLong": 10,
+          "tradesShort": 28,
+          "returnLong": -0.7,
+          "returnShort": 30.13,
+          "winRateLong": 20,
+          "winRateShort": 67.9
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 36.39,
+          "maxDD": 27.97,
+          "retDdRatio": 1.3,
+          "trades": 455,
+          "winRate": 22.4,
+          "tradesLong": 212,
+          "tradesShort": 243,
+          "returnLong": 43.12,
+          "returnShort": -6.73,
+          "winRateLong": 23.6,
+          "winRateShort": 21.4
+        },
+        "d2": {
+          "totalReturn": 19.08,
+          "maxDD": 13.7,
+          "retDdRatio": 1.39,
+          "trades": 326,
+          "winRate": 28.2,
+          "tradesLong": 134,
+          "tradesShort": 192,
+          "returnLong": 2.22,
+          "returnShort": 16.86,
+          "winRateLong": 22.4,
+          "winRateShort": 32.3
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 64.26,
+          "maxDD": 36.86,
+          "retDdRatio": 1.74,
+          "trades": 705,
+          "winRate": 23,
+          "tradesLong": 328,
+          "tradesShort": 377,
+          "returnLong": 73.15,
+          "returnShort": -8.89,
+          "winRateLong": 22.9,
+          "winRateShort": 23.1
+        },
+        "d2": {
+          "totalReturn": 22.66,
+          "maxDD": 10.38,
+          "retDdRatio": 2.18,
+          "trades": 187,
+          "winRate": 28.3,
+          "tradesLong": 61,
+          "tradesShort": 126,
+          "returnLong": -1.46,
+          "returnShort": 24.11,
+          "winRateLong": 23,
+          "winRateShort": 31
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 82.2,
+          "maxDD": 37.79,
+          "retDdRatio": 2.18,
+          "trades": 449,
+          "winRate": 22.9,
+          "tradesLong": 449,
+          "tradesShort": 0,
+          "returnLong": 82.2,
+          "returnShort": 0,
+          "winRateLong": 22.9,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 42.28,
+          "maxDD": 28.1,
+          "retDdRatio": 1.5,
+          "trades": 413,
+          "winRate": 23.2,
+          "tradesLong": 413,
+          "tradesShort": 0,
+          "returnLong": 42.28,
+          "returnShort": 0,
+          "winRateLong": 23.2,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 47.19,
+        "stdReturn": 16.42,
+        "p75": 58.03,
+        "p90": 66.64,
+        "c1Percentile": 62.5
+      },
+      "null2": {
+        "meanReturn": -14.06,
+        "stdReturn": 34.49,
+        "p75": -6.23,
+        "p90": 16.91,
+        "c1Percentile": 95.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 623,
+        "totalEntries": 939,
+        "clusteringRatio": 66.3
+      }
+    },
+    {
+      "key": "SOL 4h",
+      "symbol": "SOL",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 11418,
+        "firstTimestamp": 1628064000000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "71705ca1cf72f2d66006f6fe1aa0f35b757bf0255be6541aff21a15a09b8a8b2"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": -0.25,
+          "maxDD": 14.99,
+          "retDdRatio": -0.02,
+          "trades": 347,
+          "winRate": 19.3,
+          "tradesLong": 202,
+          "tradesShort": 145,
+          "returnLong": 2.77,
+          "returnShort": -3.03,
+          "winRateLong": 14.4,
+          "winRateShort": 26.2
+        },
+        "d2": {
+          "totalReturn": 14.5,
+          "maxDD": 8.71,
+          "retDdRatio": 1.66,
+          "trades": 338,
+          "winRate": 23.1,
+          "tradesLong": 168,
+          "tradesShort": 170,
+          "returnLong": 3.32,
+          "returnShort": 11.18,
+          "winRateLong": 17.9,
+          "winRateShort": 28.2
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 6.12,
+          "maxDD": 13.02,
+          "retDdRatio": 0.47,
+          "trades": 176,
+          "winRate": 17.1,
+          "tradesLong": 95,
+          "tradesShort": 81,
+          "returnLong": 8.75,
+          "returnShort": -2.63,
+          "winRateLong": 13.7,
+          "winRateShort": 21
+        },
+        "d2": {
+          "totalReturn": 8.68,
+          "maxDD": 7.73,
+          "retDdRatio": 1.12,
+          "trades": 173,
+          "winRate": 22.5,
+          "tradesLong": 88,
+          "tradesShort": 85,
+          "returnLong": 5.08,
+          "returnShort": 3.59,
+          "winRateLong": 19.3,
+          "winRateShort": 25.9
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 3.19,
+          "maxDD": 13.49,
+          "retDdRatio": 0.24,
+          "trades": 251,
+          "winRate": 17.9,
+          "tradesLong": 144,
+          "tradesShort": 107,
+          "returnLong": 5.68,
+          "returnShort": -2.49,
+          "winRateLong": 11.8,
+          "winRateShort": 26.2
+        },
+        "d2": {
+          "totalReturn": 13.11,
+          "maxDD": 7.41,
+          "retDdRatio": 1.77,
+          "trades": 245,
+          "winRate": 23.3,
+          "tradesLong": 123,
+          "tradesShort": 122,
+          "returnLong": 5.12,
+          "returnShort": 8,
+          "winRateLong": 17.1,
+          "winRateShort": 29.5
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 2.76,
+          "maxDD": 14.99,
+          "retDdRatio": 0.18,
+          "trades": 202,
+          "winRate": 14.4,
+          "tradesLong": 202,
+          "tradesShort": 0,
+          "returnLong": 2.76,
+          "returnShort": 0,
+          "winRateLong": 14.4,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 1.94,
+          "maxDD": 11.42,
+          "retDdRatio": 0.17,
+          "trades": 174,
+          "winRate": 17.2,
+          "tradesLong": 174,
+          "tradesShort": 0,
+          "returnLong": 1.94,
+          "returnShort": 0,
+          "winRateLong": 17.2,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 18.29,
+        "stdReturn": 14.86,
+        "p75": 28.19,
+        "p90": 38.65,
+        "c1Percentile": 12
+      },
+      "null2": {
+        "meanReturn": -3.34,
+        "stdReturn": 7.33,
+        "p75": -1.28,
+        "p90": 5,
+        "c1Percentile": 79
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 181,
+        "totalEntries": 347,
+        "clusteringRatio": 52.2
+      }
+    },
+    {
+      "key": "BNB 1h",
+      "symbol": "BNB",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "75d0681231b54473a6d8f63f1637b4892fa3dd3a93ba6f8165b6653a01cea030"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 38.59,
+          "maxDD": 29.25,
+          "retDdRatio": 1.32,
+          "trades": 861,
+          "winRate": 26,
+          "tradesLong": 499,
+          "tradesShort": 362,
+          "returnLong": 50.96,
+          "returnShort": -12.38,
+          "winRateLong": 26.7,
+          "winRateShort": 25.1
+        },
+        "d2": {
+          "totalReturn": 31.18,
+          "maxDD": 15.23,
+          "retDdRatio": 2.05,
+          "trades": 373,
+          "winRate": 27.6,
+          "tradesLong": 182,
+          "tradesShort": 191,
+          "returnLong": 14.05,
+          "returnShort": 17.13,
+          "winRateLong": 28.6,
+          "winRateShort": 26.7
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 6.76,
+          "maxDD": 11.61,
+          "retDdRatio": 0.58,
+          "trades": 497,
+          "winRate": 25.6,
+          "tradesLong": 298,
+          "tradesShort": 199,
+          "returnLong": 10.3,
+          "returnShort": -3.55,
+          "winRateLong": 24.2,
+          "winRateShort": 27.6
+        },
+        "d2": {
+          "totalReturn": 15.44,
+          "maxDD": 11.86,
+          "retDdRatio": 1.3,
+          "trades": 351,
+          "winRate": 31.1,
+          "tradesLong": 168,
+          "tradesShort": 183,
+          "returnLong": 5.57,
+          "returnShort": 9.87,
+          "winRateLong": 28,
+          "winRateShort": 33.9
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 31.96,
+          "maxDD": 25.73,
+          "retDdRatio": 1.24,
+          "trades": 744,
+          "winRate": 24.9,
+          "tradesLong": 440,
+          "tradesShort": 304,
+          "returnLong": 40.76,
+          "returnShort": -8.8,
+          "winRateLong": 25.2,
+          "winRateShort": 24.3
+        },
+        "d2": {
+          "totalReturn": 24.04,
+          "maxDD": 12.48,
+          "retDdRatio": 1.93,
+          "trades": 411,
+          "winRate": 29.4,
+          "tradesLong": 205,
+          "tradesShort": 206,
+          "returnLong": 9.3,
+          "returnShort": 14.74,
+          "winRateLong": 28.3,
+          "winRateShort": 30.6
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 58.23,
+          "maxDD": 25.31,
+          "retDdRatio": 2.3,
+          "trades": 556,
+          "winRate": 26.8,
+          "tradesLong": 556,
+          "tradesShort": 0,
+          "returnLong": 58.23,
+          "returnShort": 0,
+          "winRateLong": 26.8,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 23.92,
+          "maxDD": 21.45,
+          "retDdRatio": 1.12,
+          "trades": 498,
+          "winRate": 25.5,
+          "tradesLong": 498,
+          "tradesShort": 0,
+          "returnLong": 23.92,
+          "returnShort": 0,
+          "winRateLong": 25.5,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 47.06,
+        "stdReturn": 18.28,
+        "p75": 58.09,
+        "p90": 70.41,
+        "c1Percentile": 33
+      },
+      "null2": {
+        "meanReturn": 24.39,
+        "stdReturn": 134.34,
+        "p75": 24.99,
+        "p90": 77.9,
+        "c1Percentile": 80.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 576,
+        "totalEntries": 861,
+        "clusteringRatio": 66.9
+      }
+    },
+    {
+      "key": "BNB 4h",
+      "symbol": "BNB",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "140c9689a12f141a7ea37142c39fda269eb63c363b2f91484f69bcc6cc0e68a3"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 5.86,
+          "maxDD": 14.97,
+          "retDdRatio": 0.39,
+          "trades": 342,
+          "winRate": 25.4,
+          "tradesLong": 215,
+          "tradesShort": 127,
+          "returnLong": 11.95,
+          "returnShort": -6.09,
+          "winRateLong": 27.4,
+          "winRateShort": 22.1
+        },
+        "d2": {
+          "totalReturn": 2.61,
+          "maxDD": 10.24,
+          "retDdRatio": 0.25,
+          "trades": 320,
+          "winRate": 25.9,
+          "tradesLong": 165,
+          "tradesShort": 155,
+          "returnLong": -2.25,
+          "returnShort": 4.86,
+          "winRateLong": 23.6,
+          "winRateShort": 28.4
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": -1.71,
+          "maxDD": 6.74,
+          "retDdRatio": -0.25,
+          "trades": 172,
+          "winRate": 25.6,
+          "tradesLong": 109,
+          "tradesShort": 63,
+          "returnLong": 1.74,
+          "returnShort": -3.46,
+          "winRateLong": 26.6,
+          "winRateShort": 23.8
+        },
+        "d2": {
+          "totalReturn": 2.22,
+          "maxDD": 6.79,
+          "retDdRatio": 0.33,
+          "trades": 163,
+          "winRate": 26.4,
+          "tradesLong": 88,
+          "tradesShort": 75,
+          "returnLong": -0.82,
+          "returnShort": 3.04,
+          "winRateLong": 22.7,
+          "winRateShort": 30.7
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": -3.45,
+          "maxDD": 10.43,
+          "retDdRatio": -0.33,
+          "trades": 241,
+          "winRate": 23.7,
+          "tradesLong": 155,
+          "tradesShort": 86,
+          "returnLong": 0.92,
+          "returnShort": -4.37,
+          "winRateLong": 25.8,
+          "winRateShort": 19.8
+        },
+        "d2": {
+          "totalReturn": 2.91,
+          "maxDD": 8.55,
+          "retDdRatio": 0.34,
+          "trades": 232,
+          "winRate": 25.4,
+          "tradesLong": 121,
+          "tradesShort": 111,
+          "returnLong": -2.99,
+          "returnShort": 5.91,
+          "winRateLong": 21.5,
+          "winRateShort": 29.7
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 12.16,
+          "maxDD": 11.65,
+          "retDdRatio": 1.04,
+          "trades": 215,
+          "winRate": 27.4,
+          "tradesLong": 215,
+          "tradesShort": 0,
+          "returnLong": 12.16,
+          "returnShort": 0,
+          "winRateLong": 27.4,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": -2.68,
+          "maxDD": 8.62,
+          "retDdRatio": -0.31,
+          "trades": 181,
+          "winRate": 23.2,
+          "tradesLong": 181,
+          "tradesShort": 0,
+          "returnLong": -2.68,
+          "returnShort": 0,
+          "winRateLong": 23.2,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 13.22,
+        "stdReturn": 9.46,
+        "p75": 19.65,
+        "p90": 25.34,
+        "c1Percentile": 23
+      },
+      "null2": {
+        "meanReturn": 9.94,
+        "stdReturn": 37.56,
+        "p75": 10.86,
+        "p90": 32.44,
+        "c1Percentile": 68.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 178,
+        "totalEntries": 342,
+        "clusteringRatio": 52
+      }
+    },
+    {
+      "key": "XRP 1h",
+      "symbol": "XRP",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "7d6ec29112da718478c8938427fffd6180312a5c0df024886d89678d5e30a438"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 10.47,
+          "maxDD": 26.71,
+          "retDdRatio": 0.39,
+          "trades": 1033,
+          "winRate": 21.7,
+          "tradesLong": 523,
+          "tradesShort": 510,
+          "returnLong": 28.15,
+          "returnShort": -17.67,
+          "winRateLong": 23.7,
+          "winRateShort": 19.6
+        },
+        "d2": {
+          "totalReturn": 3.32,
+          "maxDD": 12.81,
+          "retDdRatio": 0.26,
+          "trades": 852,
+          "winRate": 23.2,
+          "tradesLong": 401,
+          "tradesShort": 451,
+          "returnLong": 7.07,
+          "returnShort": -3.75,
+          "winRateLong": 23.2,
+          "winRateShort": 23.3
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 13.01,
+          "maxDD": 15.26,
+          "retDdRatio": 0.85,
+          "trades": 525,
+          "winRate": 22.9,
+          "tradesLong": 262,
+          "tradesShort": 263,
+          "returnLong": 21.19,
+          "returnShort": -8.18,
+          "winRateLong": 25.6,
+          "winRateShort": 20.2
+        },
+        "d2": {
+          "totalReturn": 4.66,
+          "maxDD": 6.96,
+          "retDdRatio": 0.67,
+          "trades": 394,
+          "winRate": 24.6,
+          "tradesLong": 189,
+          "tradesShort": 205,
+          "returnLong": 2.6,
+          "returnShort": 2.06,
+          "winRateLong": 23.8,
+          "winRateShort": 25.4
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 9.65,
+          "maxDD": 20.86,
+          "retDdRatio": 0.46,
+          "trades": 809,
+          "winRate": 22.6,
+          "tradesLong": 413,
+          "tradesShort": 396,
+          "returnLong": 23.71,
+          "returnShort": -14.05,
+          "winRateLong": 25.2,
+          "winRateShort": 20
+        },
+        "d2": {
+          "totalReturn": 3.58,
+          "maxDD": 10.34,
+          "retDdRatio": 0.35,
+          "trades": 651,
+          "winRate": 24.3,
+          "tradesLong": 309,
+          "tradesShort": 342,
+          "returnLong": 5.29,
+          "returnShort": -1.71,
+          "winRateLong": 24,
+          "winRateShort": 24.6
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 28.24,
+          "maxDD": 22.13,
+          "retDdRatio": 1.28,
+          "trades": 538,
+          "winRate": 23.1,
+          "tradesLong": 538,
+          "tradesShort": 0,
+          "returnLong": 28.24,
+          "returnShort": 0,
+          "winRateLong": 23.1,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 8.4,
+          "maxDD": 10.62,
+          "retDdRatio": 0.79,
+          "trades": 400,
+          "winRate": 23.8,
+          "tradesLong": 400,
+          "tradesShort": 0,
+          "returnLong": 8.4,
+          "returnShort": 0,
+          "winRateLong": 23.8,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 23.98,
+        "stdReturn": 15.63,
+        "p75": 35.1,
+        "p90": 45.31,
+        "c1Percentile": 22
+      },
+      "null2": {
+        "meanReturn": -18.92,
+        "stdReturn": 22.57,
+        "p75": -12.09,
+        "p90": 4.2,
+        "c1Percentile": 92.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 688,
+        "totalEntries": 1033,
+        "clusteringRatio": 66.6
+      }
+    },
+    {
+      "key": "XRP 4h",
+      "symbol": "XRP",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "2bcea9b48414df1e76b87bc50ddbe449296c536b464b5ad24d42d48695e471d2"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 6,
+          "maxDD": 11.83,
+          "retDdRatio": 0.51,
+          "trades": 318,
+          "winRate": 23,
+          "tradesLong": 159,
+          "tradesShort": 159,
+          "returnLong": 11.3,
+          "returnShort": -5.3,
+          "winRateLong": 26.4,
+          "winRateShort": 19.5
+        },
+        "d2": {
+          "totalReturn": 8.87,
+          "maxDD": 5.69,
+          "retDdRatio": 1.56,
+          "trades": 292,
+          "winRate": 28.4,
+          "tradesLong": 128,
+          "tradesShort": 164,
+          "returnLong": 5.55,
+          "returnShort": 3.33,
+          "winRateLong": 26.6,
+          "winRateShort": 29.9
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 1.96,
+          "maxDD": 8.69,
+          "retDdRatio": 0.23,
+          "trades": 159,
+          "winRate": 20.1,
+          "tradesLong": 72,
+          "tradesShort": 87,
+          "returnLong": 6.73,
+          "returnShort": -4.77,
+          "winRateLong": 23.6,
+          "winRateShort": 17.2
+        },
+        "d2": {
+          "totalReturn": 6.78,
+          "maxDD": 2.43,
+          "retDdRatio": 2.79,
+          "trades": 146,
+          "winRate": 30.8,
+          "tradesLong": 60,
+          "tradesShort": 86,
+          "returnLong": 5.11,
+          "returnShort": 1.67,
+          "winRateLong": 30,
+          "winRateShort": 31.4
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 3.4,
+          "maxDD": 12.4,
+          "retDdRatio": 0.27,
+          "trades": 223,
+          "winRate": 20.2,
+          "tradesLong": 108,
+          "tradesShort": 115,
+          "returnLong": 8.38,
+          "returnShort": -4.98,
+          "winRateLong": 21.3,
+          "winRateShort": 19.1
+        },
+        "d2": {
+          "totalReturn": 9.11,
+          "maxDD": 4.84,
+          "retDdRatio": 1.88,
+          "trades": 203,
+          "winRate": 28.6,
+          "tradesLong": 87,
+          "tradesShort": 116,
+          "returnLong": 6.87,
+          "returnShort": 2.25,
+          "winRateLong": 26.4,
+          "winRateShort": 30.2
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 11.72,
+          "maxDD": 11.05,
+          "retDdRatio": 1.06,
+          "trades": 159,
+          "winRate": 26.4,
+          "tradesLong": 159,
+          "tradesShort": 0,
+          "returnLong": 11.72,
+          "returnShort": 0,
+          "winRateLong": 26.4,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 5.46,
+          "maxDD": 5.52,
+          "retDdRatio": 0.99,
+          "trades": 128,
+          "winRate": 26.6,
+          "tradesLong": 128,
+          "tradesShort": 0,
+          "returnLong": 5.46,
+          "returnShort": 0,
+          "winRateLong": 26.6,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 6.66,
+        "stdReturn": 8.97,
+        "p75": 12.64,
+        "p90": 19.72,
+        "c1Percentile": 50.5
+      },
+      "null2": {
+        "meanReturn": -3.23,
+        "stdReturn": 7.59,
+        "p75": -0.52,
+        "p90": 4.22,
+        "c1Percentile": 94.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 159,
+        "totalEntries": 318,
+        "clusteringRatio": 50
+      }
+    },
+    {
+      "key": "ADA 1h",
+      "symbol": "ADA",
+      "interval": "1h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 52596,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792479600000,
+        "sha256": "3b90ab66df7ca0d13254370c88ee7276ddc248df304785ed2132a2037ca96d45"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": -13.42,
+          "maxDD": 20.86,
+          "retDdRatio": -0.64,
+          "trades": 1093,
+          "winRate": 23.1,
+          "tradesLong": 544,
+          "tradesShort": 549,
+          "returnLong": -7.74,
+          "returnShort": -5.68,
+          "winRateLong": 21.1,
+          "winRateShort": 25
+        },
+        "d2": {
+          "totalReturn": 8.36,
+          "maxDD": 12.13,
+          "retDdRatio": 0.69,
+          "trades": 560,
+          "winRate": 27.9,
+          "tradesLong": 255,
+          "tradesShort": 305,
+          "returnLong": 7.38,
+          "returnShort": 0.98,
+          "winRateLong": 25.9,
+          "winRateShort": 29.5
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 1.47,
+          "maxDD": 12.04,
+          "retDdRatio": 0.12,
+          "trades": 537,
+          "winRate": 24.8,
+          "tradesLong": 262,
+          "tradesShort": 275,
+          "returnLong": 2.6,
+          "returnShort": -1.13,
+          "winRateLong": 22.9,
+          "winRateShort": 26.6
+        },
+        "d2": {
+          "totalReturn": 9.3,
+          "maxDD": 6.94,
+          "retDdRatio": 1.34,
+          "trades": 257,
+          "winRate": 31.9,
+          "tradesLong": 116,
+          "tradesShort": 141,
+          "returnLong": 5.78,
+          "returnShort": 3.52,
+          "winRateLong": 26.7,
+          "winRateShort": 36.2
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": -10.7,
+          "maxDD": 16.36,
+          "retDdRatio": -0.65,
+          "trades": 840,
+          "winRate": 22.1,
+          "tradesLong": 423,
+          "tradesShort": 417,
+          "returnLong": -6.09,
+          "returnShort": -4.61,
+          "winRateLong": 20.6,
+          "winRateShort": 23.7
+        },
+        "d2": {
+          "totalReturn": 7.13,
+          "maxDD": 9.89,
+          "retDdRatio": 0.72,
+          "trades": 416,
+          "winRate": 27.6,
+          "tradesLong": 190,
+          "tradesShort": 226,
+          "returnLong": 5.11,
+          "returnShort": 2.02,
+          "winRateLong": 24.7,
+          "winRateShort": 30.1
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": -0.71,
+          "maxDD": 13.3,
+          "retDdRatio": -0.05,
+          "trades": 593,
+          "winRate": 21.8,
+          "tradesLong": 593,
+          "tradesShort": 0,
+          "returnLong": -0.71,
+          "returnShort": 0,
+          "winRateLong": 21.8,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 7.13,
+          "maxDD": 10.04,
+          "retDdRatio": 0.71,
+          "trades": 259,
+          "winRate": 25.9,
+          "tradesLong": 259,
+          "tradesShort": 0,
+          "returnLong": 7.13,
+          "returnShort": 0,
+          "winRateLong": 25.9,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 7.59,
+        "stdReturn": 9.62,
+        "p75": 13.49,
+        "p90": 20.37,
+        "c1Percentile": 0.5
+      },
+      "null2": {
+        "meanReturn": -16.49,
+        "stdReturn": 20.33,
+        "p75": -5.77,
+        "p90": 11.68,
+        "c1Percentile": 63
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 704,
+        "totalEntries": 1093,
+        "clusteringRatio": 64.4
+      }
+    },
+    {
+      "key": "ADA 4h",
+      "symbol": "ADA",
+      "interval": "4h",
+      "isOos": true,
+      "isSeen": false,
+      "manifestInfo": {
+        "rows": 13149,
+        "firstTimestamp": 1603137600000,
+        "lastTimestamp": 1792468800000,
+        "sha256": "1b0698cf91f38386dcb13656d894acea6a167409f5d792cd612e81455b8a41fc"
+      },
+      "c1": {
+        "real": {
+          "totalReturn": 10.77,
+          "maxDD": 16.1,
+          "retDdRatio": 0.67,
+          "trades": 378,
+          "winRate": 23.5,
+          "tradesLong": 178,
+          "tradesShort": 200,
+          "returnLong": 20,
+          "returnShort": -9.23,
+          "winRateLong": 25.8,
+          "winRateShort": 21.5
+        },
+        "d2": {
+          "totalReturn": 6.13,
+          "maxDD": 7.88,
+          "retDdRatio": 0.78,
+          "trades": 178,
+          "winRate": 25.8,
+          "tradesLong": 75,
+          "tradesShort": 103,
+          "returnLong": 4.25,
+          "returnShort": 1.88,
+          "winRateLong": 21.3,
+          "winRateShort": 29.1
+        }
+      },
+      "f3": {
+        "real": {
+          "totalReturn": 10.68,
+          "maxDD": 11.03,
+          "retDdRatio": 0.97,
+          "trades": 196,
+          "winRate": 25,
+          "tradesLong": 95,
+          "tradesShort": 101,
+          "returnLong": 15.54,
+          "returnShort": -4.86,
+          "winRateLong": 28.4,
+          "winRateShort": 21.8
+        },
+        "d2": {
+          "totalReturn": 2.57,
+          "maxDD": 4.1,
+          "retDdRatio": 0.63,
+          "trades": 97,
+          "winRate": 24.7,
+          "tradesLong": 41,
+          "tradesShort": 56,
+          "returnLong": 1.56,
+          "returnShort": 1.01,
+          "winRateLong": 19.5,
+          "winRateShort": 28.6
+        }
+      },
+      "f0": {
+        "real": {
+          "totalReturn": 9.93,
+          "maxDD": 11.86,
+          "retDdRatio": 0.84,
+          "trades": 269,
+          "winRate": 22.7,
+          "tradesLong": 130,
+          "tradesShort": 139,
+          "returnLong": 15.99,
+          "returnShort": -6.06,
+          "winRateLong": 25.4,
+          "winRateShort": 20.1
+        },
+        "d2": {
+          "totalReturn": 1.9,
+          "maxDD": 4.56,
+          "retDdRatio": 0.42,
+          "trades": 134,
+          "winRate": 24.6,
+          "tradesLong": 57,
+          "tradesShort": 77,
+          "returnLong": 1.28,
+          "returnShort": 0.62,
+          "winRateLong": 19.3,
+          "winRateShort": 28.6
+        }
+      },
+      "c1l": {
+        "real": {
+          "totalReturn": 20.82,
+          "maxDD": 13.14,
+          "retDdRatio": 1.58,
+          "trades": 178,
+          "winRate": 25.8,
+          "tradesLong": 178,
+          "tradesShort": 0,
+          "returnLong": 20.82,
+          "returnShort": 0,
+          "winRateLong": 25.8,
+          "winRateShort": 0
+        },
+        "d2": {
+          "totalReturn": 4.14,
+          "maxDD": 7.87,
+          "retDdRatio": 0.53,
+          "trades": 75,
+          "winRate": 21.3,
+          "tradesLong": 75,
+          "tradesShort": 0,
+          "returnLong": 4.14,
+          "returnShort": 0,
+          "winRateLong": 21.3,
+          "winRateShort": 0
+        }
+      },
+      "null1": {
+        "meanReturn": 4.56,
+        "stdReturn": 6.13,
+        "p75": 9.06,
+        "p90": 12.34,
+        "c1Percentile": 81.5
+      },
+      "null2": {
+        "meanReturn": -3.76,
+        "stdReturn": 5.58,
+        "p75": -1.19,
+        "p90": 3.16,
+        "c1Percentile": 97.5
+      },
+      "clustering": {
+        "sameDirectionWithin24Bars": 209,
+        "totalEntries": 378,
+        "clusteringRatio": 55.3
+      }
+    }
+  ],
+  "criteria": {
+    "crit1_ReturnDD": false,
+    "crit2_D2Robustness": true,
+    "crit3_NullSignificance": false,
+    "crit4_RiskDrawdown": false,
+    "crit5_ShortPositive": false
+  },
+  "verdict": "REJECTED"
+}

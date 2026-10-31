@@ -511,31 +511,27 @@ export class MultiTimeframeStrategy implements Strategy {
     const highs = swings.highs;
     const lows = swings.lows;
 
-    let hLast: SwingPoint | undefined;
-    let hPrev: SwingPoint | undefined;
-    for (let idx = highs.length - 1; idx >= 0; idx--) {
-      if (highs[idx].confirmedIndex <= currentIndex) {
-        if (!hLast) {
-          hLast = highs[idx];
-        } else if (!hPrev) {
-          hPrev = highs[idx];
-          break;
+    const findLastTwo = (arr: readonly SwingPoint[]): [SwingPoint | undefined, SwingPoint | undefined] => {
+      let low = 0;
+      let high = arr.length - 1;
+      let found = -1;
+      while (low <= high) {
+        const mid = (low + high) >>> 1;
+        if (arr[mid].confirmedIndex <= currentIndex) {
+          found = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
         }
       }
-    }
+      if (found < 1) {
+        return [found === 0 ? arr[0] : undefined, undefined];
+      }
+      return [arr[found], arr[found - 1]];
+    };
 
-    let lLast: SwingPoint | undefined;
-    let lPrev: SwingPoint | undefined;
-    for (let idx = lows.length - 1; idx >= 0; idx--) {
-      if (lows[idx].confirmedIndex <= currentIndex) {
-        if (!lLast) {
-          lLast = lows[idx];
-        } else if (!lPrev) {
-          lPrev = lows[idx];
-          break;
-        }
-      }
-    }
+    const [hLast, hPrev] = findLastTwo(highs);
+    const [lLast, lPrev] = findLastTwo(lows);
 
     // اگر کمتر از دو pivot داریم، سیگنال نده
     if (!hLast || !hPrev || !lLast || !lPrev) {
