@@ -122,5 +122,52 @@ describe('PaperReporter (PT3)', () => {
     expect(btc1hReplay?.zeroDeviation).toBe(true);
     expect(btc1hReplay?.pnlDifference).toBe(0);
   });
+
+  it('enforces PU4 disambiguation, sample size guards (n < 30), and explicit aggregate DD label', async () => {
+    const raw1h: Candle[] = JSON.parse(
+      await fs.readFile(path.resolve(process.cwd(), 'data/BTCUSDT_1h.json'), 'utf-8')
+    );
+    const slice = raw1h.slice(10000, 10200);
+
+    const runner = new PaperRunner({ dataDir: tempDir, initialBalance: 10000 });
+    const forwardEpoch = slice[100].timestamp;
+    await runner.initForwardStart(forwardEpoch);
+
+    // Process only a small slice producing < 30 trades
+    await runner.processCandles({
+      book: 'A',
+      symbol: 'BTCUSDT',
+      interval: '1h',
+      candles: slice,
+      forwardStartTimestamp: forwardEpoch,
+    });
+    await runner.processCandles({
+      book: 'B',
+      symbol: 'BTCUSDT',
+      interval: '1h',
+      candles: slice,
+      forwardStartTimestamp: forwardEpoch,
+    });
+
+    const reporter = new PaperReporter({ dataDir: tempDir });
+    const { markdown } = await reporter.generateMarkdownReport({
+      outputDir,
+      candlesMap: { 'BTCUSDT_1h': slice },
+    });
+
+    // 1. Verify Forward Clock header
+    expect(markdown).toContain('مبدأ ساعت روبه‌جلو (Forward Clock)');
+
+    // 2. Verify sample size guard label for underpowered metrics
+    expect(markdown).toContain('N/A (نمونه ناکافی: n=');
+
+    // 3. Verify warm-up replay separate section
+    expect(markdown).toContain('### ۱.۲. گزارش بازپخش وارم‌آپ (Warm-up Replay - قبل از مبدأ)');
+
+    // 4. Verify explicit aggregate DD label
+    expect(markdown).toContain('DD تجمیعی نسبت به جمع سرمایه، نه DD حساب واحد');
+    expect(markdown).toContain('تجمیع ۴ حساب مستقل دفتر A');
+    expect(markdown).toContain('تجمیع ۴ حساب مستقل دفتر B');
+  });
 });
 

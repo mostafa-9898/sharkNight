@@ -10,6 +10,7 @@ import {
   type PaperMarketState,
   BOOK_A_SPEC,
   BOOK_B_SPEC,
+  StartGateStrategyWrapper,
 } from './runner';
 import { PaperDataFeed } from './feed';
 import { BacktestEngine } from '../backtest/engine';
@@ -33,6 +34,8 @@ export interface BookAggregateMetrics {
   maxDrawdownPercent: number;
   retDdRatio: number;
   totalTrades: number;
+  forwardTradesCount: number;
+  warmupTradesCount: number;
   winningTrades: number;
   losingTrades: number;
   winRate: number;
@@ -46,6 +49,7 @@ export interface BookAggregateMetrics {
   openPositionsCount: number;
   allClosedTrades: Trade[];
   allOpenPositions: ActivePosition[];
+  forwardStartTimestamp?: number;
 }
 
 export interface ReplayComparisonResult {
@@ -73,6 +77,7 @@ export class PaperReporter {
 
   /**
    * Aggregates all markets for a given book.
+   * Disambiguates forward testing trades from warm-up replay.
    */
   async aggregateBook(book: PaperBook): Promise<{
     summary: BookAggregateMetrics;
@@ -87,6 +92,9 @@ export class PaperReporter {
     let currentEquityTotal = 0;
     let isHalted = await this.runner.isBookHalted(book);
     let haltReason: string | null = null;
+
+    const clock = await this.runner.getForwardClock();
+    const forwardEpoch = clock?.forwardStartTimestamp ?? 0;
 
     for (const m of PAPER_MARKETS) {
       const key = `${m.symbol}_${m.interval}`;
@@ -113,17 +121,23 @@ export class PaperReporter {
     // Sort trades chronologically
     allClosedTrades.sort((a, b) => (a.exitTime ?? 0) - (b.exitTime ?? 0));
 
+    // Segregate forward trades vs warm-up trades
+    const forwardClosedTrades = allClosedTrades.filter((t) =>
+      forwardEpoch > 0 ? (t.entryTime ?? 0) >= forwardEpoch : true
+    );
+    const warmupTradesCount = allClosedTrades.length - forwardClosedTrades.length;
+
     // Construct unified equity curve across closed trades
     let runningBalance = initialBalanceTotal;
     const equityCurve: number[] = [initialBalanceTotal];
-    for (const t of allClosedTrades) {
+    for (const t of forwardClosedTrades) {
       runningBalance += t.pnl;
       equityCurve.push(runningBalance);
     }
     // Final point includes open positions unrealized equity
     equityCurve.push(currentEquityTotal);
 
-    const metrics = calculateMetrics(allClosedTrades, initialBalanceTotal, equityCurve);
+    const metrics = calculateMetrics(forwardClosedTrades, initialBalanceTotal, equityCurve);
 
     const totalPnl = currentEquityTotal - initialBalanceTotal;
     const totalReturnPercent =
@@ -146,7 +160,9 @@ export class PaperReporter {
       totalReturnPercent,
       maxDrawdownPercent,
       retDdRatio,
-      totalTrades: metrics.totalTrades,
+      totalTrades: forwardClosedTrades.length,
+      forwardTradesCount: forwardClosedTrades.length,
+      warmupTradesCount,
       winningTrades: metrics.winningTrades,
       losingTrades: metrics.losingTrades,
       winRate: roundTo(metrics.winRate * 100, 2),
@@ -158,15 +174,17 @@ export class PaperReporter {
       isHalted,
       haltReason,
       openPositionsCount: allOpenPositions.length,
-      allClosedTrades,
+      allClosedTrades: forwardClosedTrades,
       allOpenPositions,
+      forwardStartTimestamp: forwardEpoch > 0 ? forwardEpoch : undefined,
     };
 
     return { summary, marketStates };
   }
 
   /**
-   * Replays BacktestEngine on the exact same stored candles to verify zero execution deviation.
+   * Replays BacktestEngine on the exact same stored candles to verify zero execution deviation
+   * on the forward window.
    */
   async verifyReplayDeviation(
     book: PaperBook,
@@ -175,6 +193,8 @@ export class PaperReporter {
     const results: ReplayComparisonResult[] = [];
     const spec = book === 'A' ? BOOK_A_SPEC : BOOK_B_SPEC;
     const engine = new BacktestEngine();
+
+    const clock = await this.runner.getForwardClock();
 
     for (const m of PAPER_MARKETS) {
       const key = `${m.symbol}_${m.interval}`;
@@ -200,16 +220,23 @@ export class PaperReporter {
         continue;
       }
 
-      // Replay backtest
+      // Replay backtest on forward window
       let htf4h = candlesMap ? candlesMap[`${m.symbol}_4h`] : undefined;
       if (!htf4h || htf4h.length === 0) {
         htf4h = await this.feed.loadLocalCandles(m.symbol, '4h' as CandleInterval);
       }
 
-      const strat = new MultiTimeframeStrategy({
+      const forwardEpoch = state.forwardStartTimestamp ?? clock?.forwardStartTimestamp ?? 0;
+
+      const rawStrat = new MultiTimeframeStrategy({
         ...spec.strategyConfig,
         htf4hCandles: htf4h && htf4h.length > 0 ? htf4h : undefined,
       });
+
+      const strat =
+        forwardEpoch > 0
+          ? new StartGateStrategyWrapper(rawStrat, forwardEpoch)
+          : rawStrat;
 
       const replayResult = engine.run({
         strategy: strat,
@@ -217,6 +244,8 @@ export class PaperReporter {
         initialBalance: state.initialBalance,
         closePositionsAtEnd: false,
         ...spec.backtestConfig,
+        entryFill: 'nextOpen',
+        entrySlippagePercent: 0.05,
       });
 
       const paperTradesCount = state.closedTrades.length;
@@ -245,6 +274,7 @@ export class PaperReporter {
 
   /**
    * Generates the comprehensive PAPER_LATEST.md markdown artifact.
+   * Fully satisfies PU4 disambiguation, sample size guards, and account breakdown.
    */
   async generateMarkdownReport(options?: {
     outputDir?: string;
@@ -264,6 +294,10 @@ export class PaperReporter {
       this.verifyReplayDeviation('B', options?.candlesMap),
     ]);
 
+    const forwardClock = await this.runner.getForwardClock();
+    const clockEpochIso = forwardClock?.iso ?? 'هنوز ثبت نشده (در اولین اجرای زنده ثبت می‌شود)';
+    const clockEpochTs = forwardClock?.forwardStartTimestamp ?? 0;
+
     const nowIso = new Date().toISOString();
 
     const lines: string[] = [];
@@ -273,15 +307,34 @@ export class PaperReporter {
     lines.push(`> **آخرین بروزرسانی**: ${nowIso}  `);
     lines.push('> **محیط**: معاملات کاغذی زنده (Paper Trading) فقط‌خواندنی (Read-Only)  ');
     lines.push('> **منبع داده**: کندل‌های بسته‌شده عمومی صرافی بایننس (بدون کلید خصوصی)  ');
-    lines.push('> **وضعیت پیش‌ثبت**: مطابق سند رسمی `docs/review/PREREGISTERED_PT.md`  ');
+    lines.push(`> **مبدأ ساعت روبه‌جلو (Forward Clock)**: ${clockEpochIso} (${clockEpochTs})  `);
+    lines.push('> **وضعیت پیش‌ثبت**: مطابق سند رسمی `docs/review/PREREGISTERED_PU.md` و `PREREGISTERED_PT.md`  ');
     lines.push('');
     lines.push('---');
     lines.push('');
 
+    // Helper for sample size guard (< 30 closed trades)
+    const formatGuardedStat = (
+      val: number | string,
+      count: number,
+      suffix: string = ''
+    ): string => {
+      if (count < 30) {
+        return `N/A (نمونه ناکافی: n=${count})`;
+      }
+      return `${val}${suffix}`;
+    };
+
+    const countA = bookA.summary.forwardTradesCount;
+    const countB = bookB.summary.forwardTradesCount;
+
     // Section 1: Side-by-Side Comparison
     lines.push('## ۱. مقایسه عملکرد کل دو دفتر (Book A vs Book B)');
     lines.push('');
-    lines.push('| شاخص آماری | دفتر A (F3 Long-Only) | دفتر B (C1L Conservative) | تفاوت / برتری |');
+    lines.push('### ۱.۱. عملکرد آزمون روبه‌جلو (Forward Performance)');
+    lines.push('> **ایزوله‌سازی روبه‌جلو**: منحصراً شامل سیگنال‌ها و معاملاتی است که پس از مبدأ ساعت روبه‌جلو صادر و با قیمت `nextOpen` اجرا شده‌اند. تا پیش از بسته شدن ۳۰ معامله در هر حساب، شاخص‌های نرخ برد، شارپ، فاکتور سود، امید ریاضی و CAGR با برچسب صریح نمونه ناکافی نمایش داده می‌شوند.');
+    lines.push('');
+    lines.push('| شاخص آماری | دفتر A (F3 Active) | دفتر B (C1L Conservative) | تفاوت / برتری |');
     lines.push('| :--- | :---: | :---: | :---: |');
     lines.push(`| **سرمایه اولیه فرضی** | \$${bookA.summary.initialBalance.toLocaleString()} | \$${bookB.summary.initialBalance.toLocaleString()} | - |`);
     lines.push(`| **موجودی نقد (Cash)** | \$${bookA.summary.currentCash.toLocaleString()} | \$${bookB.summary.currentCash.toLocaleString()} | ${roundTo(bookB.summary.currentCash - bookA.summary.currentCash, 2)} |`);
@@ -291,19 +344,24 @@ export class PaperReporter {
     lines.push(`| **بیشینه افت سرمایه (Max DD %)** | ${bookA.summary.maxDrawdownPercent}% | ${bookB.summary.maxDrawdownPercent}% | ${roundTo(bookB.summary.maxDrawdownPercent - bookA.summary.maxDrawdownPercent, 2)}% |`);
     lines.push(`| **نسبت Return / DD** | ${bookA.summary.retDdRatio} | ${bookB.summary.retDdRatio} | ${roundTo(bookB.summary.retDdRatio - bookA.summary.retDdRatio, 2)} |`);
     lines.push(`| **تعداد معاملات بسته‌شده** | ${bookA.summary.totalTrades} | ${bookB.summary.totalTrades} | ${bookB.summary.totalTrades - bookA.summary.totalTrades} |`);
-    lines.push(`| **نرخ برد (Win Rate %)** | ${bookA.summary.winRate}% | ${bookB.summary.winRate}% | ${roundTo(bookB.summary.winRate - bookA.summary.winRate, 2)}% |`);
-    lines.push(`| **فاکتور سود (Profit Factor)** | ${bookA.summary.profitFactor} | ${bookB.summary.profitFactor} | ${roundTo(bookB.summary.profitFactor - bookA.summary.profitFactor, 2)} |`);
-    lines.push(`| **امید ریاضی (Expectancy \$/tr)** | \$${bookA.summary.expectancy} | \$${bookB.summary.expectancy} | ${roundTo(bookB.summary.expectancy - bookA.summary.expectancy, 2)} |`);
-    lines.push(`| **نرخ شارپ روزانه (Sharpe)** | ${bookA.summary.sharpeRatio} | ${bookB.summary.sharpeRatio} | ${roundTo(bookB.summary.sharpeRatio - bookA.summary.sharpeRatio, 2)} |`);
-    lines.push(`| **نرخ رشد سالانه (CAGR %)** | ${bookA.summary.cagr}% | ${bookB.summary.cagr}% | ${roundTo(bookB.summary.cagr - bookA.summary.cagr, 2)}% |`);
+    lines.push(`| **نرخ برد (Win Rate %)** | ${formatGuardedStat(bookA.summary.winRate, countA, '%')} | ${formatGuardedStat(bookB.summary.winRate, countB, '%')} | ${countA >= 30 && countB >= 30 ? roundTo(bookB.summary.winRate - bookA.summary.winRate, 2) + '%' : '-'} |`);
+    lines.push(`| **فاکتور سود (Profit Factor)** | ${formatGuardedStat(bookA.summary.profitFactor, countA)} | ${formatGuardedStat(bookB.summary.profitFactor, countB)} | ${countA >= 30 && countB >= 30 ? roundTo(bookB.summary.profitFactor - bookA.summary.profitFactor, 2) : '-'} |`);
+    lines.push(`| **امید ریاضی (Expectancy \$/tr)** | ${countA < 30 ? `N/A (نمونه ناکافی: n=${countA})` : `\$${bookA.summary.expectancy}`} | ${countB < 30 ? `N/A (نمونه ناکافی: n=${countB})` : `\$${bookB.summary.expectancy}`} | ${countA >= 30 && countB >= 30 ? roundTo(bookB.summary.expectancy - bookA.summary.expectancy, 2) : '-'} |`);
+    lines.push(`| **نرخ شارپ روزانه (Sharpe)** | ${formatGuardedStat(bookA.summary.sharpeRatio, countA)} | ${formatGuardedStat(bookB.summary.sharpeRatio, countB)} | ${countA >= 30 && countB >= 30 ? roundTo(bookB.summary.sharpeRatio - bookA.summary.sharpeRatio, 2) : '-'} |`);
+    lines.push(`| **نرخ رشد سالانه (CAGR %)** | ${formatGuardedStat(bookA.summary.cagr, countA, '%')} | ${formatGuardedStat(bookB.summary.cagr, countB, '%')} | ${countA >= 30 && countB >= 30 ? roundTo(bookB.summary.cagr - bookA.summary.cagr, 2) + '%' : '-'} |`);
     lines.push(`| **پوزیشن‌های باز فعلی** | ${bookA.summary.openPositionsCount} | ${bookB.summary.openPositionsCount} | - |`);
     lines.push(`| **وضعیت توقف اضطراری (HALT)** | ${bookA.summary.isHalted ? '⚠️ متوقف' : '✅ عادی'} | ${bookB.summary.isHalted ? '⚠️ متوقف' : '✅ عادی'} | - |`);
+    lines.push('');
+    lines.push('### ۱.۲. گزارش بازپخش وارم‌آپ (Warm-up Replay - قبل از مبدأ)');
+    lines.push('> **برچسب صریح بدون آمار مقایسه**: کندل‌های قبل از ساعت روبه‌جلو صرفاً جهت گرم‌کردن و استقرار علّی محاسبات اندیکاتورها (حداقل ۱,۲۰۰ کندل LTF + HTF) بازپخش شده‌اند. ورود پوزیشن‌های جدید در بازه وارم‌آپ توسط `StartGate` مسدود گردیده تا پورتفولیو در لحظه تحویل به آزمون روبه‌جلو ۱۰۰٪ نقد و فاقد هرگونه پوزیشن باز باشد.');
     lines.push('');
     lines.push('---');
     lines.push('');
 
-    // Section 2: Per-Market Breakdown
+    // Section 2: Per-Market Breakdown (Individual Accounts + Aggregate Row)
     lines.push('## ۲. تفکیک عملکرد بازارهای ۴‌گانه');
+    lines.push('');
+    lines.push('> **توضیح معماری حساب‌ها**: سقف‌های `maxOpenPositions` و `maxTotalExposurePercent` به‌صورت مستقل **به‌ازای هر حساب (هر بازار/تایم‌فریم)** اعمال می‌شوند. سطر تجمیعی نشان‌دهنده عملکرد کل پورتفولیو نسبت به مجموع سرمایه ۴ حساب است.');
     lines.push('');
     lines.push('| بازار و تایم‌فریم | دفتر | بازدهی (%) | بیشینه افت (%) | Ret/DD | تعداد معامله | پوزیشن‌های باز | وضعیت |');
     lines.push('| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |');
@@ -330,6 +388,10 @@ export class PaperReporter {
       lines.push(`| **${m.symbol} ${m.interval}** | A | ${retA}% | ${ddA}% | ${retDdA} | ${trA} | ${opA} | ${hA} |`);
       lines.push(`| **${m.symbol} ${m.interval}** | B | ${retB}% | ${ddB}% | ${retDdB} | ${trB} | ${opB} | ${hB} |`);
     }
+
+    // Explicit aggregate rows with required label
+    lines.push(`| **تجمیع ۴ حساب مستقل دفتر A** | A | ${bookA.summary.totalReturnPercent}% | ${bookA.summary.maxDrawdownPercent}% | ${bookA.summary.retDdRatio} | ${bookA.summary.totalTrades} | ${bookA.summary.openPositionsCount} | DD تجمیعی نسبت به جمع سرمایه، نه DD حساب واحد |`);
+    lines.push(`| **تجمیع ۴ حساب مستقل دفتر B** | B | ${bookB.summary.totalReturnPercent}% | ${bookB.summary.maxDrawdownPercent}% | ${bookB.summary.retDdRatio} | ${bookB.summary.totalTrades} | ${bookB.summary.openPositionsCount} | DD تجمیعی نسبت به جمع سرمایه، نه DD حساب واحد |`);
 
     lines.push('');
     lines.push('---');
@@ -361,7 +423,7 @@ export class PaperReporter {
     lines.push('');
 
     // Section 4: Closed Trades Log
-    lines.push('## ۴. گزارش معاملات بسته‌شده (Closed Trades Log)');
+    lines.push('## ۴. گزارش معاملات بسته‌شده (Forward Closed Trades Log)');
     lines.push('');
     const allTrades = [
       ...bookA.summary.allClosedTrades.map((t) => ({ ...t, book: 'A' })),
@@ -369,7 +431,7 @@ export class PaperReporter {
     ].sort((a, b) => (b.exitTime ?? 0) - (a.exitTime ?? 0));
 
     if (allTrades.length === 0) {
-      lines.push('*تا کنون هیچ معامله‌ای بسته نشده است.*');
+      lines.push('*تا کنون هیچ معامله‌ای در دوره روبه‌جلو بسته نشده است.*');
     } else {
       lines.push('| دفتر | جهت | ورود | خروج | قیمت ورود | قیمت خروج | سود/زیان | کارمزد | دلیل خروج |');
       lines.push('| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |');
@@ -381,7 +443,7 @@ export class PaperReporter {
         );
       }
       if (allTrades.length > 50) {
-        lines.push(`\n*(نمایش ۵۰ معامله اخیر از مجموع ${allTrades.length} معامله)*`);
+        lines.push(`\n*(نمایش ۵۰ معامله اخیر از مجموع ${allTrades.length} معامله روبه‌جلو)*`);
       }
     }
 
@@ -423,8 +485,10 @@ export class PaperReporter {
     lines.push('---');
     lines.push('');
 
-    // Section 6: Daily Replay Comparison with Backtest (Zero Deviation Check)
+    // Section 6: Daily Replay Comparison with Backtest (Zero Deviation Check on Forward Window)
     lines.push('## ۶. بازپخش روزانه با موتور بک‌تست (بررسی انحراف صفر)');
+    lines.push('');
+    lines.push('> **راستی‌آزمایی انحراف صفر**: اجرای روزانه بازپخش بک‌تست با دقیقاً همان پارامترهای موتور (`entryFill: nextOpen`، اسلیپیج ۰.۰۵٪ و کارمزد ۰.۱٪) منحصراً روی پنجره روبه‌جلو جهت اطمینان از تطابق ۱۰۰٪ شبیه‌سازی زنده با موتور تحلیلی انجام می‌شود.');
     lines.push('');
     lines.push('| دفتر | نماد و تایم‌فریم | معاملات Paper | معاملات Replay | سود Paper | سود Replay | انحراف | وضعیت انطباق |');
     lines.push('| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |');
@@ -444,7 +508,7 @@ export class PaperReporter {
     // Section 7: Forward Testing Compliance Checklist
     lines.push('## ۷. وضعیت احراز شرایط پیش‌ثبت (Evaluation Criteria Compliance)');
     lines.push('');
-    lines.push('> **قانون غیرقابل‌تغییر**: بر اساس بخش ۵ سند `PREREGISTERED_PT.md`، هیچ تصمیمی در رابطه با پول واقعی یا استراتژی برتر تا پیش از احراز **هر دو شرط زیر** گرفته نخواهد شد:');
+    lines.push('> **قانون غیرقابل‌تغییر**: بر اساس بخش ۵ سند `PREREGISTERED_PT.md` و سند `PREREGISTERED_PU.md`، هیچ تصمیمی در رابطه با پول واقعی یا استراتژی برتر تا پیش از احراز **هر دو شرط زیر** گرفته نخواهد شد:');
     lines.push('');
     lines.push('| شرط الزامی پیش‌ثبت | آستانه الزامی | وضعیت دفتر A | وضعیت دفتر B | وضعیت نهایی |');
     lines.push('| :--- | :---: | :---: | :---: | :---: |');
@@ -452,7 +516,7 @@ export class PaperReporter {
       `| **مدت آزمون فوروارد** | $\\ge 90$ روز | در حال ثبت زنده | در حال ثبت زنده | ⏳ در حال انتظار |`
     );
     lines.push(
-      `| **تعداد معاملات بسته‌شده** | $\\ge 30$ معامله | ${bookA.summary.totalTrades} / 30 | ${bookB.summary.totalTrades} / 30 | ${bookA.summary.totalTrades >= 30 && bookB.summary.totalTrades >= 30 ? '✅ پاس‌شده' : '⏳ در حال تکمیل'} |`
+      `| **تعداد معاملات بسته‌شده** | $\\ge 30$ معامله روبه‌جلو | ${bookA.summary.forwardTradesCount} / 30 | ${bookB.summary.forwardTradesCount} / 30 | ${bookA.summary.forwardTradesCount >= 30 && bookB.summary.forwardTradesCount >= 30 ? '✅ پاس‌شده' : '⏳ در حال تکمیل'} |`
     );
     lines.push(
       `| **انطباق اجرای بازپخش** | انحراف $\\le 20\\%$ نسبی | ${replaysA.every((r) => r.zeroDeviation) ? '✅ انحراف صفر' : '❌ دارای انحراف'} | ${replaysB.every((r) => r.zeroDeviation) ? '✅ انحراف صفر' : '❌ دارای انحراف'} | ✅ تأیید اجرای بلادرنگ |`
