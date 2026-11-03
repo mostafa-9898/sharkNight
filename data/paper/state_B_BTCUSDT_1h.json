@@ -12,7 +12,7 @@
   "haltReason": null,
   "haltedAt": null,
   "forwardStartTimestamp": 1792238400000,
-  "lastProcessedTimestamp": 1793725200000,
+  "lastProcessedTimestamp": 1793743200000,
   "openPositions": [],
   "closedTrades": [
     {
@@ -154,8 +154,8 @@
     "maxDrawdownPercent": 0.23,
     "sharpeRatio": -4.78,
     "sortinoRatio": -4.64,
-    "calmarRatio": -8.44,
-    "cagr": -1.98,
+    "calmarRatio": -8.39,
+    "cagr": -1.97,
     "tradeReturnRatio": 0,
     "tradeSqnLike": 0,
     "profitFactor": 0,
@@ -165,11 +165,11 @@
     "maxConsecutiveWins": 0,
     "maxConsecutiveLosses": 2,
     "maxConsecutiveLossesDollars": 20.76,
-    "maxDrawdownDurationCandles": 308,
-    "maxDrawdownDurationDays": 12.83,
-    "maxDrawdownRecoveryCandles": 242,
-    "maxDrawdownRecoveryDays": 10.08,
-    "percentTimeInMarket": 8.21,
+    "maxDrawdownDurationCandles": 313,
+    "maxDrawdownDurationDays": 13.04,
+    "maxDrawdownRecoveryCandles": 247,
+    "maxDrawdownRecoveryDays": 10.29,
+    "percentTimeInMarket": 8.17,
     "avgExposurePercent": 0.26,
     "averageTradeReturn": -5.19,
     "bestTrade": -5.19,
@@ -260,5 +260,5 @@
       "executed": 0
     }
   },
-  "updatedAt": 1793725200000
+  "updatedAt": 1793743200000
 }
