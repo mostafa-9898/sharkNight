@@ -12,7 +12,7 @@
   "haltReason": null,
   "haltedAt": null,
   "forwardStartTimestamp": 1792238400000,
-  "lastProcessedTimestamp": 1795168800000,
+  "lastProcessedTimestamp": 1795201200000,
   "openPositions": [],
   "closedTrades": [
     {
@@ -154,8 +154,8 @@
     "maxDrawdownPercent": 0.23,
     "sharpeRatio": -3.95,
     "sortinoRatio": -3.87,
-    "calmarRatio": -5.88,
-    "cagr": -1.38,
+    "calmarRatio": -5.84,
+    "cagr": -1.37,
     "tradeReturnRatio": 0,
     "tradeSqnLike": 0,
     "profitFactor": 0,
@@ -165,11 +165,11 @@
     "maxConsecutiveWins": 0,
     "maxConsecutiveLosses": 2,
     "maxConsecutiveLossesDollars": 20.76,
-    "maxDrawdownDurationCandles": 709,
-    "maxDrawdownDurationDays": 29.54,
-    "maxDrawdownRecoveryCandles": 643,
-    "maxDrawdownRecoveryDays": 26.79,
-    "percentTimeInMarket": 5.71,
+    "maxDrawdownDurationCandles": 718,
+    "maxDrawdownDurationDays": 29.92,
+    "maxDrawdownRecoveryCandles": 652,
+    "maxDrawdownRecoveryDays": 27.17,
+    "percentTimeInMarket": 5.67,
     "avgExposurePercent": 0.18,
     "averageTradeReturn": -5.19,
     "bestTrade": -5.19,
@@ -241,24 +241,24 @@
         "stoch": 0,
         "fisher": 0
       },
-      "candidate": 20,
-      "passHtf": 20,
-      "passKijunSlope": 20,
-      "passStructure": 20,
-      "passOppositeBlock": 20,
-      "passFisherConfirm": 20,
-      "signalEmitted": 20,
-      "entryAttempted": 20,
+      "candidate": 21,
+      "passHtf": 21,
+      "passKijunSlope": 21,
+      "passStructure": 21,
+      "passOppositeBlock": 21,
+      "passFisherConfirm": 21,
+      "signalEmitted": 21,
+      "entryAttempted": 21,
       "rejected": {
         "max_positions": 0,
         "max_exposure": 0,
         "min_bars": 0,
-        "opposite_not_allowed": 20,
+        "opposite_not_allowed": 21,
         "other": 0
       },
-      "rejectedTotal": 20,
+      "rejectedTotal": 21,
       "executed": 0
     }
   },
-  "updatedAt": 1795168800000
+  "updatedAt": 1795201200000
 }
