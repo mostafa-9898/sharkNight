@@ -12,7 +12,7 @@
   "haltReason": null,
   "haltedAt": null,
   "forwardStartTimestamp": 1792238400000,
-  "lastProcessedTimestamp": 1795140000000,
+  "lastProcessedTimestamp": 1795168800000,
   "openPositions": [],
   "closedTrades": [],
   "metrics": {
@@ -38,10 +38,10 @@
     "maxConsecutiveWins": 0,
     "maxConsecutiveLosses": 0,
     "maxConsecutiveLossesDollars": 0,
-    "maxDrawdownDurationCandles": 1305,
-    "maxDrawdownDurationDays": 54.38,
-    "maxDrawdownRecoveryCandles": 1305,
-    "maxDrawdownRecoveryDays": 54.38,
+    "maxDrawdownDurationCandles": 1313,
+    "maxDrawdownDurationDays": 54.71,
+    "maxDrawdownRecoveryCandles": 1313,
+    "maxDrawdownRecoveryDays": 54.71,
     "percentTimeInMarket": 0,
     "avgExposurePercent": 0,
     "averageTradeReturn": 0,
@@ -114,24 +114,24 @@
         "stoch": 0,
         "fisher": 0
       },
-      "candidate": 19,
-      "passHtf": 19,
-      "passKijunSlope": 19,
-      "passStructure": 19,
-      "passOppositeBlock": 19,
-      "passFisherConfirm": 19,
-      "signalEmitted": 19,
-      "entryAttempted": 19,
+      "candidate": 20,
+      "passHtf": 20,
+      "passKijunSlope": 20,
+      "passStructure": 20,
+      "passOppositeBlock": 20,
+      "passFisherConfirm": 20,
+      "signalEmitted": 20,
+      "entryAttempted": 20,
       "rejected": {
         "max_positions": 0,
         "max_exposure": 0,
         "min_bars": 0,
-        "opposite_not_allowed": 19,
+        "opposite_not_allowed": 20,
         "other": 0
       },
-      "rejectedTotal": 19,
+      "rejectedTotal": 20,
       "executed": 0
     }
   },
-  "updatedAt": 1795140000000
+  "updatedAt": 1795168800000
 }
